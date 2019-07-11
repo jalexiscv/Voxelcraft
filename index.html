@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>VoxelCraft</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="stylesheet" href="./css/style.css"/>
+</head>
+<body>
+    <canvas id="game"></canvas>
+
+    <div id="version">VoxelCraft 0.5.0</div>
+    <div id="crosshair"></div>
+    <div id="hearts" class="hidden"></div>
+    <div id="hotbar"></div>
+    <div id="damage"></div>
+    <div id="debug" class="hidden"></div>
+
+    <!-- Selector de bloques (tecla B) -->
+    <div id="picker" class="overlay hidden">
+        <div class="panel">
+            <h2>Seleccionar bloque</h2>
+            <div id="picker-grid"></div>
+            <p class="hint">Clic: asignar a la ranura activa &middot; B/Esc: cerrar</p>
+        </div>
+    </div>
+
+    <!-- Barra de progreso de generación -->
+    <div id="progress" class="overlay hidden">
+        <div class="panel">
+            <h2 id="progress-label">Generando mundo…</h2>
+            <div class="bar"><div id="progress-fill"></div></div>
+        </div>
+    </div>
+
+    <!-- Menú principal / pausa -->
+    <div id="menu" class="overlay">
+        <div class="panel">
+            <h1>VoxelCraft</h1>
+            <p class="subtitle">Un juego propio de vóxeles de mundo infinito</p>
+            <div id="menu-main">
+                <button id="btn-resume" class="hidden">Volver al juego</button>
+                <button id="btn-new">Crear un mundo nuevo</button>
+                <button id="btn-load" disabled>Cargar partida</button>
+                <button id="btn-save" class="hidden">Guardar partida</button>
+                <button id="btn-help">Controles</button>
+            </div>
+            <div id="menu-new" class="hidden">
+                <h2>Crear un mundo nuevo</h2>
+                <label>Nombre del mundo <input id="inp-name" type="text" placeholder="Mi mundo" maxlength="32"/></label>
+                <label>Modo de juego
+                    <select id="inp-mode">
+                        <option value="supervivencia" selected>Supervivencia — salud, daño y sin vuelo</option>
+                        <option value="creativo">Creativo — vuelo libre, sin daño, los hostiles te ignoran</option>
+                    </select>
+                </label>
+                <label>Dificultad
+                    <select id="inp-diff">
+                        <option value="normal" selected>Normal — hostiles de noche y en cuevas</option>
+                        <option value="pacifica">Pacífica — no aparecen mobs hostiles</option>
+                    </select>
+                </label>
+                <label>Semilla <input id="inp-seed" type="text" placeholder="aleatoria"/></label>
+                <label>Distancia de render
+                    <select id="inp-dist">
+                        <option value="4">Corta (4 chunks)</option>
+                        <option value="6" selected>Normal (6 chunks)</option>
+                        <option value="8">Larga (8 chunks)</option>
+                    </select>
+                </label>
+                <p class="hint">El mundo es infinito: se genera a medida que exploras.</p>
+                <button id="btn-generate">Crear mundo nuevo</button>
+                <button class="btn-back">Volver</button>
+            </div>
+            <div id="menu-help" class="hidden">
+                <table id="help-table">
+                    <tr><td>W A S D</td><td>Moverse</td></tr>
+                    <tr><td>Ratón</td><td>Mirar (clic para capturar)</td></tr>
+                    <tr><td>Espacio</td><td>Saltar / nadar / volar&uarr;</td></tr>
+                    <tr><td>C</td><td>Descender (volando)</td></tr>
+                    <tr><td>Shift</td><td>Correr</td></tr>
+                    <tr><td>F</td><td>Alternar vuelo (solo modo Creativo)</td></tr>
+                    <tr><td>Clic izq / der</td><td>Romper / colocar bloque</td></tr>
+                    <tr><td>Clic izq</td><td>Atacar a un mob</td></tr>
+                    <tr><td>Clic central</td><td>Copiar bloque apuntado</td></tr>
+                    <tr><td>1–9 / rueda</td><td>Ranura de la hotbar</td></tr>
+                    <tr><td>B</td><td>Selector de bloques</td></tr>
+                    <tr><td>M</td><td>Música sí/no</td></tr>
+                    <tr><td>F3</td><td>Depuración</td></tr>
+                    <tr><td>R</td><td>Reaparecer</td></tr>
+                    <tr><td>Esc</td><td>Menú</td></tr>
+                </table>
+                <button class="btn-back">Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla de muerte -->
+    <div id="death" class="overlay hidden">
+        <div class="panel">
+            <h1>Has muerto</h1>
+            <p class="subtitle">El mundo es peligroso de noche…</p>
+            <button id="btn-respawn">Reaparecer</button>
+        </div>
+    </div>
+
+    <div id="unsupported" class="overlay hidden">
+        <div class="panel">
+            <h2>Navegador no compatible</h2>
+            <p>VoxelCraft necesita WebGL 2. Actualiza tu navegador.</p>
+        </div>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>
