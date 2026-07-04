@@ -65,6 +65,7 @@ export class Mob {
         this.angerT = 0;              // >0: neutral enfadado (actúa de hostil)
         this.hopT = 0;                // temporizador del siguiente brinco
         this.targetY = y;             // altitud/profundidad objetivo (volador/acuático)
+        this.variant = 0;             // tonalidad de piel (defs con variants)
     }
 
     dying() { return this.dieT >= 0; }
@@ -562,7 +563,14 @@ export class MobSystem {
                 const gx = x + this.rng.int(5) - 2, gz = z + this.rng.int(5) - 2;
                 const gs = this.findSpot(habitat, gx, gz);
                 if (!gs || !this.eligibleAt(def, habitat, gs, ctx.day, this.biomeAt(gx, gz))) continue;
-                this.mobs.push(new Mob(def, gx + 0.5, gs.y + 0.01, gz + 0.5, this.rng.float() * Math.PI * 2));
+                const m = new Mob(def, gx + 0.5, gs.y + 0.01, gz + 0.5, this.rng.float() * Math.PI * 2);
+                // tonalidad del individuo: fija en los biomas que la definen
+                // (conejo blanco en la nieve, dorado en el desierto) o al azar
+                if (def.variants > 1) {
+                    const fija = def.variantBiome && def.variantBiome[bioma.id];
+                    m.variant = fija !== undefined ? fija : this.rng.int(def.variants);
+                }
+                this.mobs.push(m);
             }
             return; // una tanda por intervalo
         }

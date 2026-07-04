@@ -9,7 +9,7 @@ Desde la v0.4.0 VoxelCraft recrea el **elenco oficial de mobs de Minecraft** (Ja
 Agrupado por las **categorías oficiales de Minecraft** (pasivos, neutrales y hostiles, como en minecraft.wiki); los rasgos de locomoción (volador, acuático) se indican por mob.
 
 **Pasivos (32)** — nunca atacan. Los terrestres aparecen de día (los nocturnos, marcados); los acuáticos, dentro del agua (aletean si quedan varados):
-cerdo · oveja · vaca · gallina (planea al caer) · armadillo (se hace bola al ser golpeado) · camello · camello husk (arena, nocturno) · gato · ocelote y zorro (asustadizos: huyen si te acercas) · caballo · burro · mooshroom · conejo (a saltos) · sniffer · golem de cobre · golem de nieve · tortuga (arena) · aldeano · comerciante errante · rana (a saltos) · cubo de azufre (cuevas, brilla) · allay (volador, brilla) · murciélago (volador, cuevas) · loro (volador) · happy ghast (volador, a escala reducida) · bacalao · salmón · pez tropical · calamar · calamar brillante (brilla) · ajolote.
+cerdo · oveja · vaca · gallina (planea al caer) · armadillo (se hace bola al ser golpeado) · camello · camello husk (arena, nocturno) · gato · ocelote y zorro (asustadizos: huyen si te acercas) · caballo · burro · mooshroom · conejo (a saltos; 6 tonalidades, blanca en la nieve y dorada en el desierto) · sniffer · golem de cobre · golem de nieve · tortuga (arena) · aldeano · comerciante errante · rana (a saltos) · cubo de azufre (cuevas, brilla) · allay (volador, brilla) · murciélago (volador, cuevas) · loro (volador) · happy ghast (volador, a escala reducida) · bacalao · salmón · pez tropical · calamar · calamar brillante (brilla) · ajolote.
 
 **Neutrales (11)** — pacíficos hasta que los hieres (20 s de enfado):
 lobo · cabra (embiste) · panda · oso polar · golem de hierro · llama (escupe a distancia) · enderman (nocturno; se teletransporta al ser herido) · abeja (voladora; pica una vez y se calma) · pez globo · delfín · nautilus (los tres últimos, acuáticos).
@@ -49,6 +49,7 @@ Integración: `main.js` crea un `MobSystem` por mundo y le inyecta *hooks* (soni
 Cada mob es un archivo de **solo datos** (importable en Node) con: `aabb`, `hp`, `speed`, `skin` (64×64; grandes 128×64/128×128), `paint(skin)` determinista, `parts` (cajas con `size/pivot/origin/uv/rot/anim`), `voice` (tonos con curva o ruido para decir/herir/morir) y:
 
 *   **Locomoción y rasgos**: `flying`, `aquatic`, `hop` (a saltos), `glide`, `timid`, `hideOnHurt`, `noBurn`, `glow`.
+*   **Tonalidades**: `variants` (2..8 pieles; `paint(skin, v)` pinta cada variante con la misma semilla por variante) y `variantBiome` opcional (`{ <bioma>: <variante> }`: tonalidad fija en ese bioma; en el resto se sortea al aparecer). El conejo es el ejemplo canónico.
 *   **behavior** (obligatorio en hostiles, opcional en neutrales): `neutral`, `aggro`, `attackRange`, `damage`, `cooldown`, `projectile`, `fuse`+`radius` (creeper), `lunge`, `teleport` (enderman), `freezeWhenSeen` (creaking), `stingOnce` (abeja).
 *   **spawn**: `cap`, `group`, `block` (`GRASS`|`SAND`|`ANY`), `night`, `water`, `cave`.
 
@@ -68,7 +69,7 @@ Sin sistema de objetos, domesticación, monturas, crías ni comercio, algunos mo
 
 ## Verificación
 
-*   `node test/mobs.mjs` — **121 comprobaciones** (geometría y UV, física por modos con mundos simulados, IA pasiva/neutral/hostil, mecha y explosión, flechas con daño por tirador que quedan clavadas al fallar, teletransporte, congelación al mirar, aparición por hábitats y biomas, y contrato de las 68 definiciones). Todas en verde el 2026-07-04.
+*   `node test/mobs.mjs` — **122 comprobaciones** (geometría y UV, física por modos con mundos simulados, IA pasiva/neutral/hostil, mecha y explosión, flechas con daño por tirador que quedan clavadas al fallar, teletransporte, congelación al mirar, aparición por hábitats y biomas, y contrato de las 68 definiciones). Todas en verde el 2026-07-04.
 *   `node test/validate-mob.mjs <id>` — validador por definición (campos, UV sin solapes ni texels invisibles, pintado determinista, pies al suelo, orientación de partes frontales).
 *   `node test/smoke.mjs` — la suite del motor sigue en verde (74 OK).
 *   Los 68 mobs fueron construidos por **agentes en paralelo** contra el contrato validable y revisados de forma adversaria por agentes independientes (por mob en la primera hornada, por lotes de 5 en la segunda).

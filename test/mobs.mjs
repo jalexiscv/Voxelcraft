@@ -12,6 +12,7 @@ import { MobSystem, Mob } from '../js/mobs.js';
 import { mat4RotateZ } from '../js/math.js';
 import { validate } from './validate-mob.mjs';
 import cerdo from '../js/mobs/cerdo.js';
+import conejo from '../js/mobs/conejo.js';
 
 let ok = 0, fail = 0;
 const check = (name, cond) => {
@@ -249,6 +250,12 @@ console.log('== Puntería y aparición ==');
     simulate(pacifica, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 0.22, peaceful: true });
     check('en dificultad pacífica no aparecen hostiles',
         pacifica.mobs.every((m) => !m.def.hostile));
+
+    // las tonalidades (variants) se asignan al aparecer
+    const tonos = new MobSystem({ conejo }, world, silentHooks(), 3);
+    simulate(tonos, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
+    check('los conejos aparecen con tonalidad válida (variants)',
+        tonos.count() > 0 && tonos.mobs.every((m) => m.variant >= 0 && m.variant < conejo.variants));
 }
 
 /* ==== Comportamientos ampliados ==== */

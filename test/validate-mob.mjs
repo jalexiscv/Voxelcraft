@@ -105,25 +105,40 @@ export function validate(def, expectedId) {
         err(`spawn.block "${def.spawn.block}" desconocido (GRASS|SAND|ANY)`);
     }
 
-    /* ---- Pintado: determinismo y cobertura ---- */
-    if (!errors.length) {
-        const seed = toSeed(def.id);
-        const a = new Skin(def.skin.w, def.skin.h, seed);
-        const b = new Skin(def.skin.w, def.skin.h, seed);
-        def.paint(a);
-        def.paint(b);
-        if (Buffer.compare(Buffer.from(a.data.buffer), Buffer.from(b.data.buffer)) !== 0) {
-            err('paint() no es determinista (¿usa Math.random en vez de skin.rng?)');
-        }
-        let missing = 0;
-        for (const { r } of rects) {
-            for (let y = r.y; y < r.y + r.h; y++) {
-                for (let x = r.x; x < r.x + r.w; x++) {
-                    if (a.data[(y * def.skin.w + x) * 4 + 3] === 0) missing++;
-                }
+    /* ---- Variantes (tonalidades por individuo) ---- */
+    if (def.variants !== undefined && (!Number.isInteger(def.variants) || def.variants < 2 || def.variants > 8)) {
+        err('variants debe ser un entero 2..8');
+    }
+    if (def.variantBiome) {
+        for (const [bioma, v] of Object.entries(def.variantBiome)) {
+            if (!Number.isInteger(v) || v < 0 || v >= (def.variants || 1)) {
+                err(`variantBiome.${bioma}: variante ${v} fuera de rango (0..${(def.variants || 1) - 1})`);
             }
         }
-        if (missing > 0) err(`${missing} texels referenciados por UV quedaron sin pintar`);
+    }
+
+    /* ---- Pintado: determinismo y cobertura (por cada variante) ---- */
+    if (!errors.length) {
+        for (let v = 0; v < (def.variants || 1); v++) {
+            const seed = toSeed(def.id) + v * 131; // misma semilla que mobrender
+            const a = new Skin(def.skin.w, def.skin.h, seed);
+            const b = new Skin(def.skin.w, def.skin.h, seed);
+            def.paint(a, v);
+            def.paint(b, v);
+            if (Buffer.compare(Buffer.from(a.data.buffer), Buffer.from(b.data.buffer)) !== 0) {
+                err(`paint(v=${v}) no es determinista (¿usa Math.random en vez de skin.rng?)`);
+                break;
+            }
+            let missing = 0;
+            for (const { r } of rects) {
+                for (let y = r.y; y < r.y + r.h; y++) {
+                    for (let x = r.x; x < r.x + r.w; x++) {
+                        if (a.data[(y * def.skin.w + x) * 4 + 3] === 0) missing++;
+                    }
+                }
+            }
+            if (missing > 0) { err(`variante ${v}: ${missing} texels referenciados por UV sin pintar`); break; }
+        }
     }
 
     return { errors, warnings };

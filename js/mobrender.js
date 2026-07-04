@@ -87,22 +87,30 @@ export class MobRenderer {
         this.mPart = new Float32Array(16);
     }
 
-    /** Geometría + piel de un tipo, construidas una sola vez. */
+    /**
+     * Geometría + pieles de un tipo, construidas una sola vez. Un def con
+     * `variants: N` pinta N texturas (tonalidades): paint(skin, v) recibe la
+     * variante y cada mob usa la suya (m.variant, asignada al aparecer).
+     */
     buildType(def) {
         const gl = this.gl;
-        const skin = new Skin(def.skin.w, def.skin.h, toSeed(def.id));
-        def.paint(skin);
-        const tex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, def.skin.w, def.skin.h, 0,
-            gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(skin.data.buffer));
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        const texs = [];
+        for (let v = 0; v < (def.variants || 1); v++) {
+            const skin = new Skin(def.skin.w, def.skin.h, toSeed(def.id) + v * 131);
+            def.paint(skin, v);
+            const tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, def.skin.w, def.skin.h, 0,
+                gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(skin.data.buffer));
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            texs.push(tex);
+        }
 
         const parts = buildModel(def).map((p) => ({ ...this.r.makeVAO(p.mesh), ...p }));
-        this.types.set(def.id, { parts, tex });
+        this.types.set(def.id, { parts, texs });
     }
 
     /**
@@ -146,7 +154,7 @@ export class MobRenderer {
                 mat4Multiply(this.mBase, this.mBase, this.mC);
             }
 
-            gl.bindTexture(gl.TEXTURE_2D, type.tex);
+            gl.bindTexture(gl.TEXTURE_2D, type.texs[(m.variant || 0) % type.texs.length]);
             const swing = Math.sin(m.animPhase) * Math.min(m.animSpeed * 0.6, 1);
             const flap = m.onGround || m.inWater ? 0.12 : Math.sin(time * 26) * 0.9;
 
@@ -160,7 +168,7 @@ export class MobRenderer {
 
         // flechas en vuelo, orientadas por su velocidad
         const arrow = this.types.get('flecha');
-        gl.bindTexture(gl.TEXTURE_2D, arrow.tex);
+        gl.bindTexture(gl.TEXTURE_2D, arrow.texs[0]);
         gl.uniform1f(this.u.uBright, 1);
         gl.uniform4f(this.u.uTint, 0, 0, 0, 0);
         for (const a of arrows) {
