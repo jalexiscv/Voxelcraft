@@ -416,6 +416,10 @@ function boot() {
     });
 
     document.addEventListener('pointerlockchange', () => {
+        // al soltar el puntero, ningún botón/tecla puede quedar «retenido»:
+        // el mouseup caerá en el overlay y la acción se repetiría sola al
+        // volver (p. ej. reabrir la mesa de crafteo tras cerrarla)
+        if (!locked()) { game.buttons.clear(); keys.clear(); }
         if (!locked() && game.state === 'playing' && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) {
             showMenu(true);
             showSection('main');

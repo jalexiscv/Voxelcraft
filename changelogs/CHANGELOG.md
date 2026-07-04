@@ -96,3 +96,4 @@
 | 92 | 2026-07-04 | [Corrección de aparición: conejo y armadillo sobre el suelo natural de su bioma](2026-07-04_conejo_aparicion_biomas.md) |
 | 93 | 2026-07-04 | [Corrección de render: chunks invisibles al volver a zonas visitadas (mallas perdidas)](2026-07-04_mallas_perdidas.md) |
 | 94 | 2026-07-04 | [Corrección de la hotbar del crafteo: intercambio real y sin ranuras clonadas](2026-07-04_hotbar_intercambio.md) |
+| 95 | 2026-07-04 | [Corrección de entrada: botones retenidos que reabrían la mesa o disparaban acciones fantasma](2026-07-04_boton_retenido.md) |
