@@ -54,23 +54,12 @@ celda, y el producto aparece en la ranura de resultado.
   sin forma, autocolocado, límite 2×2) y recuento de bloques 62 → 63.
   Suite: 66 → 74.
 
-## Ajuste de la misma sesión: disposición clásica del panel
+## Ajustes posteriores de la misma sesión
 
-Tras la primera versión, la pantalla se reorganizó a la disposición clásica
-del género: etiqueta «Fabricación» sobre la cuadrícula con el **botón del
-recetario** al costado (panel lateral conmutable), flecha y ranura de
-resultado; «Inventario» como **rejilla fija de ranuras** (las vacías,
-visibles; 3+ filas de 9) con la hotbar separada debajo; **tooltip flotante**
-con el nombre del item bajo el puntero; y estética de banco de trabajo con
-paleta propia (panel claro, ranuras hundidas con bisel, cantidades dentro de
-la ranura). Todo con estilos y arte procedural del proyecto. Corrección
-posterior: la sombra de texto global del tema oscuro se anula dentro del
-panel claro (producía un doble contorno «desfasado» en las etiquetas), el
-icono queda siempre centrado en su casilla (la cantidad pasa a ser un
-número pequeño arriba a la derecha) y las existencias se muestran como
-pilas clásicas de hasta 64 unidades por casilla. El menú contextual del
-navegador queda bloqueado en todo el documento (salvo campos de texto):
-aparecía sobre las pantallas del juego y rompía la experiencia.
+La pantalla recibió después un pulido guiado por capturas del usuario
+(disposición clásica del panel, textos, casillas con pilas de 64 y bloqueo
+del menú contextual del navegador): ver el detalle en
+[2026-07-04_pulido_crafteo.md](2026-07-04_pulido_crafteo.md) (entrada 89).
 
 ## Impacto
 
