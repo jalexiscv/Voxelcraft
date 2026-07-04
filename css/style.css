@@ -137,6 +137,9 @@ input[type=text], select {
     box-shadow: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #555555;
     padding: 12px 14px; text-align: left;
 }
+/* la sombra de texto global es del tema oscuro: sobre el panel claro
+   produce un doble contorno; aquí el texto va limpio (salvo cantidades) */
+.craft-panel, .craft-panel * { text-shadow: none; }
 .craft-etiqueta { margin: 6px 0 4px; font-size: 14px; color: #3f3f3f; font-weight: bold; }
 .craft-linea { display: flex; align-items: center; gap: 12px; padding: 6px 0 10px; }
 .craft-flecha { font-size: 28px; color: #8b8b8b; }

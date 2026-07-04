@@ -63,7 +63,9 @@ resultado; «Inventario» como **rejilla fija de ranuras** (las vacías,
 visibles; 3+ filas de 9) con la hotbar separada debajo; **tooltip flotante**
 con el nombre del item bajo el puntero; y estética de banco de trabajo con
 paleta propia (panel claro, ranuras hundidas con bisel, cantidades dentro de
-la ranura). Todo con estilos y arte procedural del proyecto.
+la ranura). Todo con estilos y arte procedural del proyecto. Corrección
+posterior: la sombra de texto global del tema oscuro se anula dentro del
+panel claro (producía un doble contorno «desfasado» en las etiquetas).
 
 ## Impacto
 
