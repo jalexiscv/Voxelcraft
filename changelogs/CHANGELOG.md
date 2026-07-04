@@ -91,3 +91,4 @@
 | 87 | 2026-07-04 | [Dureza de bloques por golpes, drops flotantes en 3D y mesa de crafteo con herramientas](2026-07-04_dureza_drops_crafteo.md) |
 | 88 | 2026-07-04 | [Crafteo clásico por cuadrícula: inventario 2×2, mesa colocable 3×3 y recetas con forma](2026-07-04_crafteo_cuadricula.md) |
 | 89 | 2026-07-04 | [Pulido del crafteo: disposición clásica, casillas con pilas de 64 y bloqueo del menú contextual](2026-07-04_pulido_crafteo.md) |
+| 90 | 2026-07-04 | [Configuración del repositorio, herramienta de curación del historial y análisis del proyecto](2026-07-04_configuracion_repo.md) |
