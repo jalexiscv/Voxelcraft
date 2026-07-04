@@ -39,7 +39,9 @@ export default {
     fleeSpeed: 3.2,
     hop: true,
     timid: true,
-    spawn: { cap: 3, group: 2, block: 'GRASS' },
+    // sin block explícito: aparece sobre el suelo natural de cada bioma
+    // (hierba, arena del desierto/playa, hierba nevada de la tundra)
+    spawn: { cap: 3, group: 2 },
 
     /** Seis tonalidades; en nieve sale blanco (1) y en desierto dorado (4). */
     variants: 6,

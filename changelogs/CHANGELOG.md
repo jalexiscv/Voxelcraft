@@ -93,3 +93,4 @@
 | 89 | 2026-07-04 | [Pulido del crafteo: disposición clásica, casillas con pilas de 64 y bloqueo del menú contextual](2026-07-04_pulido_crafteo.md) |
 | 90 | 2026-07-04 | [Configuración del repositorio, herramienta de curación del historial y análisis del proyecto](2026-07-04_configuracion_repo.md) |
 | 91 | 2026-07-04 | [Rediseño estructural del conejo y tonalidades de piel por individuo con sesgo por bioma](2026-07-04_conejo_tonalidades.md) |
+| 92 | 2026-07-04 | [Corrección de aparición: conejo y armadillo sobre el suelo natural de su bioma](2026-07-04_conejo_aparicion_biomas.md) |

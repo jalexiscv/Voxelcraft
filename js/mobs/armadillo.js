@@ -28,7 +28,8 @@ export default {
     hp: 8,
     speed: 0.9,
     hideOnHurt: true,
-    spawn: { cap: 3, group: 2, block: 'SAND' },
+    // sin block explícito: arena en el desierto y hierba en la sabana
+    spawn: { cap: 3, group: 2 },
 
     skin: { w: 64, h: 64 },
 
