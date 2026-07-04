@@ -195,9 +195,27 @@ export class HUD {
 
     /** Asigna un bloque a la ranura activa (selector o clic central). */
     assign(blockId) {
-        this.slots[this.active] = blockId;
-        this.drawIcon(this.slotCanvases[this.active], blockId);
+        this.assignSlot(this.active, blockId);
+    }
+
+    /**
+     * Asigna un material a la ranura `i` manteniendo ÚNICOS los punteros de
+     * la hotbar: si otra ranura ya tenía ese material, ambas INTERCAMBIAN
+     * lugar (la otra recibe el material desplazado) — nunca aparecen dos
+     * ranuras con el mismo material. Devuelve el material desplazado.
+     */
+    assignSlot(i, id) {
+        const previo = this.slots[i];
+        if (previo === id) return previo;
+        const j = this.slots.indexOf(id);
+        this.slots[i] = id;
+        this.drawIcon(this.slotCanvases[i], id);
+        if (j !== -1) {
+            this.slots[j] = previo;
+            this.drawIcon(this.slotCanvases[j], previo);
+        }
         this.refreshCounts();
+        return previo;
     }
 
     /* ---- Selector de bloques ---- */
@@ -373,7 +391,8 @@ export class HUD {
             stock.appendChild(cell);
         }
 
-        // hotbar: con material en mano lo asigna a la ranura; sin él, la activa
+        // hotbar: con material en mano INTERCAMBIA con la ranura (y si otra
+        // ranura ya lo tenía, esas dos intercambian lugar); sin mano, activa
         const barra = this.els.craftHotbar;
         barra.innerHTML = '';
         this.slots.forEach((slotId, i) => {
@@ -381,12 +400,15 @@ export class HUD {
             if (i === this.active) cell.classList.add('activo');
             cell.addEventListener('click', () => {
                 if (st.mano) {
-                    this.slots[i] = st.mano;
-                    this.drawIcon(this.slotCanvases[i], st.mano);
+                    const yaEnBarra = this.slots.indexOf(st.mano) !== -1;
+                    const previo = this.assignSlot(i, st.mano);
+                    // intercambio clásico: la mano recibe lo desplazado (si
+                    // tienes existencias); si el material ya estaba en la
+                    // barra, las ranuras intercambiaron y la mano se vacía
+                    this.setMano(!yaEnBarra && previo !== st.mano && inv.count(previo) > 0 ? previo : 0);
                 } else {
                     this.setActive(i);
                 }
-                this.refreshCounts();
                 this.renderCraft();
             });
             barra.appendChild(cell);

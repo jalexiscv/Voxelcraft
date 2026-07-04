@@ -95,3 +95,4 @@
 | 91 | 2026-07-04 | [Rediseño estructural del conejo y tonalidades de piel por individuo con sesgo por bioma](2026-07-04_conejo_tonalidades.md) |
 | 92 | 2026-07-04 | [Corrección de aparición: conejo y armadillo sobre el suelo natural de su bioma](2026-07-04_conejo_aparicion_biomas.md) |
 | 93 | 2026-07-04 | [Corrección de render: chunks invisibles al volver a zonas visitadas (mallas perdidas)](2026-07-04_mallas_perdidas.md) |
+| 94 | 2026-07-04 | [Corrección de la hotbar del crafteo: intercambio real y sin ranuras clonadas](2026-07-04_hotbar_intercambio.md) |
