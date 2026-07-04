@@ -98,3 +98,6 @@
 | 94 | 2026-07-04 | [Corrección de la hotbar del crafteo: intercambio real y sin ranuras clonadas](2026-07-04_hotbar_intercambio.md) |
 | 95 | 2026-07-04 | [Corrección de entrada: botones retenidos que reabrían la mesa o disparaban acciones fantasma](2026-07-04_boton_retenido.md) |
 | 96 | 2026-07-04 | [Repintado de la mesa de crafteo: tapa de banco de trabajo con rejilla y esquinas reforzadas](2026-07-04_mesa_tapa.md) |
+| 97 | 2026-07-04 | [Ecosistema de items: botín de los 68 mobs, horno con fundición, espadas y bloques funcionales](2026-07-04_items_drops_horno.md) |
+| 98 | 2026-07-04 | [Sistema de hambre de supervivencia con alimentos del botín y del horno](2026-07-04_hambre.md) |
+| 99 | 2026-07-04 | [Motor: luz real de antorchas y lava, puertas y ventanas como paneles finos, cofres persistentes](2026-07-04_luz_paneles_cofres.md) |

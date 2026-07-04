@@ -115,16 +115,20 @@ de cristal → 2) · antorcha (carbón sobre palo → 4) · cama (lana sobre
 tablones: `WWW`/`PPP`) · espadas (material ×2 sobre palo, en columna) ·
 picos/hachas/palas de hierro (como las de piedra con lingotes).
 
-## Aspectos pendientes detectados (análisis)
+## Pendientes del análisis — estado
 
-*   **Cofres** (almacenamiento por bloque): exige estado persistente por
-    posición (block entities); pospuesto y documentado.
-*   **Comida y hambre**: los alimentos existen como items; el sistema de
-    hambre queda fuera de alcance (la carne asada podrá curar en el futuro).
-*   **Luz real de la antorcha**: la iluminación es solar por columna; la
-    antorcha brilla ella misma (bright) sin iluminar el entorno.
-*   **Paneles finos** (cristaleras, trampillas): el mallador dibuja cubos y
-    cruces; la puerta/ventana se adaptan a cubo con recorte alfa.
+*   **Cofres** — ✅ implementado: estado persistente por posición
+    (`world.blockData`, guardado junto a los chunks), bloque cofre (id 70,
+    receta de anillo de tablones) e interfaz de transferencia.
+*   **Hambre** — ✅ implementado: barra de raciones (espejo de los
+    corazones), drenaje por tiempo/sprint/reaparición, comer con clic
+    derecho (valores `food` de los items), regeneración condicionada al
+    hambre e inanición que debilita sin bajar de 1 corazón.
+*   **Luz real de la antorcha** — ✅ implementado: campo de luz de bloque
+    0..15 con propagación BFS; el shader combina luz solar (afectada por el
+    día) y luz de bloque (constante). Antorcha 14, lava 15.
+*   **Paneles finos** — ✅ implementado para puerta y ventana (caja fina
+    centrada, sin orientación); trampillas y cristaleras quedan como futuro.
 
 ## Verificación
 

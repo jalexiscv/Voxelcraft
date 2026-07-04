@@ -67,13 +67,16 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Dureza por material: los bloques exigen uno o varios golpes (instantáneo en Creativo) | ✅ |
 | Drops: los bloques rotos flotan como cubitos 3D y se recogen al acercarse | ✅ |
 | Crafteo clásico por cuadrícula: inventario 2×2 (E), mesa de crafteo colocable 3×3, recetas con forma y recetario con autocolocado | ✅ |
+| Botín de los mobs al morir, espadas por niveles y herramientas de hierro | ✅ (ver [04-items.md](04-items.md)) |
+| Horno con fundición (lingotes, cristal, comida) y sistema de hambre con alimentos | ✅ |
+| Luz real de antorchas y lava, puertas y ventanas como paneles finos, valla, cama y cofres | ✅ |
 | Depuración (F3), reaparición (R) | ✅ |
 | Mobs (68 criaturas con IA), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
 | Multijugador | ❌ (ver «Futuro») |
 
 ## Verificación
 
-Tres suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 122 comprobaciones; ver [02-mobs.md](02-mobs.md)) y `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)). La de humo (74 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
+Tres suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 122 comprobaciones; ver [02-mobs.md](02-mobs.md)) y `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)). La de humo (103 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
 
 ## Futuro
 

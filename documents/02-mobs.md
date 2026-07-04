@@ -52,6 +52,7 @@ Cada mob es un archivo de **solo datos** (importable en Node) con: `aabb`, `hp`,
 *   **Tonalidades**: `variants` (2..8 pieles; `paint(skin, v)` pinta cada variante con la misma semilla por variante) y `variantBiome` opcional (`{ <bioma>: <variante> }`: tonalidad fija en ese bioma; en el resto se sortea al aparecer). El conejo es el ejemplo canónico.
 *   **behavior** (obligatorio en hostiles, opcional en neutrales): `neutral`, `aggro`, `attackRange`, `damage`, `cooldown`, `projectile`, `fuse`+`radius` (creeper), `lunge`, `teleport` (enderman), `freezeWhenSeen` (creaking), `stingOnce` (abeja).
 *   **spawn**: `cap`, `group`, `block` (`GRASS`|`SAND`|`ANY`), `night`, `water`, `cave`.
+*   **drops** (opcional): botín al morir — `[{ id, min, max, chance }]` con ids de item o bloque (tabla completa en [04-items.md](04-items.md)); solo cae en supervivencia.
 
 El formato completo está en el docblock de [model.js](../js/mobs/model.js). **Añadir un mob**: crear `js/mobs/<id>.js` imitando `cerdo.js`, validar con `node test/validate-mob.mjs <id>` e importarlo en `registry.js`.
 
@@ -71,5 +72,5 @@ Sin sistema de objetos, domesticación, monturas, crías ni comercio, algunos mo
 
 *   `node test/mobs.mjs` — **122 comprobaciones** (geometría y UV, física por modos con mundos simulados, IA pasiva/neutral/hostil, mecha y explosión, flechas con daño por tirador que quedan clavadas al fallar, teletransporte, congelación al mirar, aparición por hábitats y biomas, y contrato de las 68 definiciones). Todas en verde el 2026-07-04.
 *   `node test/validate-mob.mjs <id>` — validador por definición (campos, UV sin solapes ni texels invisibles, pintado determinista, pies al suelo, orientación de partes frontales).
-*   `node test/smoke.mjs` — la suite del motor sigue en verde (74 OK).
+*   `node test/smoke.mjs` — la suite del motor sigue en verde (103 OK).
 *   Los 68 mobs fueron construidos por **agentes en paralelo** contra el contrato validable y revisados de forma adversaria por agentes independientes (por mob en la primera hornada, por lotes de 5 en la segunda).
