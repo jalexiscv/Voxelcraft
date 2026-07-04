@@ -97,3 +97,4 @@
 | 93 | 2026-07-04 | [Corrección de render: chunks invisibles al volver a zonas visitadas (mallas perdidas)](2026-07-04_mallas_perdidas.md) |
 | 94 | 2026-07-04 | [Corrección de la hotbar del crafteo: intercambio real y sin ranuras clonadas](2026-07-04_hotbar_intercambio.md) |
 | 95 | 2026-07-04 | [Corrección de entrada: botones retenidos que reabrían la mesa o disparaban acciones fantasma](2026-07-04_boton_retenido.md) |
+| 96 | 2026-07-04 | [Repintado de la mesa de crafteo: tapa de banco de trabajo con rejilla y esquinas reforzadas](2026-07-04_mesa_tapa.md) |

@@ -464,22 +464,43 @@ painters[TILE.HACHA_PIEDRA] = hachaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
 painters[TILE.PALA_PIEDRA] = palaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
 
 painters[TILE.CRAFTING_TOP] = (t) => {
-    painters[TILE.PLANKS](t);
-    // cuadrícula de trabajo marcada en la cara superior
-    for (let i = 2; i <= 13; i++) {
-        t.px(i, 5, 84, 62, 38); t.px(i, 10, 84, 62, 38);
-        t.px(5, i, 84, 62, 38); t.px(10, i, 84, 62, 38);
+    // sobre de madera cálida con marco, esquinas reforzadas y rejilla de
+    // trabajo central (diseño propio al estilo banco de carpintero)
+    t.noiseFill([168, 118, 74], 9);
+    for (let i = 0; i < TILE_PX; i++) {                  // marco oscuro
+        t.px(i, 0, 52, 36, 22); t.px(i, 15, 52, 36, 22);
+        t.px(0, i, 52, 36, 22); t.px(15, i, 52, 36, 22);
+    }
+    for (const [cx, cy] of [[1, 1], [13, 1], [1, 13], [13, 13]]) {
+        t.px(cx, cy, 220, 188, 124);                     // cuña clara de refuerzo
+        t.px(cx + 1, cy, 220, 188, 124);
+        t.px(cx, cy + 1, 220, 188, 124);
+        t.px(cx + 1, cy + 1, 96, 62, 34);                // sombra interior
+    }
+    for (let y = 4; y <= 11; y++) {                      // celdas de la rejilla
+        for (let x = 4; x <= 11; x++) {
+            const d = t.rng.int(9) - 4;
+            t.px(x, y, 192 + d, 142 + d, 92 + d);
+        }
+    }
+    for (let i = 3; i <= 12; i++) {                      // ranuras de la rejilla
+        t.px(i, 3, 82, 56, 34); t.px(i, 12, 82, 56, 34);
+        t.px(3, i, 82, 56, 34); t.px(12, i, 82, 56, 34);
+        t.px(i, 6, 82, 56, 34); t.px(i, 9, 82, 56, 34);
+        t.px(6, i, 82, 56, 34); t.px(9, i, 82, 56, 34);
     }
 };
 
 painters[TILE.CRAFTING_SIDE] = (t) => {
     painters[TILE.PLANKS](t);
+    // canto del sobre asomando arriba
+    for (let x = 0; x < TILE_PX; x++) { t.px(x, 0, 92, 62, 36); t.px(x, 1, 128, 90, 54); }
     // herramientas colgadas: silueta de sierra y martillo
-    for (let x = 3; x <= 6; x++) t.px(x, 4, 120, 120, 126);
-    for (let y = 4; y <= 8; y++) t.px(6, y, 96, 70, 44);
-    for (let x = 9; x <= 12; x++) t.px(x, 5, 120, 120, 126);
-    t.px(10, 4, 150, 150, 156); t.px(11, 4, 150, 150, 156);
-    for (let y = 5; y <= 9; y++) t.px(10, y, 96, 70, 44);
+    for (let x = 3; x <= 6; x++) t.px(x, 5, 120, 120, 126);
+    for (let y = 5; y <= 9; y++) t.px(6, y, 96, 70, 44);
+    for (let x = 9; x <= 12; x++) t.px(x, 6, 120, 120, 126);
+    t.px(10, 5, 150, 150, 156); t.px(11, 5, 150, 150, 156);
+    for (let y = 6; y <= 10; y++) t.px(10, y, 96, 70, 44);
 };
 
 /**
