@@ -19,7 +19,7 @@ suya, con sesgo por bioma (`variantBiome`). Todo pintado procedural propio.
 
 ### [MODIFICADO] `js/mobs/conejo.js`
 - Modelo nuevo de 11 partes: cuerpo 4×4×7, cabeza frontal con nariz rosada,
-  orejas altas de 5 px, patas delanteras finas, **ancas plegadas** (placas
+  orejas altas de 5 px separadas con hueco central, patas delanteras finas, **ancas plegadas** (placas
   verticales que rotan con el brinco), **pies largos** (2×1×4) a ras de
   suelo y colita clara; AABB 0,55 de alto.
 - **6 tonalidades**: pardo, blanco (ojos rojizos), negro, blanco y negro a

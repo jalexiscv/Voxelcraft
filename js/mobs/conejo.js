@@ -85,9 +85,9 @@ export default {
         // cuerpo bajo y largo, con la cabeza al frente y a media altura
         { name: 'cuerpo', size: [4, 4, 7], pivot: [0, 2, 0], origin: [-2, 0, -3.5], uv: [0, 0] },
         { name: 'cabeza', size: [4, 4, 4], pivot: [0, 4, -3.5], origin: [-2, -1, -2], uv: [0, 16], anim: 'head' },
-        // orejas altas y juntas sobre la cabeza
-        { name: 'oreja_i', size: [2, 5, 1], pivot: [0, 4, -3.5], origin: [-2, 2, -0.5], uv: [24, 0], anim: 'head' },
-        { name: 'oreja_d', size: [2, 5, 1], pivot: [0, 4, -3.5], origin: [0, 2, -0.5], uv: [24, 0], anim: 'head' },
+        // orejas altas y SEPARADAS: cada una hacia su lado, con hueco central
+        { name: 'oreja_i', size: [2, 5, 1], pivot: [0, 4, -3.5], origin: [-2.4, 2, -0.5], uv: [24, 0], anim: 'head' },
+        { name: 'oreja_d', size: [2, 5, 1], pivot: [0, 4, -3.5], origin: [0.4, 2, -0.5], uv: [24, 0], anim: 'head' },
         { name: 'colita', size: [2, 2, 2], pivot: [0, 3.5, 3.5], origin: [-1, -1, -0.5], uv: [24, 8] },
         // patas delanteras finas y verticales
         { name: 'pata_di', size: [1, 3, 1], pivot: [-1.5, 3, -2.5], origin: [-0.5, -3, -0.5], uv: [24, 16], anim: 'leg0' },
