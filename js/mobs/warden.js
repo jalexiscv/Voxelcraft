@@ -16,6 +16,8 @@
  * piernas tocan el suelo (pivot.y + origin.y = 0).
  */
 
+import { ITEMS } from '../items.js';
+
 const AZUL = [35, 60, 65];               // piel azul oscura de las profundidades
 const AZUL_OSCURO = [24, 42, 48];        // grietas, sombras y branquias
 const TURQUESA = [80, 220, 200];         // pecho luminoso (almas atrapadas)
@@ -31,6 +33,8 @@ export default {
     speed: 2.0,
     noBurn: true,
     spawn: { cap: 1, group: 1, cave: true },
+    // Botín: perla 0-1 — reliquia de las almas atrapadas en su pecho
+    drops: [{ id: ITEMS.PERLA, min: 0, max: 1 }],
 
     /** Persecución implacable: mazazos lentos de daño enorme. */
     behavior: { aggro: 20, attackRange: 2.2, damage: 10, cooldown: 1.8 },

@@ -14,6 +14,8 @@
  *   (40,16) arco 1×10×2 → 6×12 · (48,16) cuerda 1×8×1 → 6×10
  */
 
+import { ITEMS } from '../items.js';
+
 const HUESO = [190, 200, 210];        // gris azulado de los huesos helados
 const SOMBRA = [148, 158, 170];       // sombra fría para juntas y costillas
 const ROPA = [110, 120, 130];         // tela harapienta gris
@@ -30,6 +32,8 @@ export default {
     hp: 20,
     speed: 1.8,
     spawn: { cap: 2, group: 1 },
+    // botín: huesos helados al desmoronarse, como todo esqueleto
+    drops: [{ id: ITEMS.HUESO, min: 0, max: 2 }],
     behavior: { aggro: 16, projectile: true, damage: 3, cooldown: 2.4 },
 
     skin: { w: 64, h: 64 },

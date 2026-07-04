@@ -13,6 +13,8 @@
  * un AABB de 1.9 bloques (30.4 px), dentro de la tolerancia del validador.
  */
 
+import { B } from '../blocks.js';
+
 const NIEVE = [240, 244, 248];         // blanco azulado de la nieve
 const NIEVE_SOMBRA = [214, 222, 234];  // motas de sombra fría
 const NIEVE_BRILLO = [255, 255, 255];  // destellos de hielo
@@ -30,6 +32,8 @@ export default {
     hp: 8,
     speed: 1.4,
     spawn: { cap: 2, group: 1, block: 'ANY' },
+    // botín: bloques de nieve, lo único que queda al deshacerse sus pisos
+    drops: [{ id: B.SNOW, min: 1, max: 2 }],
 
     skin: { w: 64, h: 64 },
 

@@ -11,6 +11,7 @@
  *   (16,12) pico 1×2×1   → 4×3
  *   (0,24)  cola 2×1×4   → 12×5
  */
+import { ITEMS } from '../items.js';
 
 const ROJO = [200, 40, 40];
 const ROJO_OSCURO = [160, 26, 30];
@@ -32,6 +33,8 @@ export default {
     fleeSpeed: 3.6,
     flying: true,
     spawn: { cap: 2, group: 1 },
+    // Botín: pluma 1-2 — como toda ave, su plumaje siempre deja plumas.
+    drops: [{ id: ITEMS.PLUMA, min: 1, max: 2 }],
 
     skin: { w: 64, h: 64 },
 

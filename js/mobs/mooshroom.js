@@ -12,6 +12,9 @@
  *   (0,44)  pata 4×12×4     → 16×16 (las cuatro patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+import { B } from '../blocks.js';
+
 const ROJO = [178, 52, 44];
 const ROJO_OSCURO = [140, 38, 32];
 const BLANCO = [235, 233, 228];
@@ -32,6 +35,8 @@ export default {
     speed: 0.9,
     fleeSpeed: 2.2,
     spawn: { cap: 2, group: 2 },
+    // botín: carne como la vaca y una de las setas rojas de su lomo
+    drops: [{ id: ITEMS.CARNE_CRUDA, min: 1, max: 2 }, { id: B.MUSHROOM_RED, min: 1, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

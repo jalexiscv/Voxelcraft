@@ -19,6 +19,8 @@
  *   (34,12) pie 2×1×4      → 12×5  (ambos pies comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const ROSA = [226, 190, 196];      // nariz e interior de las orejas
 const PALETAS = [
     { pelo: [150, 120, 90], sombra: [122, 96, 70], vientre: [222, 208, 182], ojo: [40, 32, 30] },
@@ -42,6 +44,8 @@ export default {
     // sin block explícito: aparece sobre el suelo natural de cada bioma
     // (hierba, arena del desierto/playa, hierba nevada de la tundra)
     spawn: { cap: 3, group: 2 },
+    // botín: un bocado de carne y algo de cuero, a la medida de su tamaño
+    drops: [{ id: ITEMS.CARNE_CRUDA, min: 0, max: 1 }, { id: ITEMS.CUERO, min: 0, max: 1 }],
 
     /** Seis tonalidades; en nieve sale blanco (1) y en desierto dorado (4). */
     variants: 6,

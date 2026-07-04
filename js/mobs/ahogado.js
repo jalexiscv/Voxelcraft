@@ -16,6 +16,8 @@
  * bloques (28.8 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const PIEL = [90, 140, 130];           // verde azulado de piel macerada
 const PIEL_OSCURA = [64, 106, 100];    // sombras y carne reblandecida
 const HARAPO = [52, 60, 66];           // ropa podrida, gris azulado oscuro
@@ -33,6 +35,8 @@ export default {
     hp: 20,
     speed: 1.5,
     spawn: { cap: 3, group: 2, water: true },
+    // botín: carne podrida macerada por el agua, como todo zombi
+    drops: [{ id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 }],
 
     /** Persecución cuerpo a cuerpo, calcada del zombi de superficie. */
     behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1.2 },

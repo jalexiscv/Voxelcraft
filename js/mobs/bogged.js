@@ -14,6 +14,8 @@
  *   (40,16) arco 1×10×2 → 6×12 · (48,16) cuerda 1×8×1 → 6×10
  */
 
+import { ITEMS } from '../items.js';
+
 const HUESO_MUSGOSO = [130, 150, 90];
 const MUSGO = [90, 120, 60];
 const SOMBRA = [102, 118, 70];
@@ -32,6 +34,8 @@ export default {
     hp: 16,
     speed: 1.7,
     spawn: { cap: 2, group: 1 },
+    // botín: huesos musgosos al desmoronarse, como todo esqueleto
+    drops: [{ id: ITEMS.HUESO, min: 0, max: 2 }],
     behavior: { aggro: 16, projectile: true, damage: 2, cooldown: 2.8 },
 
     skin: { w: 64, h: 64 },

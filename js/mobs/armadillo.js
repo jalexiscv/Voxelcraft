@@ -13,6 +13,8 @@
  *   (24,32) pata 2×3×2        → 8×5  (las cuatro patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const ROSA_PARDO = [188, 132, 120];
 const ROSA_CLARO = [206, 154, 142];
 const MARRON = [140, 96, 76];
@@ -30,6 +32,8 @@ export default {
     hideOnHurt: true,
     // sin block explícito: arena en el desierto y hierba en la sabana
     spawn: { cap: 3, group: 2 },
+    // Botín: escama, placa desprendida de su caparazón acorazado
+    drops: [{ id: ITEMS.ESCAMA, min: 0, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

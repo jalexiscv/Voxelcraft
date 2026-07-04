@@ -19,6 +19,7 @@
  * en el aire). Altura del modelo: 10 px frente a un AABB de 0.6
  * bloques (9.6 px), dentro de la tolerancia del validador.
  */
+import { ITEMS } from '../items.js';
 
 const GRIS = [140, 160, 175];          // dorso gris azulado
 const VIENTRE = [214, 224, 232];       // vientre claro
@@ -35,6 +36,8 @@ export default {
     hp: 10,
     speed: 3.2,
     spawn: { water: true, cap: 2, group: 2 },
+    // Botín: pez crudo 0-1 — a veces suelta la presa que llevaba en el hocico.
+    drops: [{ id: ITEMS.PEZ_CRUDO, min: 0, max: 1 }],
 
     /** Neutral: solo embiste a topetazos si se le hiere primero. */
     behavior: { neutral: true, aggro: 8, attackRange: 1.5, damage: 2, cooldown: 1.2 },

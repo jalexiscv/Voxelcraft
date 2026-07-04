@@ -14,6 +14,8 @@
  *   (18,12) espada 1×4×1  → 4×5
  */
 
+import { ITEMS } from '../items.js';
+
 const BASE = [160, 170, 190];          // gris azulado espectral
 const SOMBRA = [128, 138, 160];
 const CLARO = [196, 204, 220];
@@ -32,6 +34,8 @@ export default {
     speed: 3.4,
     flying: true,
     spawn: { cap: 2, group: 2, night: true },
+    // Botín: membrana 0-1 — al disiparse el espectro quedan jirones de sus alas
+    drops: [{ id: ITEMS.MEMBRANA, min: 0, max: 1 }],
 
     /** Acoso aéreo cuerpo a cuerpo: rápido, frágil y persistente. */
     behavior: { aggro: 16, attackRange: 1.3, damage: 3, cooldown: 1.2 },

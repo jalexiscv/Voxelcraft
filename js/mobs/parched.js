@@ -13,6 +13,8 @@
  *   (40,16) arco 1×10×2 → 6×12 · (48,16) cuerda 1×8×1 → 6×10
  */
 
+import { ITEMS } from '../items.js';
+
 const ARENA = [200, 180, 130];        // hueso reseco color arena
 const SOMBRA = [160, 140, 96];        // sombreado de articulaciones y costillas
 const GRIETA = [112, 92, 58];         // líneas finas de agrietado
@@ -29,6 +31,8 @@ export default {
     speed: 1.7,
     noBurn: true,
     spawn: { cap: 2, group: 1, block: 'SAND' },
+    // botín: huesos resecos al desmoronarse, como todo esqueleto
+    drops: [{ id: ITEMS.HUESO, min: 0, max: 2 }],
     behavior: { aggro: 16, projectile: true, damage: 2, cooldown: 3.0 },
 
     skin: { w: 64, h: 64 },

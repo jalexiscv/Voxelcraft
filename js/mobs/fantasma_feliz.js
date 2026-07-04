@@ -14,6 +14,7 @@
  *   (0,0)   mitad del cuerpo 38×38×19 → 114×57 (ambas mitades lo comparten)
  *   (0,60)  tentáculo 4×8×4 → 16×12 (los nueve lo comparten)
  */
+import { ITEMS } from '../items.js';
 
 const BLANCO = [240, 240, 245];
 const BLANCO_SOMBRA = [220, 220, 230];
@@ -30,6 +31,8 @@ export default {
     fleeSpeed: 2.6,
     flying: true,
     spawn: { cap: 1, group: 1, block: 'ANY' },
+    // Botín: membrana 0-1 — su cuerpo etéreo deja el mismo tejido que el fantasma.
+    drops: [{ id: ITEMS.MEMBRANA, min: 0, max: 1 }],
 
     skin: { w: 128, h: 128 },
 

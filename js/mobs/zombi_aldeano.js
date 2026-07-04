@@ -16,6 +16,8 @@
  * bloques (30.4 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const PIEL = [96, 150, 90];            // verde zombi
 const PIEL_OSCURA = [72, 116, 70];     // sombras y carne descompuesta
 const TUNICA = [110, 80, 55];          // marrón de la túnica rasgada
@@ -33,6 +35,8 @@ export default {
     hp: 20,
     speed: 1.5,
     spawn: { cap: 2, group: 1 },
+    // Botín: carne podrida (comparte la putrefacción de todo zombi)
+    drops: [{ id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 }],
 
     /** Persecución cuerpo a cuerpo, igual de insistente que el zombi. */
     behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1.2 },

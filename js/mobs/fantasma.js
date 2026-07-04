@@ -14,6 +14,8 @@
  * AABB (0.5 bloques): cuerpo en y 4.5..7.5 y bisagras alares en y 7.
  */
 
+import { ITEMS } from '../items.js';
+
 const AZUL = [70, 80, 140];
 const AZUL_OSCURO = [48, 55, 102];
 const MEMBRANA = [58, 66, 118];
@@ -31,6 +33,8 @@ export default {
     flying: true,
     behavior: { aggro: 24, attackRange: 1.6, damage: 3, cooldown: 1.5, lunge: true },
     spawn: { cap: 2, group: 2, night: true },
+    // Botín: membrana (jirón de sus alas espectrales)
+    drops: [{ id: ITEMS.MEMBRANA, min: 0, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

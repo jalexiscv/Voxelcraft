@@ -14,6 +14,8 @@
  * bloques (40 px), dentro de la tolerancia del validador.
  */
 
+import { B } from '../blocks.js';
+
 const MADERA = [70, 52, 40];       // madera oscura del roble susurrante
 const VETA = [95, 75, 55];         // vetas verticales más claras
 const CORTEZA = [52, 38, 28];      // corteza agrietada (motas y sombras)
@@ -29,6 +31,8 @@ export default {
     hp: 20,
     speed: 2.6,
     spawn: { cap: 1, group: 1, night: true },
+    // Botín: tronco pálido 0-1 — el árbol andante se quiebra en su propia madera
+    drops: [{ id: B.PALE_LOG, min: 0, max: 1 }],
 
     /** Acecha inmóvil mientras lo miras; solo avanza cuando apartas la vista. */
     behavior: { aggro: 20, attackRange: 1.9, damage: 5, cooldown: 1.4, freezeWhenSeen: true },

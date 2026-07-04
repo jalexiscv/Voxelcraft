@@ -13,6 +13,7 @@
  * Altura del modelo: 23 px (puntas de los cuernos) frente a un AABB de 1.3
  * bloques (20.8 px), dentro de la tolerancia del validador.
  */
+import { ITEMS } from '../items.js';
 
 const CREMA = [225, 220, 210];         // pelaje blanco crema
 const CREMA_CLARA = [236, 232, 224];   // vientre
@@ -33,6 +34,8 @@ export default {
     hp: 10,
     speed: 2.8,
     spawn: { cap: 2, group: 2 },
+    // botín: algo de cuero de su piel curtida de montaña
+    drops: [{ id: ITEMS.CUERO, min: 0, max: 1 }],
 
     /** Neutral: pasiva hasta que la hieren; entonces embiste (lunge). */
     behavior: { neutral: true, aggro: 12, attackRange: 1.8, damage: 3, cooldown: 1.6, lunge: true },

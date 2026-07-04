@@ -19,6 +19,8 @@
  * bloques (30.4 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const TUNICA = [50, 40, 70];           // negro violáceo de túnica y sombrero
 const TUNICA_OSCURA = [38, 30, 54];    // pliegues y desgaste de la tela
 const PELO = [30, 24, 44];             // cabello y botas, casi negro
@@ -38,6 +40,11 @@ export default {
     hp: 26,
     speed: 1.4,
     spawn: { cap: 2, group: 1 },
+    // Botín: pólvora y palos (ingredientes de sus pociones y de su escoba)
+    drops: [
+        { id: ITEMS.POLVORA, min: 0, max: 2 },
+        { id: ITEMS.PALO, min: 0, max: 2 },
+    ],
 
     /** Mantiene la distancia y lanza pociones arrojadizas. */
     behavior: { aggro: 14, projectile: true, damage: 2, cooldown: 2.6 },

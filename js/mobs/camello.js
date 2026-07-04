@@ -13,6 +13,8 @@
  *   (32,36) pata 4×18×4     → 16×22 (las cuatro patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const BEIGE = [193, 159, 110];          // pelaje arena
 const BEIGE_CLARO = [222, 199, 160];    // hocico y vientre
 const PARDO = [138, 106, 68];           // pezuñas y sombras
@@ -29,6 +31,8 @@ export default {
     speed: 1.4,
     fleeSpeed: 2.4,
     spawn: { cap: 2, group: 2, block: 'SAND' },
+    // Botín: cuero de su gruesa piel curtida por el desierto
+    drops: [{ id: ITEMS.CUERO, min: 0, max: 1 }],
 
     skin: { w: 128, h: 64 },
 

@@ -13,6 +13,7 @@
  * leg0/leg1 con los adyacentes en contrafase. Altura del modelo: 17 px
  * frente a un AABB de 0.8 bloques (12.8 px), dentro de tolerancia.
  */
+import { ITEMS } from '../items.js';
 
 const AZUL = [70, 90, 120];            // manto azul grisáceo
 const AZUL_OSCURO = [48, 64, 92];      // moteado, aros de los ojos y pliegues
@@ -31,6 +32,8 @@ export default {
     speed: 1.2,
     fleeSpeed: 2.0,
     spawn: { cap: 2, group: 2, water: true },
+    // Botín: tinta 1-2 — su bolsa de tinta revienta al morir.
+    drops: [{ id: ITEMS.TINTA, min: 1, max: 2 }],
 
     skin: { w: 64, h: 64 },
 

@@ -9,6 +9,8 @@
  *   (0,40)  pata 4×6×4      → 16×10 (las cuatro patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const ROSA = [238, 148, 152];
 const ROSA_OSCURO = [204, 110, 118];
 const PEZUNA = [160, 82, 92];
@@ -22,6 +24,8 @@ export default {
     speed: 1.1,
     fleeSpeed: 2.6,
     spawn: { cap: 4, group: 2 },
+    // Botín: carne cruda (es el animal de granja cárnico por excelencia)
+    drops: [{ id: ITEMS.CARNE_CRUDA, min: 1, max: 2 }],
 
     skin: { w: 64, h: 64 },
 

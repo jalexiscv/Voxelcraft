@@ -15,6 +15,8 @@
  *   (76,16) oreja 1×4×1     → 4×5 (ambas orejas comparten)
  */
 
+import { ITEMS } from '../items.js';
+
 const GRIS_PARDO = [150, 140, 130];     // pelaje base
 const GRIS_OSCURO = [112, 103, 94];     // moteado y boca
 const CRIN = [72, 65, 56];              // crin erizada, raya dorsal y puntas de las orejas
@@ -32,6 +34,8 @@ export default {
     speed: 2.4,
     fleeSpeed: 3.2,
     spawn: { cap: 2, group: 2 },
+    // botín: solo cuero de su pelaje recio (menos generoso que el caballo)
+    drops: [{ id: ITEMS.CUERO, min: 0, max: 1 }],
 
     skin: { w: 128, h: 64 },
 

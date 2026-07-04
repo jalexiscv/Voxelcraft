@@ -16,6 +16,7 @@
  * modelo: 17 px frente a un AABB de 0.8 bloques (12.8 px), dentro de
  * tolerancia.
  */
+import { ITEMS } from '../items.js';
 
 const TURQUESA = [80, 220, 200];         // manto turquesa luminoso
 const TURQUESA_OSCURO = [40, 140, 130];  // aros de los ojos y pliegues
@@ -35,6 +36,8 @@ export default {
     speed: 1.2,
     fleeSpeed: 2.0,
     spawn: { cap: 2, group: 2, water: true },
+    // Botín: tinta 1-2 — la misma bolsa de tinta que su pariente opaco.
+    drops: [{ id: ITEMS.TINTA, min: 1, max: 2 }],
 
     skin: { w: 64, h: 64 },
 

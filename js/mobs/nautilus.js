@@ -17,6 +17,7 @@
  * remando en contrafase leg0/leg1. Altura del modelo: 14 px frente a un
  * AABB de 0.95 bloques (15.2 px), dentro de la tolerancia.
  */
+import { ITEMS } from '../items.js';
 
 const ROJO_CARAMELO = [200, 80, 60];   // banda roja de la concha
 const HUESO = [235, 225, 210];         // banda blanca de la concha
@@ -36,6 +37,8 @@ export default {
     hp: 12,
     speed: 1.4,
     spawn: { cap: 2, group: 2, water: true },
+    // Botín: escama 1 — un fragmento nacarado de su concha a bandas.
+    drops: [{ id: ITEMS.ESCAMA, min: 1, max: 1 }],
 
     /** Neutral: pasivo hasta que se le hiere; entonces embiste de cerca. */
     behavior: { neutral: true, aggro: 6, attackRange: 1.3, damage: 1, cooldown: 1.5 },

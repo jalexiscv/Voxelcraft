@@ -19,6 +19,7 @@
  * modelo: 8 px frente a un AABB de 0.4 bloques (6.4 px), dentro de la
  * tolerancia del validador.
  */
+import { ITEMS } from '../items.js';
 
 const NARANJA = [230, 140, 50];        // cuerpo, naranja intenso
 const NARANJA_OSCURO = [190, 105, 30]; // boca y motas de las escamas
@@ -36,6 +37,8 @@ export default {
     fleeSpeed: 3.4,
     aquatic: true,
     spawn: { cap: 4, group: 3, water: true },
+    // Botín: pez crudo 1 — el propio pescado es la pieza de pesca.
+    drops: [{ id: ITEMS.PEZ_CRUDO, min: 1, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

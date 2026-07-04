@@ -12,6 +12,7 @@
  * Altura del modelo: 32 px (cabeza en 24..32) frente a un AABB de 1.8
  * bloques (28.8 px), dentro de la tolerancia del validador.
  */
+import { ITEMS } from '../items.js';
 
 const PIEL = [96, 150, 90];            // verde zombi
 const PIEL_OSCURA = [72, 116, 70];     // sombras y carne descompuesta
@@ -28,6 +29,8 @@ export default {
     hp: 20,
     speed: 1.6,
     spawn: { cap: 4, group: 2 },
+    // botín: la carne podrida que se le desprende al caer
+    drops: [{ id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 }],
 
     /** Persecución cuerpo a cuerpo lenta pero insistente. */
     behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1.2 },

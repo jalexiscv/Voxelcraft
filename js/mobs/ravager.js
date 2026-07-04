@@ -16,6 +16,8 @@
  * bloques (35.2 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const GRIS = [110, 100, 95];           // gris pardo base
 const GRIS_OSCURO = [82, 75, 70];      // vientre y musculatura en sombra
 const PLACA = [64, 58, 54];            // placas óseas oscuras del lomo
@@ -35,6 +37,8 @@ export default {
     hp: 40,
     speed: 2.4,
     spawn: { cap: 1, group: 1, night: true },
+    // Botín: cuero abundante (su pellejo curtido es enorme)
+    drops: [{ id: ITEMS.CUERO, min: 1, max: 2 }],
 
     /** Embestida: mucho daño por golpe, ritmo lento y acometida (lunge). */
     behavior: { aggro: 18, attackRange: 2.4, damage: 8, cooldown: 1.8, lunge: true },

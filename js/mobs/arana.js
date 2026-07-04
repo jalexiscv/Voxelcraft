@@ -20,6 +20,8 @@
  * tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const NEGRO = [38, 34, 36];            // quitina oscura
 const PELO = [80, 76, 78];             // pelillos grises
 const ROJIZO = [96, 44, 40];           // marca tenue del abdomen
@@ -34,6 +36,8 @@ export default {
     hp: 16,
     speed: 2.2,
     spawn: { cap: 3, group: 1 },
+    // botín: hilo de la telaraña que hila
+    drops: [{ id: ITEMS.HILO, min: 0, max: 2 }],
 
     /** Persecución rápida cuerpo a cuerpo con brinco al morder. */
     behavior: { aggro: 14, attackRange: 1.9, damage: 2, cooldown: 1.1, lunge: true },

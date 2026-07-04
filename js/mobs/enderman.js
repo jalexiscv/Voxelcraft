@@ -12,6 +12,7 @@
  * Altura del modelo: 36 px (pierna 16 + torso 12 + cabeza 8) frente a un
  * AABB de 2.5 bloques (40 px), dentro de la tolerancia del validador.
  */
+import { ITEMS } from '../items.js';
 
 const NEGRO = [25, 22, 30];            // cuerpo entero, casi negro
 const NEGRO_PROFUNDO = [14, 12, 18];   // sombras del vacío
@@ -27,6 +28,8 @@ export default {
     hp: 40,
     speed: 3.2,
     spawn: { cap: 2, group: 1, night: true },
+    // botín: la mitad de las veces deja caer la perla que transporta
+    drops: [{ id: ITEMS.PERLA, min: 0, max: 1, chance: 0.5 }],
 
     /** Pasivo hasta que lo hieren; entonces persigue y se teletransporta. */
     behavior: { neutral: true, aggro: 14, attackRange: 1.8, damage: 6, cooldown: 1.1, teleport: true },

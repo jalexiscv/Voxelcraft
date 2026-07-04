@@ -15,6 +15,8 @@
  * 1.6 bloques (25.6 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const CASTANO = [130, 84, 50];          // capa castaña
 const CASTANO_OSCURO = [104, 66, 38];   // sombras del pelaje
 const CASTANO_CLARO = [150, 102, 64];   // vientre más claro
@@ -33,6 +35,8 @@ export default {
     speed: 3.2,
     fleeSpeed: 4.2,
     spawn: { cap: 3, group: 2 },
+    // botín: cuero de su capa y algo de carne, como animal grande de pradera
+    drops: [{ id: ITEMS.CUERO, min: 0, max: 1 }, { id: ITEMS.CARNE_CRUDA, min: 0, max: 1 }],
 
     skin: { w: 128, h: 64 },
 

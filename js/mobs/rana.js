@@ -16,6 +16,7 @@
  * lados con los pies a ras de suelo (pivot.y + origin.y = 0). Altura del
  * modelo: 7 px frente a un AABB de 0.5 bloques (8 px).
  */
+import { ITEMS } from '../items.js';
 
 const NARANJA = [190, 120, 70];        // naranja templado del lomo
 const NARANJA_OSCURO = [150, 90, 50];  // moteado y franjas de las ancas
@@ -34,6 +35,8 @@ export default {
     fleeSpeed: 3.0,
     hop: true,
     spawn: { cap: 2, group: 2 },
+    // Botín: bola de slime 0-1 — su piel viscosa deja el mismo residuo gelatinoso.
+    drops: [{ id: ITEMS.BOLA_SLIME, min: 0, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

@@ -12,6 +12,8 @@
  *   (0,28)  pata 2×5×2    → 8×7 (las cuatro patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const NARANJA = [214, 142, 66];    // pelaje base atigrado
 const FRANJA = [170, 100, 40];     // franjas del atigrado
 const BLANCO = [240, 238, 232];    // pecho, hocico y calcetines
@@ -27,6 +29,8 @@ export default {
     speed: 1.5,
     fleeSpeed: 3.0,
     spawn: { cap: 2, group: 1 },
+    // Botín: hilo, como las arañas que caza (guiño al drop clásico)
+    drops: [{ id: ITEMS.HILO, min: 0, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

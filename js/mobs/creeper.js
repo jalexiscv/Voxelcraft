@@ -10,6 +10,8 @@
  *   (0,16)  pata 4×6×4     → 16×10 (las cuatro patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const VERDE = [96, 176, 80];
 const VERDE_CLARO = [140, 210, 120];
 const VERDE_OSCURO = [60, 120, 50];
@@ -23,6 +25,8 @@ export default {
     hp: 20,
     speed: 1.7,
     spawn: { cap: 3, group: 1 },
+    // botín: pólvora, restos de la carga explosiva que lleva dentro
+    drops: [{ id: ITEMS.POLVORA, min: 0, max: 2 }],
     behavior: { aggro: 16, fuse: true, radius: 3 },
 
     skin: { w: 64, h: 64 },

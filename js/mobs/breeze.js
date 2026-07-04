@@ -11,6 +11,8 @@
  *   (24,16) base 4×8×4         → 16×12
  */
 
+import { ITEMS } from '../items.js';
+
 const AZUL = [90, 110, 140];        // azul grisáceo del cuerpo
 const AZUL_OSCURO = [68, 86, 114];  // sombreado del remolino
 const ESPIRAL = [170, 190, 210];    // vetas claras del viento
@@ -25,6 +27,8 @@ export default {
     speed: 2.6,
     hop: true,
     spawn: { cap: 2, group: 1, cave: true },
+    // Botín: pólvora 0-2 — el residuo volátil que carga sus ráfagas de aire
+    drops: [{ id: ITEMS.POLVORA, min: 0, max: 2 }],
     behavior: { aggro: 16, projectile: true, damage: 3, cooldown: 2.0 },
 
     skin: { w: 64, h: 64 },

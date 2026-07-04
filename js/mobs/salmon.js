@@ -18,6 +18,7 @@
  * tolerancia del validador. Ambas caras laterales del desplegado llevan el
  * frente en su borde derecho: el ojo se pinta simétrico junto al morro.
  */
+import { ITEMS } from '../items.js';
 
 const ROSADO = [190, 90, 70];          // rojo rosado del cuerpo
 const LOMO = [110, 120, 90];           // lomo verde grisáceo
@@ -37,6 +38,8 @@ export default {
     fleeSpeed: 3.6,
     aquatic: true,
     spawn: { cap: 4, group: 3, water: true },
+    // Botín: pez crudo 1 — el propio pescado es la pieza de pesca.
+    drops: [{ id: ITEMS.PEZ_CRUDO, min: 1, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

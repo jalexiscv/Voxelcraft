@@ -16,6 +16,7 @@
  * como motas oscuras en todas las caras. Altura del modelo: 6.5 px frente a
  * un AABB de 0.5 bloques (8 px), dentro de tolerancia.
  */
+import { ITEMS } from '../items.js';
 
 const AMARILLO = [210, 190, 80];       // lomo amarillo verdoso
 const VIENTRE = [238, 236, 224];       // vientre blanco
@@ -36,6 +37,8 @@ export default {
     speed: 1.2,
     aquatic: true,
     spawn: { cap: 3, group: 1, water: true },
+    // Botín: escama 0-1 — de su piel erizada de púas.
+    drops: [{ id: ITEMS.ESCAMA, min: 0, max: 1 }],
 
     /** Neutral: solo pincha si lo hieren o te pegas demasiado. */
     behavior: { neutral: true, aggro: 3, attackRange: 1.2, damage: 1, cooldown: 1.5 },

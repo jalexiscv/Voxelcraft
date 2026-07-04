@@ -10,6 +10,9 @@
  *   (0,36)  lana 8×6×16     → 48×22            desplegado)
  */
 
+import { ITEMS } from '../items.js';
+import { B } from '../blocks.js';
+
 const LANA = [230, 228, 218];
 const LANA_SOMBRA = [210, 206, 192];
 const PIEL = [190, 188, 184];
@@ -27,6 +30,11 @@ export default {
     speed: 1.0,
     fleeSpeed: 2.4,
     spawn: { cap: 4, group: 3 },
+    // Botín: su lana blanca (bloque WOOL0) y algo de carne cruda
+    drops: [
+        { id: B.WOOL0, min: 1, max: 1 },
+        { id: ITEMS.CARNE_CRUDA, min: 0, max: 1 },
+    ],
 
     skin: { w: 64, h: 64 },
 

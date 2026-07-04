@@ -15,6 +15,7 @@
  * bloques (40 px), dentro de la tolerancia del validador. Los brazos
  * colgantes bajan hasta y=5, casi rozando el suelo, como el golem clásico.
  */
+import { ITEMS } from '../items.js';
 
 const HIERRO = [200, 200, 195];        // hierro claro
 const HIERRO_OSCURO = [168, 168, 162]; // juntas y sombras del metal
@@ -31,6 +32,8 @@ export default {
     hp: 40,
     speed: 1.4,
     spawn: { cap: 1, group: 1 },
+    // botín: lingotes del hierro con el que está forjado
+    drops: [{ id: ITEMS.LINGOTE_HIERRO, min: 1, max: 2 }],
 
     /** Neutral: solo ataca al ser herido, pero entonces no perdona. */
     behavior: { neutral: true, aggro: 14, attackRange: 2.2, damage: 8, cooldown: 1.6 },

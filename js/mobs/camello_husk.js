@@ -14,6 +14,8 @@
  *   (92,20) joroba 8×5×10   → 36×15
  */
 
+import { ITEMS } from '../items.js';
+
 const PIEL = [136, 142, 108];          // gris verdoso podrido
 const PIEL_OSCURA = [104, 110, 82];    // sombras y carne hundida
 const COSTILLA = [96, 102, 76];        // surcos de las costillas marcadas
@@ -32,6 +34,11 @@ export default {
     speed: 1.2,
     noBurn: true, // no-muerto del desierto: el sol no lo quema
     spawn: { cap: 2, group: 1, block: 'SAND', night: true },
+    // Botín: cuero del pellejo y carne podrida (es la variante no-muerta)
+    drops: [
+        { id: ITEMS.CUERO, min: 0, max: 1 },
+        { id: ITEMS.CARNE_PODRIDA, min: 0, max: 1 },
+    ],
 
     skin: { w: 128, h: 64 },
 

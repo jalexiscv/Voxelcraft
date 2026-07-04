@@ -20,6 +20,8 @@
  * (13.6 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const VERDE_GRIS = [110, 130, 110];    // blindaje verde grisáceo
 const VERDE_CLARO = [142, 160, 140];   // juntas claras del blindaje
 const VERDE_OSCURO = [80, 98, 82];     // sombras entre placas
@@ -37,6 +39,11 @@ export default {
     hp: 30,
     speed: 2.0,
     spawn: { water: true, cap: 2, group: 1 },
+    // Botín: escama 0-2 + pez crudo 0-1 — placas del blindaje y su presa a medio comer
+    drops: [
+        { id: ITEMS.ESCAMA, min: 0, max: 2 },
+        { id: ITEMS.PEZ_CRUDO, min: 0, max: 1 },
+    ],
 
     /** Centinela a distancia: fija el ojo y dispara su rayo (proyectil). */
     behavior: { aggro: 14, projectile: true, damage: 3, cooldown: 2.5 },

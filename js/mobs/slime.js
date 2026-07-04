@@ -8,6 +8,8 @@
  *         frente (16,16), −X (32,16), espalda (48,16); cada cara 16×16.
  */
 
+import { ITEMS } from '../items.js';
+
 const VERDE = [110, 200, 90];        // capa externa gelatinosa
 const VERDE_CLARO = [150, 225, 130]; // brillo del borde de la gelatina
 const NUCLEO = [70, 150, 60];        // núcleo interior más oscuro
@@ -22,6 +24,8 @@ export default {
     speed: 1.6,
     hop: true,
     spawn: { cap: 3, group: 2, cave: true },
+    // Botín: bolas de slime (restos de su propia gelatina al reventar)
+    drops: [{ id: ITEMS.BOLA_SLIME, min: 0, max: 2 }],
     behavior: { aggro: 14, attackRange: 1.4, damage: 2, cooldown: 1.3 },
 
     skin: { w: 64, h: 64 },

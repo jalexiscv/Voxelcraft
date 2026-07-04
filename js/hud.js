@@ -4,7 +4,7 @@
  */
 import { DEFS, PLACEABLE, B } from './blocks.js';
 import { TILE_PX, ATLAS_GRID } from './atlas.js';
-import { ITEM_DEFS, isItem, RECIPES, matchGrid, autoColocar } from './items.js';
+import { ITEM_DEFS, isItem, RECIPES, matchGrid, autoColocar, FUNDICIONES, COMBUSTIBLES, fundir } from './items.js';
 
 const ICON = 36;  // lado del canvas de icono
 const K = 11;     // semiancho del rombo isométrico
@@ -37,6 +37,13 @@ export class HUD {
             craftBookIcon: document.getElementById('craft-book-icon'),
             craftTooltip: document.getElementById('craft-tooltip'),
             craftCursor: document.getElementById('craft-cursor'),
+            furnace: document.getElementById('furnace'),
+            furnaceIn: document.getElementById('furnace-in'),
+            furnaceFuel: document.getElementById('furnace-fuel'),
+            furnaceOut: document.getElementById('furnace-out'),
+            furnaceUsos: document.getElementById('furnace-usos'),
+            furnaceBtn: document.getElementById('furnace-btn'),
+            furnaceFlecha: document.getElementById('furnace-flecha'),
             progress: document.getElementById('progress'),
             progressLabel: document.getElementById('progress-label'),
             progressFill: document.getElementById('progress-fill'),
@@ -49,19 +56,26 @@ export class HUD {
         this.buildHearts();
 
         // el material «en mano» y el tooltip siguen al puntero en el crafteo
+        // (el horno comparte el manejador: su tooltip usa el mismo elemento)
         this.craftState = null;
+        this.furnaceState = null;
         this.bookOpen = false;
-        this.els.craft.addEventListener('mousemove', (e) => {
+        const seguirPuntero = (e) => {
             this.els.craftCursor.style.left = `${e.clientX + 10}px`;
             this.els.craftCursor.style.top = `${e.clientY + 10}px`;
             this.els.craftTooltip.style.left = `${e.clientX + 14}px`;
             this.els.craftTooltip.style.top = `${e.clientY - 26}px`;
-        });
+        };
+        this.els.craft.addEventListener('mousemove', seguirPuntero);
+        this.els.furnace.addEventListener('mousemove', seguirPuntero);
         this.drawIcon(this.els.craftBookIcon, B.BOOKSHELF); // icono del recetario
         this.els.craftBookBtn.addEventListener('click', () => {
             this.bookOpen = !this.bookOpen;
             this.renderCraft();
         });
+        // fundir con el botón «Fundir» o con la flecha (misma acción)
+        this.els.furnaceBtn.addEventListener('click', () => this.fundirUna());
+        this.els.furnaceFlecha.addEventListener('click', () => this.fundirUna());
     }
 
     /** Tooltip flotante con el nombre del item bajo el puntero. */
@@ -301,6 +315,9 @@ export class HUD {
     }
 
     closeCraft() {
+        // si lo abierto es el horno, ciérralo: main.js llama a closeCraft()
+        // con E/Esc, y así el horno se despide por el mismo camino
+        if (this.furnaceOpen()) { this.closeFurnace(); return; }
         const st = this.craftState;
         if (st) for (const id of st.cells) if (id) this.inventory.add(id);
         this.craftState = null;
@@ -310,7 +327,13 @@ export class HUD {
         this.refreshCounts();
     }
 
-    craftOpen() { return !this.els.craft.classList.contains('hidden'); }
+    /**
+     * ¿Hay pantalla de banco abierta? Cuenta TAMBIÉN el horno: main.js
+     * gobierna E/Esc, la pausa de la simulación y el menú del pointer lock
+     * con craftOpen()/closeCraft(), y al englobar aquí ambas pantallas el
+     * horno se abre/cierra igual que el crafteo sin tocar main.js.
+     */
+    craftOpen() { return !this.els.craft.classList.contains('hidden') || this.furnaceOpen(); }
 
     /** Material «en mano»: se muestra como icono flotante junto al puntero. */
     setMano(id) {
@@ -452,6 +475,117 @@ export class HUD {
     }
     closePicker() { this.els.picker.classList.add('hidden'); }
     pickerOpen() { return !this.els.picker.classList.contains('hidden'); }
+
+    /* ---- Pantalla del horno (fundición por sesión) ---- */
+
+    /**
+     * Abre la interfaz del horno. La fundición es POR SESIÓN, sin estado
+     * por bloque (adaptación documentada en el plan): la entrada y el
+     * combustible elegidos, los usos que restan de la unidad ya quemada y
+     * lo producido viven aquí y se descartan al cerrar (el producto ya fue
+     * al inventario; los usos sobrantes se pierden, como el calor).
+     */
+    openFurnace() {
+        if (!this.inventory) return; // solo supervivencia: en creativo no se funde
+        this.furnaceState = { entrada: 0, comb: 0, usos: 0, salida: new Map() };
+        this.els.furnace.classList.remove('hidden');
+        this.renderFurnace();
+    }
+
+    closeFurnace() {
+        this.furnaceState = null;
+        this.tooltip(null);
+        this.els.furnace.classList.add('hidden');
+        this.refreshCounts();
+    }
+
+    furnaceOpen() { return !this.els.furnace.classList.contains('hidden'); }
+
+    /** ¿Se puede fundir? Exige entrada con existencias y calor disponible. */
+    puedeFundir() {
+        const st = this.furnaceState, inv = this.inventory;
+        if (!st || !inv) return false;
+        const hayEntrada = st.entrada !== 0 && inv.count(st.entrada) > 0;
+        const hayCalor = st.usos > 0 || (st.comb !== 0 && inv.count(st.comb) > 0);
+        return hayEntrada && hayCalor;
+    }
+
+    /**
+     * Funde 1 unidad de la entrada elegida: gasta un uso de combustible
+     * (si no quedan, quema OTRA unidad del elegido con inv.take y repone
+     * los usos) y llama a fundir(); el producto entra al inventario y se
+     * anota en la SALIDA de la sesión.
+     */
+    fundirUna() {
+        const st = this.furnaceState, inv = this.inventory;
+        if (!this.puedeFundir()) return;
+        if (st.usos === 0) { // quemar una unidad del combustible elegido
+            inv.take(st.comb, 1);
+            st.usos = COMBUSTIBLES[st.comb];
+        }
+        st.usos--;
+        const out = fundir(inv, st.entrada);
+        if (out) st.salida.set(out, (st.salida.get(out) || 0) + 1);
+        if (inv.count(st.entrada) === 0) st.entrada = 0;          // entrada agotada
+        if (st.comb && inv.count(st.comb) === 0) st.comb = 0;     // combustible agotado
+        this.refreshCounts();
+        this.renderFurnace();
+    }
+
+    /**
+     * Rellena una zona del horno con una fila FIJA de ranuras (las vacías,
+     * visibles, como el stock del crafteo): `pilas` = [{ id, n }], `sel`
+     * marca la elegida (.activo), `alElegir` recibe el id pulsado y
+     * `rotulo(id)` personaliza el tooltip (se impone al de ranura()).
+     */
+    zonaHorno(zona, pilas, sel, alElegir, rotulo) {
+        zona.innerHTML = '';
+        const total = Math.max(7, pilas.length);
+        for (let k = 0; k < total; k++) {
+            const pila = pilas[k];
+            const cell = this.ranura(pila ? pila.id : 0, pila ? pila.n : undefined);
+            if (!pila) { zona.appendChild(cell); continue; }
+            if (sel === pila.id) cell.classList.add('activo');
+            if (rotulo) cell.addEventListener('mouseenter', () => this.tooltip(rotulo(pila.id)));
+            if (alElegir) cell.addEventListener('click', () => alElegir(pila.id));
+            zona.appendChild(cell);
+        }
+    }
+
+    /** Repinta la pantalla del horno: entrada, combustible, salida y botón. */
+    renderFurnace() {
+        const st = this.furnaceState;
+        if (!st) return;
+        const inv = this.inventory;
+
+        // ENTRADA: existencias fundibles del jugador; clic elige (o suelta)
+        const fundibles = FUNDICIONES.filter((f) => inv.count(f.in) > 0)
+            .map((f) => ({ id: f.in, n: inv.count(f.in) }));
+        this.zonaHorno(this.els.furnaceIn, fundibles, st.entrada, (id) => {
+            st.entrada = st.entrada === id ? 0 : id;
+            this.renderFurnace();
+        });
+
+        // COMBUSTIBLE: existencias de combustibles; el tooltip añade los
+        // usos que aporta cada unidad y la etiqueta lleva la cuenta viva
+        const combs = Object.keys(COMBUSTIBLES).map(Number)
+            .filter((id) => inv.count(id) > 0)
+            .map((id) => ({ id, n: inv.count(id) }));
+        this.zonaHorno(this.els.furnaceFuel, combs, st.comb, (id) => {
+            st.comb = st.comb === id ? 0 : id;
+            this.renderFurnace();
+        }, (id) => `${this.nombreDe(id)} — ×${COMBUSTIBLES[id]} usos`);
+        this.els.furnaceUsos.textContent = st.usos > 0 ? `(usos restantes: ${st.usos})` : '';
+
+        // SALIDA: lo fundido en esta sesión (ya está en el inventario)
+        const salidas = [...st.salida].map(([id, n]) => ({ id, n }));
+        this.zonaHorno(this.els.furnaceOut, salidas, 0, null);
+
+        // botón y flecha solo con entrada y calor disponibles
+        const listo = this.puedeFundir();
+        this.els.furnaceBtn.disabled = !listo;
+        this.els.furnaceFlecha.classList.toggle('inactiva', !listo);
+    }
 
     /* ---- Progreso y depuración ---- */
 

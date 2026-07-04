@@ -10,6 +10,8 @@
  *   (0,44)  pata 4×12×4     → 16×16 (las cuatro patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const MARRON = [92, 62, 46];
 const MARRON_OSCURO = [70, 46, 34];
 const BLANCO = [235, 233, 228];
@@ -27,6 +29,11 @@ export default {
     speed: 0.9,
     fleeSpeed: 2.2,
     spawn: { cap: 4, group: 2 },
+    // Botín: carne cruda y cuero (res grande: alimento y material de piel)
+    drops: [
+        { id: ITEMS.CARNE_CRUDA, min: 1, max: 2 },
+        { id: ITEMS.CUERO, min: 0, max: 1 },
+    ],
 
     skin: { w: 64, h: 64 },
 

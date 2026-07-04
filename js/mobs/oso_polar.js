@@ -12,6 +12,7 @@
  * Altura del modelo: 20 px (lomo en 9..20, cabeza en 13..20) frente a un
  * AABB de 1.4 bloques (22.4 px), dentro de la tolerancia del validador.
  */
+import { ITEMS } from '../items.js';
 
 const PELAJE = [235, 238, 240];        // blanco níveo del brief
 const PELAJE_SOMBRA = [206, 212, 218]; // matices fríos del pelaje
@@ -29,6 +30,8 @@ export default {
     hp: 30,
     speed: 2.2,
     spawn: { cap: 1, group: 1 },
+    // botín: el pez de su última pesca y algo de carne del propio oso
+    drops: [{ id: ITEMS.PEZ_CRUDO, min: 0, max: 1 }, { id: ITEMS.CARNE_CRUDA, min: 0, max: 1 }],
 
     /** Neutral: solo ataca si se le provoca, pero pega fuerte. */
     behavior: { neutral: true, aggro: 14, attackRange: 2.0, damage: 6, cooldown: 1.4 },

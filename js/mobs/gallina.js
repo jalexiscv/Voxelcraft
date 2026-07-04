@@ -13,6 +13,8 @@
  *   (46,16) pata 1×5×1      → 4×6  (las dos patas comparten desplegado)
  */
 
+import { ITEMS } from '../items.js';
+
 const PLUMA = [235, 232, 225];
 const GRIS = [150, 150, 148];
 const GRIS_CLARO = [205, 202, 195];
@@ -31,6 +33,11 @@ export default {
     fleeSpeed: 2.4,
     glide: true,
     spawn: { cap: 4, group: 3 },
+    // Botín: plumas de su plumaje y un poco de carne (ave pequeña)
+    drops: [
+        { id: ITEMS.PLUMA, min: 0, max: 2 },
+        { id: ITEMS.CARNE_CRUDA, min: 0, max: 1 },
+    ],
 
     skin: { w: 64, h: 64 },
 

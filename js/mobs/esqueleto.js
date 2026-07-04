@@ -11,6 +11,8 @@
  *   (40,16) arco 1×10×2 → 6×12 · (48,16) cuerda 1×8×1 → 6×10
  */
 
+import { ITEMS } from '../items.js';
+
 const HUESO = [208, 208, 202];
 const SOMBRA = [162, 162, 154];
 const COSTILLA = [128, 126, 118];
@@ -26,6 +28,8 @@ export default {
     hp: 20,
     speed: 1.8,
     spawn: { cap: 3, group: 1 },
+    // botín: huesos del propio esqueleto al desmoronarse
+    drops: [{ id: ITEMS.HUESO, min: 0, max: 2 }],
     behavior: { aggro: 16, projectile: true, cooldown: 2.2 },
 
     skin: { w: 64, h: 64 },

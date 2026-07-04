@@ -12,6 +12,7 @@
  *   (44,26) oreja 1×3×1     → 4×4  (las dos orejas comparten desplegado)
  *   (0,43)  pata 4×12×4     → 16×16 (las cuatro patas comparten desplegado)
  */
+import { ITEMS } from '../items.js';
 
 const CREMA = [220, 200, 170];
 const LANA_CLARA = [236, 222, 196];
@@ -29,6 +30,8 @@ export default {
     hp: 18,
     speed: 1.6,
     spawn: { cap: 2, group: 3 },
+    // botín: algo de cuero bajo la lana, como el resto de camélidos
+    drops: [{ id: ITEMS.CUERO, min: 0, max: 1 }],
     // neutral: pasta en paz, pero al herirla escupe a distancia
     behavior: { neutral: true, aggro: 12, projectile: true, damage: 2, cooldown: 2.5 },
 

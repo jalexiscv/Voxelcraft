@@ -15,6 +15,8 @@
  * bloques (28.8 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const PIEL = [170, 140, 100];          // piel parda resecada por el sol
 const PIEL_OSCURA = [136, 110, 76];    // grietas y sombras de la piel
 const ROPA = [140, 125, 95];           // harapos gris arena
@@ -30,6 +32,8 @@ export default {
     speed: 1.5,
     noBurn: true,                       // el sol del desierto ya no le hace nada
     spawn: { cap: 3, group: 2, block: 'SAND' },
+    // botín: carne podrida curtida al sol, como todo zombi
+    drops: [{ id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 }],
 
     /** Persecución cuerpo a cuerpo lenta pero insistente, como el zombi. */
     behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1.2 },

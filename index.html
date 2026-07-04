@@ -43,9 +43,33 @@
                 <p class="craft-ayuda">Clic: tomar / colocar / devolver &middot; resultado: fabricar &middot; E/Esc: cerrar</p>
             </div>
         </div>
-        <canvas id="craft-cursor" class="hidden" width="36" height="36"></canvas>
-        <div id="craft-tooltip" class="hidden"></div>
     </div>
+
+    <!-- Horno: fundición por sesión (entrada + combustible → salida) -->
+    <div id="furnace" class="overlay hidden">
+        <div class="craft-cuerpo">
+            <div class="panel craft-panel">
+                <h3 class="craft-etiqueta furnace-titulo">Horno</h3>
+                <h3 class="craft-etiqueta">Entrada</h3>
+                <div id="furnace-in" class="furnace-grid"></div>
+                <h3 class="craft-etiqueta">Combustible <span id="furnace-usos"></span></h3>
+                <div id="furnace-fuel" class="furnace-grid"></div>
+                <div class="craft-linea">
+                    <button id="furnace-btn" type="button" disabled>Fundir</button>
+                    <div id="furnace-flecha" class="craft-flecha inactiva" title="Fundir 1 unidad">&#10140;</div>
+                </div>
+                <h3 class="craft-etiqueta">Salida</h3>
+                <div id="furnace-out" class="furnace-grid"></div>
+                <p class="craft-ayuda">Clic: elegir entrada y combustible &middot; Fundir / flecha: 1 unidad &middot; E/Esc: cerrar</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- El icono «en mano» y el tooltip son fijos (fixed) y los comparten
+         el crafteo y el horno: viven FUERA de ambos overlays para que
+         ocultar uno no los oculte al otro -->
+    <canvas id="craft-cursor" class="hidden" width="36" height="36"></canvas>
+    <div id="craft-tooltip" class="hidden"></div>
 
     <!-- Barra de progreso de generación -->
     <div id="progress" class="overlay hidden">
@@ -109,6 +133,7 @@
                     <tr><td>B</td><td>Selector de bloques</td></tr>
                     <tr><td>E</td><td>Inventario y crafteo 2×2 (Supervivencia)</td></tr>
                     <tr><td>Clic der en la mesa</td><td>Mesa de crafteo 3×3</td></tr>
+                    <tr><td>Clic der en el horno</td><td>Fundición (entrada + combustible)</td></tr>
                     <tr><td>M</td><td>Música sí/no</td></tr>
                     <tr><td>F3</td><td>Depuración</td></tr>
                     <tr><td>R</td><td>Reaparecer</td></tr>

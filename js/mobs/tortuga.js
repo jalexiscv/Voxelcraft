@@ -19,6 +19,8 @@
  * modelo: 7 px frente a un AABB de 0.5 bloques (8 px), dentro de tolerancia.
  */
 
+import { ITEMS } from '../items.js';
+
 const OLIVA = [124, 128, 70];          // piel del cuerpo, cabeza y aletas
 const OLIVA_OSCURO = [88, 94, 48];     // escamas y fosas nasales
 const VERDE = [70, 130, 60];           // caparazón
@@ -36,6 +38,8 @@ export default {
     speed: 0.7,
     fleeSpeed: 1.4,
     spawn: { cap: 2, group: 2, block: 'SAND' },
+    // botín: alguna escama desprendida de las placas de su caparazón
+    drops: [{ id: ITEMS.ESCAMA, min: 0, max: 1 }],
 
     skin: { w: 64, h: 64 },
 

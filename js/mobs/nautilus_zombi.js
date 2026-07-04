@@ -17,6 +17,7 @@
  * alternando leg0/leg1 en contrafase. Altura del modelo: 15 px frente a un
  * AABB de 0.95 bloques (15.2 px).
  */
+import { ITEMS } from '../items.js';
 
 const VERDE_MUSGO = [110, 130, 90];    // bandas podridas de la concha
 const HUESO_SUCIO = [160, 150, 120];   // bandas claras, ya sin brillo
@@ -37,6 +38,8 @@ export default {
     hp: 12,
     speed: 1.6,
     spawn: { cap: 2, group: 1, water: true },
+    // botín: escama de la concha carcomida y carne podrida propia del no-muerto
+    drops: [{ id: ITEMS.ESCAMA, min: 0, max: 1 }, { id: ITEMS.CARNE_PODRIDA, min: 0, max: 1 }],
 
     behavior: { aggro: 10, attackRange: 1.4, damage: 2, cooldown: 1.3 },
 

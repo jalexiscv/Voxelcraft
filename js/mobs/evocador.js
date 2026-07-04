@@ -17,6 +17,8 @@
  * bloques (30.4 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const TUNICA = [35, 35, 40];           // negro azabache de la túnica
 const TUNICA_OSCURA = [24, 24, 28];    // pliegues y desgaste de la tela
 const DORADO = [200, 170, 80];         // galones y ribetes dorados
@@ -37,6 +39,8 @@ export default {
     hp: 24,
     speed: 1.3,
     spawn: { cap: 1, group: 1, night: true },
+    // Botín: perla al 25 % (residuo raro de sus conjuros de invocación)
+    drops: [{ id: ITEMS.PERLA, min: 0, max: 1, chance: 0.25 }],
 
     /** Hechicero de media distancia: conjura proyectiles con calma. */
     behavior: { aggro: 14, projectile: true, damage: 3, cooldown: 3.0 },

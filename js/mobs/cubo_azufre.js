@@ -9,6 +9,7 @@
  * Distribución de la piel 64×64:
  *   (0,0) cubo 14×14×14 → 56×28 (único desplegado)
  */
+import { ITEMS } from '../items.js';
 
 const AZUFRE = [222, 196, 60];
 const OCRE = [180, 150, 40];
@@ -24,6 +25,8 @@ export default {
     hop: true,
     glow: true,
     spawn: { cap: 3, group: 2, cave: true },
+    // Botín: pólvora 0-2 — el azufre es el ingrediente clásico de la pólvora.
+    drops: [{ id: ITEMS.POLVORA, min: 0, max: 2 }],
 
     skin: { w: 64, h: 64 },
 

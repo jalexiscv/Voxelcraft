@@ -20,6 +20,8 @@
  * de 0.7 bloques (11.2 px), dentro de la tolerancia del validador.
  */
 
+import { ITEMS } from '../items.js';
+
 const QUITINA = [40, 60, 70];          // quitina azul verdosa oscura
 const PELO = [72, 102, 108];           // pelillos verdiazules claros
 const VENENO = [56, 110, 96];          // marca venenosa del lomo
@@ -34,6 +36,8 @@ export default {
     hp: 8,
     speed: 2.6,
     spawn: { cap: 3, group: 2, cave: true },
+    // botín: hilo de la telaraña que hila, como su prima de superficie
+    drops: [{ id: ITEMS.HILO, min: 0, max: 2 }],
 
     /** Persecución rápida cuerpo a cuerpo con brinco al morder. */
     behavior: { aggro: 14, attackRange: 1.7, damage: 2, cooldown: 1.1, lunge: true },
