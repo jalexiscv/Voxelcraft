@@ -141,6 +141,8 @@ export const RECIPES = [
         pattern: ['H', 'H', 'S'], keys: { H: ITEMS.LINGOTE_HIERRO, S: ITEMS.PALO } },
     { name: 'Horno', out: { id: B.FURNACE, n: 1 },
         pattern: ['CCC', 'C C', 'CCC'], keys: { C: B.COBBLE } },
+    { name: 'Cofre', out: { id: B.CHEST, n: 1 },
+        pattern: ['PPP', 'P P', 'PPP'], keys: { P: B.PLANKS } },
     { name: 'Puerta', out: { id: B.DOOR_CLOSED, n: 1 },
         pattern: ['PP', 'PP', 'PP'], keys: { P: B.PLANKS } },
     { name: 'Valla', out: { id: B.FENCE, n: 2 },

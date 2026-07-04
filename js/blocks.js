@@ -28,6 +28,7 @@ export const B = {
     FENCE: 66, WINDOW: 67,
     TORCH: 68,          // brilla con luz propia (decorativa)
     BED: 69,            // clic derecho de noche → amanece
+    CHEST: 70,          // cofre: su contenido viaja en world.blockData
 };
 
 /**
@@ -53,8 +54,9 @@ function def(name, side, opts = {}) {
         opaque: opts.opaque !== undefined ? opts.opaque : true,   // oculta caras vecinas y bloquea luz solar
         liquid: opts.liquid || false,
         cross: opts.cross || false,       // se dibuja como dos quads en X (plantas)
+        panel: opts.panel || false,       // se malla como caja fina centrada (puerta/ventana); la colisión no cambia
         hideSame: opts.hideSame || false, // no dibujar caras entre bloques del mismo id
-        bright: opts.bright || false,     // emite luz propia (lava)
+        bright: opts.bright || false,     // emite luz propia (lava 15, antorcha 14)
         sound,
         breakable: opts.breakable !== undefined ? opts.breakable : true,
         placeable: opts.placeable !== undefined ? opts.placeable : true,
@@ -129,12 +131,13 @@ DEFS[B.CRAFTING_TABLE] = def('Mesa de crafteo', TILE.CRAFTING_SIDE, { top: TILE.
 
 /* ---- Bloques funcionales (documents/04-items.md) ---- */
 DEFS[B.FURNACE]     = def('Horno', TILE.FURNACE_SIDE, { top: TILE.FURNACE_TOP, hardness: 5 });
-DEFS[B.DOOR_CLOSED] = def('Puerta', TILE.DOOR_T, { opaque: false, sound: 'wood' });
-DEFS[B.DOOR_OPEN]   = def('Puerta abierta', TILE.DOOR_OPEN_T, { solid: false, opaque: false, placeable: false, sound: 'wood' });
+DEFS[B.DOOR_CLOSED] = def('Puerta', TILE.DOOR_T, { opaque: false, panel: true, sound: 'wood' });
+DEFS[B.DOOR_OPEN]   = def('Puerta abierta', TILE.DOOR_OPEN_T, { solid: false, opaque: false, panel: true, placeable: false, sound: 'wood' });
 DEFS[B.FENCE]       = def('Valla', TILE.FENCE_T, { cross: true, opaque: false, sound: 'wood' });
-DEFS[B.WINDOW]      = def('Ventana', TILE.WINDOW_T, { opaque: false, hideSame: true, hardness: 1 });
+DEFS[B.WINDOW]      = def('Ventana', TILE.WINDOW_T, { opaque: false, hideSame: true, panel: true, hardness: 1 });
 DEFS[B.TORCH]       = def('Antorcha', TILE.TORCH_T, { cross: true, solid: false, opaque: false, bright: true, sound: 'wood', hardness: 1, tool: null });
 DEFS[B.BED]         = def('Cama', TILE.PLANKS, { top: TILE.BED_TOP, sound: 'cloth', hardness: 2 });
+DEFS[B.CHEST]       = def('Cofre', TILE.CHEST_SIDE, { top: TILE.CHEST_TOP, bottom: TILE.PLANKS, sound: 'wood', hardness: 3 });
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */
 export const PLACEABLE = DEFS

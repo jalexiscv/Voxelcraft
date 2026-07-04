@@ -135,9 +135,14 @@ export class MobRenderer {
 
             // luz local: a cubierto (cuevas) el mob se ve más oscuro,
             // salvo los que emiten luz propia (calamar brillante, allay…)
-            const sunlit = world.sunlit(Math.floor(m.pos[0]),
-                Math.floor(m.pos[1] + m.def.aabb.h * 0.8), Math.floor(m.pos[2]));
-            gl.uniform1f(this.u.uBright, (m.def.glow || sunlit) ? 1 : 0.55);
+            // o los que están junto a una antorcha/lava (luz de bloque)
+            const bx = Math.floor(m.pos[0]);
+            const by = Math.floor(m.pos[1] + m.def.aabb.h * 0.8);
+            const bz = Math.floor(m.pos[2]);
+            const sunlit = world.sunlit(bx, by, bz);
+            let brillo = (m.def.glow || sunlit) ? 1 : 0.55;
+            brillo = Math.max(brillo, world.blockLightAt(bx, by, bz) / 15);
+            gl.uniform1f(this.u.uBright, brillo);
 
             // tintes: mecha (parpadeo blanco) > daño (rojo) > muerte (rojo sostenido)
             if (m.fuseT >= 0 && Math.sin(time * 24) > 0) gl.uniform4f(this.u.uTint, 1, 1, 1, 0.55);

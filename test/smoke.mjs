@@ -38,7 +38,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('70 tipos definidos', DEFS.length === 70 && DEFS.every(d => d));
+check('71 tipos definidos', DEFS.length === 71 && DEFS.every(d => d));
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -149,15 +149,95 @@ let uvOk = true, lightOk = true;
 for (let i = 0; i < mesh.solid.length; i += 6) {
     const u = mesh.solid[i + 3], v = mesh.solid[i + 4], l = mesh.solid[i + 5];
     if (u < 0 || u > 1 || v < 0 || v > 1) uvOk = false;
-    if (l < 0 || l > 1.01) lightOk = false;
+    // luz codificada: parte entera = luz de bloque 0..15, fracción = sol ≤0.96
+    const bloque = Math.floor(l), sol = l - bloque;
+    if (bloque < 0 || bloque > 15 || sol <= 0 || sol > 0.9601) lightOk = false;
 }
 check('UVs dentro del atlas', uvOk);
-check('luz por vértice en [0,1]', lightOk);
+check('luz por vértice decodificable (sol ≤0.96 + bloque 0..15)', lightOk);
 check('hay malla de agua en el área', (() => {
     let n = 0;
     for (let cx = -3; cx <= 3; cx++) for (let cz = -3; cz <= 3; cz++) n += meshChunk(world, cx, cz).water.length;
     return n > 0;
 })());
+
+/* Chunk de laboratorio: suelo de piedra (y<8) y aire encima. */
+const flatChunk = () => {
+    const b = new Uint8Array(CHUNK * 64 * CHUNK);
+    b.fill(B.STONE, 0, 8 * CHUNK * CHUNK);
+    return b;
+};
+
+console.log('== Luz de bloques ==');
+{
+    const wl = new World(1);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wl.addChunk(cx, cz, flatChunk());
+    }
+    check('sin fuentes, todo a oscuras', wl.blockLightAt(8, 10, 8) === 0);
+
+    wl.set(8, 10, 8, B.TORCH);
+    check('la antorcha emite nivel 14 en su celda', wl.blockLightAt(8, 10, 8) === 14);
+    check('la luz decae 1 por bloque con la distancia',
+        wl.blockLightAt(9, 10, 8) === 13 && wl.blockLightAt(10, 10, 8) === 12 &&
+        wl.blockLightAt(8, 10, 11) === 11 && wl.blockLightAt(8, 13, 8) === 11);
+    check('fuera de chunks la luz es 0', wl.blockLightAt(500, 10, 500) === 0);
+
+    wl.set(9, 10, 8, B.STONE); // muro pegado a la antorcha
+    check('un bloque opaco corta la luz (solo llega rodeándolo)',
+        wl.blockLightAt(9, 10, 8) === 0 && wl.blockLightAt(10, 10, 8) === 10);
+    wl.set(9, 10, 8, B.AIR);
+    check('retirar el muro restaura la propagación', wl.blockLightAt(10, 10, 8) === 12);
+
+    // una fuente a <15 del borde cruza al chunk vecino y lo marca para remallar
+    wl.dirty.clear();
+    wl.set(0, 10, 0, B.TORCH);
+    check('la luz cruza los bordes de chunk',
+        wl.blockLightAt(-1, 10, 0) === 13 && wl.blockLightAt(0, 10, -3) === 11);
+    check('los vecinos alcanzados quedan sucios (remallado)',
+        wl.dirty.has('-1,0') && wl.dirty.has('0,-1') && wl.dirty.has('-1,-1'));
+    wl.set(0, 10, 0, B.AIR);
+    check('quitar la antorcha apaga su luz', wl.blockLightAt(-1, 10, 0) === 0 && wl.blockLightAt(0, 10, 0) === 0);
+
+    wl.set(4, 10, 20, B.LAVA); // en el chunk (0,1)
+    check('la lava emite nivel 15', wl.blockLightAt(4, 10, 20) === 15 && wl.blockLightAt(4, 10, 21) === 14);
+
+    // el mallado codifica sol y bloque en un solo float: fract/floor los separan
+    const m = meshChunk(wl, 0, 0); // conserva la antorcha de (8,10,8)
+    let decodOk = true, conBloque = false;
+    for (let i = 0; i < m.solid.length; i += 6) {
+        const l = m.solid[i + 5], bloque = Math.floor(l), sol = l - bloque;
+        if (bloque < 0 || bloque > 15 || sol <= 0 || sol > 0.9601) decodOk = false;
+        if (bloque >= 1) conBloque = true;
+    }
+    check('attrs de malla decodificables con fract/floor', decodOk);
+    check('la malla junto a la antorcha lleva luz de bloque ≥1', conBloque);
+}
+
+console.log('== Paneles finos ==');
+{
+    check('puerta y ventana llevan el flag panel (colisión intacta)',
+        DEFS[B.DOOR_CLOSED].panel === true && DEFS[B.DOOR_OPEN].panel === true &&
+        DEFS[B.WINDOW].panel === true &&
+        DEFS[B.DOOR_CLOSED].solid && DEFS[B.WINDOW].solid && !DEFS[B.DOOR_OPEN].solid);
+
+    const wp = new World(2);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wp.addChunk(cx, cz, flatChunk());
+    }
+    wp.set(2, 10, 2, B.WINDOW);
+    const mp = meshChunk(wp, 0, 0);
+    // todos los vértices de la celda del panel viven en los planos z=0.40/0.60
+    let finas = 0, gordas = 0;
+    for (let i = 0; i < mp.solid.length; i += 6) {
+        const x = mp.solid[i], y = mp.solid[i + 1], z = mp.solid[i + 2];
+        if (y < 10 || y > 11 || x < 2 || x > 3) continue; // solo la celda de la ventana
+        if (Math.abs(z - 2.4) < 1e-3 || Math.abs(z - 2.6) < 1e-3) finas++;
+        else gordas++;
+    }
+    check('la ventana se malla como caja fina (6 caras en z 0.40/0.60)',
+        finas === 36 && gordas === 0);
+}
 
 console.log('== Raycast ==');
 {
@@ -355,6 +435,54 @@ console.log('== Dureza, crafteo y drops ==');
     efimero.spawn(B.SAND, 0, 20, 0, () => 0.5);
     for (let i = 0; i < 70; i++) efimero.update(1, lejos, suelo, () => {});
     check('un drop no recogido se desvanece', efimero.list.length === 0);
+}
+
+/* ==== Cofres: estado por posición, persistencia y receta ==== */
+console.log('== Cofres ==');
+{
+    const { blockDataToJSON, blockDataFromJSON } = await import(base + 'storage.js');
+    const { matchGrid } = await import(base + 'items.js');
+    const { Inventory } = await import(base + 'inventory.js');
+
+    check('el cofre suena a madera y aguanta 3 golpes',
+        DEFS[B.CHEST].sound === 'wood' && DEFS[B.CHEST].hardness === 3);
+
+    const wc = new World(3);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wc.addChunk(cx, cz, flatChunk());
+    }
+    wc.set(5, 10, 5, B.CHEST);
+    check('sin estado asociado, getBlockData devuelve null', wc.getBlockData(5, 10, 5) === null);
+    // el contenido viaja como el toJSON de un inventario (objeto plano id → n)
+    const contenido = new Inventory();
+    contenido.add(B.DIRT, 12); contenido.add(B.COBBLE, 3);
+    wc.setBlockData(5, 10, 5, contenido.toJSON());
+    check('setBlockData/getBlockData guardan y devuelven el objeto',
+        wc.getBlockData(5, 10, 5)[B.DIRT] === 12 && wc.getBlockData(5, 10, 5)[B.COBBLE] === 3);
+    check('el contenido rehidrata un Inventory (formato de la futura UI)',
+        new Inventory(wc.getBlockData(5, 10, 5)).count(B.DIRT) === 12);
+    check('setBlockData(null) borra el estado', (() => {
+        wc.setBlockData(6, 10, 5, { 1: 1 });
+        wc.setBlockData(6, 10, 5, null);
+        return wc.getBlockData(6, 10, 5) === null;
+    })());
+    wc.set(5, 10, 5, B.AIR); // romper el cofre
+    check('romper el bloque limpia su blockData', wc.getBlockData(5, 10, 5) === null && wc.blockData.size === 0);
+
+    // ciclo de guardado/carga simulado con las funciones puras de storage
+    wc.set(2, 9, 2, B.CHEST);
+    wc.setBlockData(2, 9, 2, contenido.toJSON());
+    const guardado = JSON.parse(JSON.stringify(blockDataToJSON(wc.blockData))); // instantánea serializada
+    const wc2 = new World(3);
+    wc2.blockData = blockDataFromJSON(guardado);
+    check('el blockData sobrevive al ciclo de guardado/carga',
+        wc2.getBlockData(2, 9, 2) !== null && new Inventory(wc2.getBlockData(2, 9, 2)).count(B.COBBLE) === 3);
+    check('un guardado antiguo (sin blockData) carga con el mapa vacío',
+        blockDataFromJSON(undefined).size === 0 && blockDataFromJSON(null).size === 0);
+
+    const P = B.PLANKS;
+    check('el cofre se fabrica con el anillo de 8 tablones',
+        (matchGrid([P, P, P, P, 0, P, P, P, P], 3) || {}).name === 'Cofre');
 }
 
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);

@@ -41,6 +41,7 @@ export const TILE = {
     FURNACE_SIDE: 99, FURNACE_TOP: 101,
     DOOR_T: 102, DOOR_OPEN_T: 103, FENCE_T: 104, WINDOW_T: 105,
     TORCH_T: 106, BED_TOP: 107,
+    CHEST_SIDE: 108, CHEST_TOP: 109,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -676,6 +677,60 @@ painters[TILE.BED_TOP] = (t) => {
     for (let i = 0; i < TILE_PX; i++) {                     // borde del armazón
         t.px(i, 0, 110, 84, 50); t.px(i, 15, 110, 84, 50);
         t.px(0, i, 110, 84, 50); t.px(15, i, 110, 84, 50);
+    }
+};
+
+/** Herraje metálico en L para las esquinas del cofre. */
+function herrajeEsquina(t, cx, cy, dx, dy) {
+    const M = [148, 150, 156], S = [104, 106, 112];        // metal y su sombra
+    for (let i = 0; i < 3; i++) {
+        t.px(cx + i * dx, cy, ...M); t.px(cx, cy + i * dy, ...M);
+    }
+    t.px(cx + dx, cy + dy, ...S);                           // remache interior
+}
+
+painters[TILE.CHEST_SIDE] = (t) => {
+    // frontal de arcón: tablas horizontales cálidas, marco oscuro, herrajes
+    // en las esquinas y cerradura metálica centrada (diseño propio)
+    t.noiseFill([162, 116, 66], 8);
+    for (let y = 0; y < TILE_PX; y++) {
+        if (y % 5 === 4) { for (let x = 0; x < TILE_PX; x++) t.px(x, y, 118, 82, 44); } // juntas
+    }
+    t.speckle(10, [140, 98, 54]);                           // veta
+    for (let i = 0; i < TILE_PX; i++) {                     // marco
+        t.px(i, 0, 84, 58, 30); t.px(i, 15, 84, 58, 30);
+        t.px(0, i, 84, 58, 30); t.px(15, i, 84, 58, 30);
+    }
+    herrajeEsquina(t, 1, 1, 1, 1); herrajeEsquina(t, 14, 1, -1, 1);
+    herrajeEsquina(t, 1, 14, 1, -1); herrajeEsquina(t, 14, 14, -1, -1);
+    for (let y = 5; y <= 9; y++) {                          // placa de la cerradura
+        for (let x = 6; x <= 9; x++) t.px(x, y, 168, 170, 176);
+    }
+    t.px(6, 5, 208, 210, 216); t.px(9, 5, 208, 210, 216);   // brillo superior
+    t.px(7, 6, 52, 52, 56); t.px(8, 6, 52, 52, 56);         // ojo de la llave
+    t.px(7, 7, 52, 52, 56); t.px(8, 7, 52, 52, 56);
+    t.px(7, 8, 52, 52, 56);                                 // gota del ojo
+};
+
+painters[TILE.CHEST_TOP] = (t) => {
+    // tapa vista desde arriba: tablas, marco, herrajes y la ranura por la
+    // que abre la tapa, con el pestillo metálico asomando en el frente
+    t.noiseFill([170, 124, 72], 8);
+    for (let x = 0; x < TILE_PX; x++) {
+        if (x % 5 === 4) { for (let y = 0; y < TILE_PX; y++) t.px(x, y, 124, 88, 48); } // juntas
+    }
+    t.speckle(10, [148, 106, 58]);                          // veta
+    for (let i = 0; i < TILE_PX; i++) {                     // marco
+        t.px(i, 0, 84, 58, 30); t.px(i, 15, 84, 58, 30);
+        t.px(0, i, 84, 58, 30); t.px(15, i, 84, 58, 30);
+    }
+    herrajeEsquina(t, 1, 1, 1, 1); herrajeEsquina(t, 14, 1, -1, 1);
+    herrajeEsquina(t, 1, 14, 1, -1); herrajeEsquina(t, 14, 14, -1, -1);
+    for (let x = 1; x < 15; x++) {                          // ranura de la tapa
+        t.px(x, 11, 70, 48, 26); t.px(x, 12, 108, 76, 42);
+    }
+    for (let x = 6; x <= 9; x++) {                          // pestillo sobre la ranura
+        t.px(x, 10, 168, 170, 176); t.px(x, 11, 148, 150, 156); t.px(x, 12, 104, 106, 112);
     }
 };
 

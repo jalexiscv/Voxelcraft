@@ -7,13 +7,18 @@
  * - Dos mallas por chunk: sólida (con recorte alfa para hojas/cristal/plantas)
  *   y de agua (translúcida, se dibuja después con blending).
  *
- * Formato de vértice: [x, y, z, u, v, luz] — stride 6 floats.
+ * Formato de vértice: [x, y, z, u, v, luz] — stride 6 floats. El atributo de
+ * luz CODIFICA dos canales en un solo float: la parte fraccionaria es la luz
+ * solar (recortada a ≤0.96) y la parte entera es la luz de bloque 0..15 de la
+ * celda que da la cara (antorchas/lava); el shader las separa con fract/floor.
  */
 import { B, DEFS } from './blocks.js';
 import { tileUV } from './atlas.js';
 import { CHUNK } from './world.js';
 
 const SUN_SHADOW = 0.55; // multiplicador de luz para celdas sin sol directo
+const SUN_MAX = 0.96;    // tope del canal solar (deja libre la parte entera)
+const PANEL_Z0 = 0.40, PANEL_Z1 = 0.60; // grosor de los paneles finos
 
 /** Las 6 caras del cubo: normal, sombreado y esquinas en orden de perímetro. */
 const FACES = [
@@ -61,6 +66,9 @@ function emitFace(out, world, x, y, z, face, tile, topH, bright) {
     const [nx, ny, nz] = [x + face.n[0], y + face.n[1], z + face.n[2]];
     const [ta, tb] = tangentAxes(face.n);
     const sun = bright ? 1 : (world.sunlit(nx, ny, nz) ? 1 : SUN_SHADOW);
+    // luz de bloque de la celda que da la cara (constante en las 4 esquinas:
+    // la parte entera no varía dentro del triángulo y fract interpola bien)
+    const luzBloque = world.blockLightAt(nx, ny, nz);
 
     const verts = face.corners.map((pos) => {
         const [lu, lv] = cornerUV(face.n, pos);
@@ -71,7 +79,7 @@ function emitFace(out, world, x, y, z, face, tile, topH, bright) {
             z + pos[2],
             u0 + lu * (u1 - u0),
             v0 + lv * (v1 - v0),
-            face.shade * sun * ao,
+            Math.min(face.shade * sun * ao, SUN_MAX) + luzBloque,
         ];
     });
     // dos triángulos: 0-1-2 y 0-2-3
@@ -82,6 +90,8 @@ function emitFace(out, world, x, y, z, face, tile, topH, bright) {
 function emitCross(out, world, x, y, z, tile) {
     const [u0, v0, u1, v1] = tileUV(tile);
     const sun = world.sunlit(x, y, z) ? 1 : SUN_SHADOW;
+    // la propia celda aporta la luz de bloque (una antorcha se ilumina a sí misma)
+    const luz = Math.min(sun, SUN_MAX) + world.blockLightAt(x, y, z);
     const quads = [
         [[0, 0, 0], [1, 0, 1], [1, 1, 1], [0, 1, 0]],
         [[1, 0, 0], [0, 0, 1], [0, 1, 1], [1, 1, 0]],
@@ -91,9 +101,50 @@ function emitCross(out, world, x, y, z, tile) {
             x + pos[0], y + pos[1], z + pos[2],
             u0 + pos[0] * (u1 - u0),
             v0 + (1 - pos[1]) * (v1 - v0),
-            sun,
+            luz,
         ]);
         out.push(...verts[0], ...verts[1], ...verts[2], ...verts[0], ...verts[2], ...verts[3]);
+    }
+}
+
+/**
+ * Panel fino (puerta/ventana): caja centrada x∈[0,1], y∈[0,1], z∈[0.40,0.60]
+ * con la tésela completa en las dos caras grandes y cantos de 3 px (franja
+ * lateral de la tésela). Sin estados de orientación: panel siempre centrado
+ * en z. Sin AO (la caja está retranqueada del borde del bloque); la luz es
+ * la de la propia celda. La colisión no cambia (el bloque sigue siendo solid).
+ */
+function emitPanel(out, world, x, y, z, id, def) {
+    const [u0, v0, u1, v1] = tileUV(def.side);
+    const du = u1 - u0, dv = v1 - v0;
+    const grosor = PANEL_Z1 - PANEL_Z0; // 0.2 ≈ 3 px de tésela
+    const sun = world.sunlit(x, y, z) ? 1 : SUN_SHADOW;
+    const luzBloque = world.blockLightAt(x, y, z);
+    const luz = (shade) => Math.min(shade * sun, SUN_MAX) + luzBloque;
+    const z0 = z + PANEL_Z0, z1 = z + PANEL_Z1;
+    const quad = (a, b, c, d) => out.push(...a, ...b, ...c, ...a, ...c, ...d);
+
+    // caras grandes (±z), siempre visibles: quedan retranqueadas del borde
+    for (const zc of [z0, z1]) {
+        const l = luz(0.8);
+        quad([x, y, zc, u0, v1, l], [x + 1, y, zc, u1, v1, l],
+             [x + 1, y + 1, zc, u1, v0, l], [x, y + 1, zc, u0, v0, l]);
+    }
+    // cantos ±x: franja vertical; se ocultan contra vecinos opacos o paneles iguales
+    for (const dx of [-1, 1]) {
+        const nId = world.get(x + dx, y, z);
+        if (DEFS[nId].opaque || nId === id) continue;
+        const xc = dx < 0 ? x : x + 1, l = luz(0.6);
+        quad([xc, y, z0, u0, v1, l], [xc, y, z1, u0 + grosor * du, v1, l],
+             [xc, y + 1, z1, u0 + grosor * du, v0, l], [xc, y + 1, z0, u0, v0, l]);
+    }
+    // cantos ±y: franja horizontal (arriba claro, abajo oscuro, como los cubos)
+    for (const dy of [-1, 1]) {
+        const nId = world.get(x, y + dy, z);
+        if (DEFS[nId].opaque || nId === id) continue;
+        const yc = dy < 0 ? y : y + 1, l = luz(dy < 0 ? 0.5 : 1.0);
+        quad([x, yc, z0, u0, v0, l], [x + 1, yc, z0, u1, v0, l],
+             [x + 1, yc, z1, u1, v0 + grosor * dv, l], [x, yc, z1, u0, v0 + grosor * dv, l]);
     }
 }
 
@@ -115,6 +166,11 @@ export function meshChunk(world, cx, cz) {
 
                 if (def.cross) {
                     emitCross(solid, world, x, y, z, def.side);
+                    continue;
+                }
+
+                if (def.panel) {
+                    emitPanel(solid, world, x, y, z, id, def);
                     continue;
                 }
 

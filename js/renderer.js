@@ -41,7 +41,11 @@ out vec4 outColor;
 void main() {
     vec4 tex = texture(uTex, vUV + uUVScroll);
     if (tex.a < uCutoff) discard;
-    vec3 lit = tex.rgb * vLight * uDay;
+    // vLight codifica dos canales: parte entera = luz de bloque 0..15
+    // (antorchas/lava, no depende del día), fracción = luz solar (≤0.96)
+    float bloque = floor(vLight) / 15.0;
+    float sol = fract(vLight);
+    vec3 lit = tex.rgb * max(sol * uDay, bloque);
     float dist = distance(vWorldPos, uCamPos);
     float fog = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
     outColor = vec4(mix(lit, uFogColor, fog), tex.a * uAlphaMul);
@@ -89,9 +93,10 @@ void main() {
 
 const STRIDE = 6 * 4; // 6 floats por vértice
 
-/* Esquinas y luz de las 6 caras del cubito de drop (semiarista 1, se escala). */
+/* Esquinas y luz de las 6 caras del cubito de drop (semiarista 1, se escala).
+   Luz ≤0.96: el shader decodifica la parte entera como luz de bloque. */
 const DROP_QUADS = [
-    { c: [[-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]], luz: 1.0, cara: 'top' },
+    { c: [[-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]], luz: 0.96, cara: 'top' },
     { c: [[-1, -1, 1], [1, -1, 1], [1, -1, -1], [-1, -1, -1]], luz: 0.55, cara: 'bottom' },
     { c: [[1, -1, -1], [1, -1, 1], [1, 1, 1], [1, 1, -1]], luz: 0.8, cara: 'side' },
     { c: [[-1, -1, 1], [-1, -1, -1], [-1, 1, -1], [-1, 1, 1]], luz: 0.8, cara: 'side' },
@@ -260,7 +265,8 @@ export class Renderer {
                         const [ex, ey, ez] = plano[k];
                         const x = ex * S2 * cos - ez * S2 * sin;
                         const z = ex * S2 * sin + ez * S2 * cos;
-                        data.set([d.pos[0] + x, cy + ey * S2, d.pos[2] + z, uv[k][0], uv[k][1], 1], o);
+                        // luz 0.96: tope del canal solar (nada en la parte entera)
+                        data.set([d.pos[0] + x, cy + ey * S2, d.pos[2] + z, uv[k][0], uv[k][1], 0.96], o);
                         o += 6;
                     }
                 }
@@ -388,7 +394,8 @@ export class Renderer {
             [px - s, pz - s], [px + s, pz - s], [px + s, pz + s],
             [px - s, pz - s], [px + s, pz + s], [px - s, pz + s],
         ];
-        const data = new Float32Array(quad.flatMap(([x, z]) => [x, y, z, x / scale, z / scale, 1]));
+        // luz 0.96: tope del canal solar (1.0 se decodificaría como luz de bloque)
+        const data = new Float32Array(quad.flatMap(([x, z]) => [x, y, z, x / scale, z / scale, 0.96]));
         this.cloud = this.makeVAO(data);
         this.cloudCenter = [px, pz];
     }

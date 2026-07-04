@@ -1,7 +1,8 @@
 /**
  * Persistencia en IndexedDB (localStorage se queda corto para un mundo
  * infinito). Se guarda:
- *  - 'meta'   → semilla, estado del jugador y hora del mundo.
+ *  - 'meta'   → semilla, estado del jugador y hora del mundo; bajo otra
+ *               clave, el estado por posición (blockData: cofres).
  *  - 'chunks' → SOLO los chunks modificados por el jugador, comprimidos con
  *               RLE; el resto se regenera de la semilla al explorar.
  * Un guardado es una instantánea completa: limpia y reescribe ambos stores.
@@ -11,6 +12,19 @@ import { CHUNK, WORLD_HEIGHT, rleEncode, rleDecode } from './world.js';
 const DB_NAME = 'voxelcraft';
 const DB_VERSION = 1;
 const META_KEY = 'default';
+const BLOCKDATA_KEY = 'blockData:default';
+
+/* ---- Serialización de blockData (funciones puras, probables en Node) ---- */
+
+/** Mapa "x,y,z" → objeto plano ⇒ objeto plano anidado para el guardado. */
+export function blockDataToJSON(blockData) {
+    return Object.fromEntries(blockData);
+}
+
+/** Objeto del guardado ⇒ Map (guardados antiguos: sin clave → mapa vacío). */
+export function blockDataFromJSON(obj) {
+    return new Map(Object.entries(obj || {}));
+}
 
 function openDB() {
     return new Promise((resolve, reject) => {
@@ -32,6 +46,7 @@ export async function saveWorld(world, meta) {
         const chunks = tx.objectStore('chunks');
         chunks.clear();
         tx.objectStore('meta').put(meta, META_KEY);
+        tx.objectStore('meta').put(blockDataToJSON(world.blockData), BLOCKDATA_KEY);
         let n = 0;
         for (const [key, c] of world.chunks) {
             if (c.modified) { chunks.put(rleEncode(c.blocks), key); n++; }
@@ -55,26 +70,32 @@ export async function hasSave() {
     try { return (await loadMeta()) !== null; } catch (e) { return false; }
 }
 
-/** Vuelca los chunks editados del guardado dentro del mundo. */
+/** Vuelca los chunks editados del guardado (y su blockData) en el mundo. */
 export async function loadChunksInto(world) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-        const store = db.transaction('chunks').objectStore('chunks');
+        const tx = db.transaction(['meta', 'chunks']);
+        const store = tx.objectStore('chunks');
         const keysRq = store.getAllKeys();
         const valsRq = store.getAll();
-        let keys = null, vals = null;
+        // guardados antiguos: sin la clave el resultado es undefined → mapa vacío
+        const dataRq = tx.objectStore('meta').get(BLOCKDATA_KEY);
+        let keys = null, vals = null, dataDone = false;
         const finish = () => {
-            if (!keys || !vals) return;
+            if (!keys || !vals || !dataDone) return;
             const size = CHUNK * WORLD_HEIGHT * CHUNK;
             for (let i = 0; i < keys.length; i++) {
                 const [cx, cz] = String(keys[i]).split(',').map(Number);
                 world.addChunk(cx, cz, rleDecode(vals[i], size), true);
             }
+            world.blockData = blockDataFromJSON(dataRq.result);
             db.close();
             resolve(keys.length);
         };
         keysRq.onsuccess = () => { keys = keysRq.result; finish(); };
         valsRq.onsuccess = () => { vals = valsRq.result; finish(); };
-        keysRq.onerror = valsRq.onerror = () => { db.close(); reject(keysRq.error || valsRq.error); };
+        dataRq.onsuccess = () => { dataDone = true; finish(); };
+        keysRq.onerror = valsRq.onerror = dataRq.onerror =
+            () => { db.close(); reject(keysRq.error || valsRq.error || dataRq.error); };
     });
 }
