@@ -94,3 +94,4 @@
 | 90 | 2026-07-04 | [Configuración del repositorio, herramienta de curación del historial y análisis del proyecto](2026-07-04_configuracion_repo.md) |
 | 91 | 2026-07-04 | [Rediseño estructural del conejo y tonalidades de piel por individuo con sesgo por bioma](2026-07-04_conejo_tonalidades.md) |
 | 92 | 2026-07-04 | [Corrección de aparición: conejo y armadillo sobre el suelo natural de su bioma](2026-07-04_conejo_aparicion_biomas.md) |
+| 93 | 2026-07-04 | [Corrección de render: chunks invisibles al volver a zonas visitadas (mallas perdidas)](2026-07-04_mallas_perdidas.md) |

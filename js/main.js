@@ -298,6 +298,29 @@ function boot() {
         return n;
     }
 
+    /**
+     * Sana mallas perdidas: un chunk puede conservar sus DATOS al alejarse
+     * (KEEP_MARGIN) mientras su malla se libera; al volver, pumpGeneration no
+     * lo re-pide (ya tiene datos) y onChunkArrived —único sitio que encolaba
+     * remallados— jamás se dispara para él: quedaba suelo invisible con mobs
+     * caminando encima. Este barrido encola todo chunk visible, mallable y
+     * sin malla.
+     */
+    function ensureMeshes() {
+        const [pcx, pcz] = playerChunk();
+        const meshR = game.renderDist + 1;
+        for (let dx = -meshR; dx <= meshR; dx++) {
+            for (let dz = -meshR; dz <= meshR; dz++) {
+                const cx = pcx + dx, cz = pcz + dz;
+                const key = chunkKey(cx, cz);
+                if (renderer.chunks.has(key) || game.world.dirty.has(key)) continue;
+                if (game.world.chunks.has(key) && game.world.meshable(cx, cz)) {
+                    game.world.dirty.add(key);
+                }
+            }
+        }
+    }
+
     /** Libera mallas lejanas y descarta datos no modificados aún más lejos. */
     function unloadFar() {
         const [pcx, pcz] = playerChunk();
@@ -637,11 +660,12 @@ function boot() {
             }
         }
 
-        // streaming: generar cercano, remallar pendiente, descargar lejano
+        // streaming: generar cercano, sanar mallas, remallar, descargar lejano
         game.streamTimer -= dt;
         if (game.streamTimer <= 0) {
             game.streamTimer = 0.5;
             pumpGeneration();
+            ensureMeshes();
             unloadFar();
         }
         processDirty(6);
