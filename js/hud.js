@@ -49,11 +49,13 @@ export class HUD {
             progressFill: document.getElementById('progress-fill'),
             debug: document.getElementById('debug'),
             hearts: document.getElementById('hearts'),
+            hunger: document.getElementById('hunger'),
         };
 
         this.buildHotbar();
         this.buildPicker();
         this.buildHearts();
+        this.buildHunger();
 
         // el material «en mano» y el tooltip siguen al puntero en el crafteo
         // (el horno comparte el manejador: su tooltip usa el mismo elemento)
@@ -86,7 +88,7 @@ export class HUD {
         t.classList.remove('hidden');
     }
 
-    /* ---- Salud ---- */
+    /* ---- Salud y hambre ---- */
 
     buildHearts() {
         this.els.hearts.innerHTML = '';
@@ -98,6 +100,23 @@ export class HUD {
         this.els.hearts.classList.remove('hidden');
         [...this.els.hearts.children].forEach((el, i) => {
             el.className = hp >= (i + 1) * 2 ? '' : (hp === i * 2 + 1 ? 'half' : 'empty');
+        });
+    }
+
+    buildHunger() {
+        this.els.hunger.innerHTML = '';
+        for (let i = 0; i < 10; i++) this.els.hunger.appendChild(document.createElement('span'));
+    }
+
+    /**
+     * Pinta la fila de raciones: `hunger` en medias raciones (0..20).
+     * Misma cuenta que setHealth; el CSS invierte la fila (row-reverse)
+     * para que, como espejo de los corazones, se llene desde la derecha.
+     */
+    setHunger(hunger) {
+        this.els.hunger.classList.remove('hidden');
+        [...this.els.hunger.children].forEach((el, i) => {
+            el.className = hunger >= (i + 1) * 2 ? '' : (hunger === i * 2 + 1 ? 'half' : 'empty');
         });
     }
 

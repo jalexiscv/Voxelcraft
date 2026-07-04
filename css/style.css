@@ -55,9 +55,10 @@ body {
 }
 .slot.agotado canvas { opacity: .3; }
 
-/* Corazones de salud (♥ rojo sobre ♥ apagado; media vida con clip) */
+/* Corazones de salud (♥ rojo sobre ♥ apagado; media vida con clip):
+   mitad izquierda sobre la hotbar — la barra de hambre es su espejo derecho */
 #hearts {
-    position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%);
+    position: absolute; bottom: 64px; right: calc(50% + 3px);
     z-index: 2; display: flex; gap: 1px; pointer-events: none;
 }
 #hearts span { position: relative; width: 16px; height: 16px; }
@@ -69,6 +70,23 @@ body {
 #hearts span::after { color: #e73c3c; text-shadow: 1px 1px #5a0000; }
 #hearts span.empty::after { content: ""; }
 #hearts span.half::after { clip-path: inset(0 50% 0 0); }
+
+/* Raciones de hambre (🍗 vivo sobre 🍗 apagado; media ración con clip):
+   espejo derecho de los corazones — row-reverse hace que la fila se llene
+   desde la derecha y la media ración conserva su mitad derecha */
+#hunger {
+    position: absolute; bottom: 64px; left: calc(50% + 3px);
+    z-index: 2; display: flex; flex-direction: row-reverse; gap: 1px; pointer-events: none;
+}
+#hunger span { position: relative; width: 16px; height: 16px; }
+#hunger span::before, #hunger span::after {
+    content: "🍗"; position: absolute; inset: 0;
+    font-size: 13px; line-height: 16px; text-align: center;
+}
+#hunger span::before { filter: grayscale(1) brightness(.4); text-shadow: 1px 1px #000; }
+#hunger span::after { filter: saturate(1.1); text-shadow: none; }
+#hunger span.empty::after { content: ""; }
+#hunger span.half::after { clip-path: inset(0 0 0 50%); }
 
 /* Viñeta roja al recibir daño */
 #damage {

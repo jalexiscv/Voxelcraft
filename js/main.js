@@ -31,6 +31,9 @@ import { saveWorld, loadMeta, loadChunksInto, hasSave } from './storage.js';
 const DAY_LENGTH = 600;       // segundos por ciclo día/noche
 const REACH = 5;              // alcance de interacción en bloques
 const ACTION_REPEAT = 0.25;   // s entre acciones al mantener el botón
+const HUNGER_DRAIN = 40;      // s de juego por cada punto de hambre drenado
+const SPRINT_DRAIN = 15;      // s de sprint por cada punto de hambre extra
+const STARVE_PERIOD = 6;      // s entre golpes de inanición con el hambre a 0
 const GEN_MARGIN = 1;         // anillo extra generado más allá del render
 const KEEP_MARGIN = 6;        // anillo extra donde se conservan datos
 const MAX_INFLIGHT = 2;       // peticiones simultáneas al worker
@@ -79,6 +82,10 @@ function boot() {
         regenT: 0,
         hurtGraceT: 0,
         dead: false,
+        hunger: 20,             // hambre en medias raciones (0..20); solo drena en supervivencia
+        hungerT: 0,             // s acumulados hacia el próximo punto drenado
+        sprintT: 0,             // s de sprint acumulados (drenaje extra)
+        starveT: 0,             // s hacia el próximo golpe de inanición
         // streaming
         worker: null,
         requested: new Set(),   // chunks pedidos al worker
@@ -156,6 +163,7 @@ function boot() {
         yaw: player.yaw, pitch: player.pitch, flying: player.flying,
         timeOfDay: game.timeOfDay,
         dayCount: game.dayCount,
+        hunger: game.hunger,
         inventory: game.inventory.toJSON(),
     });
     const applyPlayerState = (p) => {
@@ -165,8 +173,10 @@ function boot() {
         player.flying = game.mode === 'creativo' ? !!p.flying : false; // el vuelo es del Creativo
         game.timeOfDay = p.timeOfDay || 0;
         game.dayCount = p.dayCount || 0;
+        game.hunger = p.hunger ?? 20; // guardados antiguos: saciado
         game.inventory = new Inventory(p.inventory || {});
         hud.setInventory(game.mode === 'supervivencia' ? game.inventory : null);
+        if (game.mode === 'supervivencia') hud.setHunger(game.hunger);
     };
 
     /* ---- Mobs y salud del jugador ---- */
@@ -216,12 +226,20 @@ function boot() {
         }
     }
 
+    /** Drena `n` puntos de hambre y repinta la barra (solo en supervivencia). */
+    function drenarHambre(n) {
+        if (game.mode !== 'supervivencia' || n <= 0) return;
+        game.hunger = Math.max(0, game.hunger - n);
+        hud.setHunger(game.hunger);
+    }
+
     $('btn-respawn').addEventListener('click', () => {
         sound.click();
         player.spawn(game.world);
         game.hp = 20;
         game.dead = false;
         hud.setHealth(game.hp);
+        drenarHambre(1); // reaparecer también cansa: el hambre no se repone al morir
         $('death').classList.add('hidden');
         canvas.requestPointerLock();
     });
@@ -355,9 +373,15 @@ function boot() {
         game.hp = 20;
         game.dead = false;
         game.hurtGraceT = 0;
+        game.hunger = 20;
+        game.hungerT = 0;
+        game.sprintT = 0;
+        game.starveT = 0;
         hud.setHealth(game.hp);
-        // en Creativo no hay salud que gestionar: los corazones se ocultan
+        hud.setHunger(game.hunger);
+        // en Creativo no hay salud ni hambre que gestionar: ambas barras se ocultan
         $('hearts').classList.toggle('hidden', game.mode === 'creativo');
+        $('hunger').classList.toggle('hidden', game.mode === 'creativo');
         // inventario: vacío en mundo nuevo (la carga lo repone después);
         // en creativo el HUD ofrece todos los materiales sin cantidades
         game.inventory = new Inventory();
@@ -492,7 +516,7 @@ function boot() {
         }
         if (e.code === 'KeyM') { sound.ensure(); sound.toggleMusic(); return; }
         if (e.code === 'KeyF') { if (game.mode === 'creativo') player.flying = !player.flying; return; }
-        if (e.code === 'KeyR') { player.spawn(game.world); return; }
+        if (e.code === 'KeyR') { player.spawn(game.world); drenarHambre(1); return; }
         if (e.code.startsWith('Digit')) {
             const n = Number(e.code.slice(5));
             if (n >= 1 && n <= 9) hud.setActive(n - 1);
@@ -519,6 +543,21 @@ function boot() {
                 // el puñetazo hace 4; una espada en mano, su propio daño
                 const it = ITEM_DEFS[hud.activeBlock()];
                 game.mobs.hurt(mhit.mob, (it && it.sword) || 4, dir);
+                return;
+            }
+        }
+        // comer: con un alimento en mano, «usar» lo consume ANTES de cualquier
+        // intento de colocar (y sin exigir apuntar a un bloque: se puede comer
+        // mirando al cielo); con el hambre llena no se gasta nada
+        if (button === 2 && game.mode === 'supervivencia') {
+            const id = hud.activeBlock();
+            const it = ITEM_DEFS[id];
+            if (it && it.food && game.hunger < 20 && game.inventory.count(id) > 0) {
+                game.inventory.take(id, 1);
+                game.hunger = Math.min(20, game.hunger + it.food);
+                hud.setHunger(game.hunger);
+                hud.refreshCounts();
+                sound.place('cloth');
                 return;
             }
         }
@@ -683,14 +722,42 @@ function boot() {
             if (game.breakingT <= 0) game.breaking = null;
         }
 
-        // regeneración lenta si no se ha recibido daño en un rato
+        // regeneración lenta si no se ha recibido daño en un rato; exige ir
+        // bien comido (hambre > 12) y cada medio corazón cuesta 1 de hambre
         game.hurtGraceT = Math.max(0, game.hurtGraceT - dt);
-        if (game.hp > 0 && game.hp < 20 && game.hurtGraceT <= 0) {
+        if (game.hp > 0 && game.hp < 20 && game.hurtGraceT <= 0 && game.hunger > 12) {
             game.regenT += dt;
             if (game.regenT >= 4) {
                 game.regenT = 0;
                 game.hp++;
                 hud.setHealth(game.hp);
+                drenarHambre(1);
+            }
+        }
+
+        // hambre: drena con el paso del tiempo y, aparte, al correr (Shift
+        // manteniendo el movimiento); solo cuenta en supervivencia
+        if (game.mode === 'supervivencia') {
+            game.hungerT += dt;
+            if (input.sprint && hSpeed > 1) game.sprintT += dt;
+            let drenaje = 0;
+            if (game.hungerT >= HUNGER_DRAIN) { game.hungerT = 0; drenaje++; }
+            if (game.sprintT >= SPRINT_DRAIN) { game.sprintT = 0; drenaje++; }
+            drenarHambre(drenaje);
+
+            // inanición: con el hambre a 0 se pierde ½ corazón cada pocos
+            // segundos, pero NUNCA por debajo de 1 corazón — adaptación
+            // propia: aquí no abundan las fuentes de comida al empezar y
+            // morir de hambre sería una espiral (reaparecer también drena),
+            // así que la inanición debilita y castiga, pero no mata
+            if (game.hunger <= 0) {
+                game.starveT += dt;
+                if (game.starveT >= STARVE_PERIOD) {
+                    game.starveT = 0;
+                    if (game.hp > 2) damagePlayer(1, null);
+                }
+            } else {
+                game.starveT = 0;
             }
         }
 
@@ -757,7 +824,7 @@ function boot() {
                 `Chunk: ${pcx},${pcz}  Cargados: ${game.world.chunks.size}  Mallas: ${renderer.chunks.size}\n` +
                 `Semilla: ${game.seed}  Hora: ${(game.timeOfDay * 24).toFixed(1)} h  Luz: ${day.toFixed(2)}  Día: ${game.dayCount}\n` +
                 `Vuelo: ${player.flying ? 'sí' : 'no'}  Agua: ${player.inWater ? 'sí' : 'no'}\n` +
-                `Mobs: ${game.mobs.count()}  Flechas: ${game.mobs.arrows.length}  Salud: ${game.hp}/20`
+                `Mobs: ${game.mobs.count()}  Flechas: ${game.mobs.arrows.length}  Salud: ${game.hp}/20  Hambre: ${game.hunger}/20`
             );
         }
     }
