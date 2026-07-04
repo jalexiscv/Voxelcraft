@@ -416,7 +416,13 @@ function boot() {
         game.actionCooldown = ACTION_REPEAT;
     });
     canvas.addEventListener('mouseup', (e) => game.buttons.delete(e.button));
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // el menú contextual del navegador rompe la experiencia en el juego y en
+    // las pantallas superpuestas (crafteo, selector, menús): se bloquea en
+    // todo el documento, salvo en los campos de texto (útil para pegar)
+    document.addEventListener('contextmenu', (e) => {
+        if (e.target && e.target.tagName === 'INPUT') return;
+        e.preventDefault();
+    });
 
     document.addEventListener('wheel', (e) => {
         if (game.state === 'playing' && locked()) hud.cycleActive(e.deltaY > 0 ? 1 : -1);

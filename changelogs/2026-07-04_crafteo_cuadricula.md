@@ -68,7 +68,9 @@ posterior: la sombra de texto global del tema oscuro se anula dentro del
 panel claro (producía un doble contorno «desfasado» en las etiquetas), el
 icono queda siempre centrado en su casilla (la cantidad pasa a ser un
 número pequeño arriba a la derecha) y las existencias se muestran como
-pilas clásicas de hasta 64 unidades por casilla.
+pilas clásicas de hasta 64 unidades por casilla. El menú contextual del
+navegador queda bloqueado en todo el documento (salvo campos de texto):
+aparecía sobre las pantallas del juego y rompía la experiencia.
 
 ## Impacto
 
