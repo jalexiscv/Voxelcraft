@@ -355,18 +355,19 @@ export class HUD {
         }
         res.appendChild(out);
 
-        // existencias: rejilla fija de ranuras (las vacías, visibles); clic
-        // toma el material en mano (clic de nuevo, o en una vacía, lo suelta)
+        // existencias: rejilla fija de ranuras (las vacías, visibles) con
+        // pilas de hasta 64 por casilla; clic toma el material en mano
+        // (clic de nuevo, o en una casilla vacía, lo suelta)
         const stock = this.els.craftInv;
         stock.innerHTML = '';
-        const ids = inv.ids();
-        const total = Math.max(27, Math.ceil(ids.length / 9) * 9); // 3+ filas de 9
+        const pilas = inv.stacks();
+        const total = Math.max(27, Math.ceil(pilas.length / 9) * 9); // 3+ filas de 9
         for (let k = 0; k < total; k++) {
-            const id = ids[k];
-            const cell = this.ranura(id || 0, id ? inv.count(id) : undefined);
-            if (id && st.mano === id) cell.classList.add('activo');
+            const pila = pilas[k];
+            const cell = this.ranura(pila ? pila.id : 0, pila ? pila.n : undefined);
+            if (pila && st.mano === pila.id) cell.classList.add('activo');
             cell.addEventListener('click', () => {
-                this.setMano(id && st.mano !== id ? id : 0);
+                this.setMano(pila && st.mano !== pila.id ? pila.id : 0);
                 this.renderCraft();
             });
             stock.appendChild(cell);

@@ -4,6 +4,10 @@
  * (romper recoge, colocar consume) y el HUD pinta las cantidades.
  * En modo creativo no se usa: acceso a todos los materiales sin cuenta.
  */
+
+/** Tamaño de la pila clásica: máximo de unidades por casilla. */
+export const STACK = 64;
+
 export class Inventory {
     /** @param {Object<number,number>} counts — objeto plano id → cantidad (guardado) */
     constructor(counts = {}) {
@@ -30,6 +34,23 @@ export class Inventory {
 
     /** Ids con existencias, ordenados por id (para el selector). */
     ids() { return [...this.counts.keys()].sort((a, b) => a - b); }
+
+    /**
+     * Existencias divididas en pilas de hasta `max` unidades (64, como la
+     * pila clásica): un material con más unidades ocupa varias casillas.
+     */
+    stacks(max = STACK) {
+        const pilas = [];
+        for (const id of this.ids()) {
+            let resto = this.count(id);
+            while (resto > 0) {
+                const n = Math.min(max, resto);
+                pilas.push({ id, n });
+                resto -= n;
+            }
+        }
+        return pilas;
+    }
 
     /** Objeto plano para persistir en el guardado. */
     toJSON() { return Object.fromEntries(this.counts); }

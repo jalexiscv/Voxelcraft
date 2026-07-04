@@ -264,6 +264,13 @@ console.log('== Inventario ==');
     check('sobrevive al guardado (toJSON → constructor)',
         copia.count(B.DIRT) === 1 && copia.ids().length === 1);
     check('agotar un material lo vacía del selector', inv.take(B.DIRT) && inv.ids().length === 0);
+    const pilas = new Inventory();
+    pilas.add(B.SAND, 130);
+    pilas.add(B.STONE, 3);
+    check('las existencias se dividen en pilas de hasta 64 por casilla',
+        JSON.stringify(pilas.stacks().map((p) => p.n)) === JSON.stringify([64, 3, 64, 2]) ||
+        JSON.stringify(pilas.stacks().map((p) => `${p.id}:${p.n}`)) ===
+        JSON.stringify([`${B.STONE}:3`, `${B.SAND}:64`, `${B.SAND}:64`, `${B.SAND}:2`]));
 }
 
 /* ==== Dureza, crafteo y drops ==== */
