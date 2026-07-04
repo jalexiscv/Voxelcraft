@@ -250,5 +250,21 @@ check('proyección: punto frontal centrado con w>0', Math.abs(px) < 1e-5 && pw >
 const d = lookDir(0, 0);
 check('lookDir(0,0) mira a −Z', Math.abs(d[0]) < 1e-9 && Math.abs(d[2] + 1) < 1e-9);
 
+/* ==== Inventario de supervivencia ==== */
+console.log('== Inventario ==');
+{
+    const { Inventory } = await import(base + 'inventory.js');
+    const inv = new Inventory();
+    inv.add(B.DIRT, 2);
+    inv.add(B.DIRT);
+    check('recolectar acumula existencias', inv.count(B.DIRT) === 3);
+    check('colocar consume existencias', inv.take(B.DIRT, 2) && inv.count(B.DIRT) === 1);
+    check('no se consume más de lo que hay', !inv.take(B.DIRT, 5) && inv.count(B.DIRT) === 1);
+    const copia = new Inventory(inv.toJSON());
+    check('sobrevive al guardado (toJSON → constructor)',
+        copia.count(B.DIRT) === 1 && copia.ids().length === 1);
+    check('agotar un material lo vacía del selector', inv.take(B.DIRT) && inv.ids().length === 0);
+}
+
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);
 process.exit(fail ? 1 : 0);

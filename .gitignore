@@ -1,0 +1,14 @@
+# Material archivado de terceros: NO redistribuir (ver nota legal del README).
+# Estas carpetas viven solo en la copia local; no forman parte de VoxelCraft.
+/example/
+/assets/
+
+# Herramientas internas de agentes y protocolos de trabajo (no se publican)
+/.claude/
+/CLAUDE.md
+/documents/Protocols/
+
+# Sistema operativo
+Thumbs.db
+Desktop.ini
+.DS_Store
