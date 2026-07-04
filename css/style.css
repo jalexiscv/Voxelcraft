@@ -129,46 +129,56 @@ input[type=text], select {
 #picker-grid .cell:hover { border-color: #fff; background: rgba(255,255,255,.15); }
 #picker-grid canvas { image-rendering: pixelated; }
 
-/* Pantalla de inventario y crafteo por cuadrícula */
-.craft-panel { min-width: 640px; }
-.craft-cuerpo { display: flex; gap: 18px; align-items: flex-start; text-align: left; }
-.craft-izq { flex: 1; }
-.craft-der { width: 250px; }
-.craft-panel h3 { margin: 10px 0 4px; font-size: 13px; color: #ccc; }
-.craft-linea { display: flex; align-items: center; gap: 12px; justify-content: center; padding: 6px 0; }
-.craft-flecha { font-size: 26px; color: #ccc; }
-#craft-grid { display: grid; gap: 4px; }
-#craft-inv {
-    display: grid; grid-template-columns: repeat(8, 46px); gap: 4px;
-    max-height: 170px; overflow-y: auto;
+/* Pantalla de inventario y crafteo por cuadrícula (banco de trabajo claro) */
+.craft-cuerpo { display: flex; gap: 14px; align-items: flex-start; }
+.craft-panel {
+    background: #c6c6c6; color: #3f3f3f;
+    border: 3px solid #1b1b1b; border-radius: 3px;
+    box-shadow: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #555555;
+    padding: 12px 14px; text-align: left;
 }
-#craft-hotbar { display: flex; gap: 4px; }
+.craft-etiqueta { margin: 6px 0 4px; font-size: 14px; color: #3f3f3f; font-weight: bold; }
+.craft-linea { display: flex; align-items: center; gap: 12px; padding: 6px 0 10px; }
+.craft-flecha { font-size: 28px; color: #8b8b8b; }
+#craft-grid { display: grid; gap: 4px; }
+#craft-inv { display: grid; grid-template-columns: repeat(9, 46px); gap: 4px; }
+#craft-hotbar { display: flex; gap: 4px; margin-top: 10px; }
+.craft-ayuda { margin: 10px 0 0; font-size: 11px; color: #5a5a5a; }
 .cslot {
-    width: 46px; height: 46px; border: 2px solid #555; background: rgba(255,255,255,.06);
+    width: 46px; height: 46px; background: #8b8b8b;
+    border: 2px solid; border-color: #373737 #ffffff #ffffff #373737; /* hundida */
     display: flex; align-items: center; justify-content: center; position: relative;
     cursor: pointer;
 }
-.cslot:hover { border-color: #999; }
-.cslot.activo { border-color: #fff; background: rgba(255,255,255,.16); }
-.cslot.resultado { width: 54px; height: 54px; border-color: #777; cursor: default; }
-.cslot.resultado.lista { border-color: #7c5; background: rgba(140,220,90,.12); cursor: pointer; }
+.cslot:hover { background: #a0a0a0; }
+.cslot.activo { background: #c5dbc0; border-color: #2e5a2e #eaffea #eaffea #2e5a2e; }
+.cslot.resultado { width: 56px; height: 56px; cursor: default; }
+.cslot.resultado.lista { background: #b8d8a8; cursor: pointer; }
 .cslot canvas { image-rendering: pixelated; }
-#craft-cursor {
-    position: fixed; z-index: 30; pointer-events: none; image-rendering: pixelated;
+.cslot .count { color: #fff; text-shadow: 1px 1px #3f3f3f; }
+#craft-book-btn {
+    width: 34px; height: 34px; padding: 0; margin: 0;
+    background: #8b8b8b; border: 2px solid; border-color: #ffffff #373737 #373737 #ffffff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
-#craft-book {
-    display: flex; flex-direction: column; gap: 5px;
-    max-height: 330px; overflow-y: auto;
+#craft-book-btn.activo { border-color: #373737 #ffffff #ffffff #373737; background: #a0a0a0; }
+#craft-book-btn canvas { width: 26px; height: 26px; image-rendering: pixelated; }
+#craft-cursor { position: fixed; z-index: 30; pointer-events: none; image-rendering: pixelated; }
+#craft-tooltip {
+    position: fixed; z-index: 31; pointer-events: none;
+    background: rgba(18, 4, 24, .95); border: 2px solid #6a4fa0; border-radius: 2px;
+    color: #fff; font-size: 13px; padding: 3px 8px; white-space: nowrap;
 }
+.craft-libro { width: 250px; display: flex; flex-direction: column; gap: 5px; max-height: 420px; overflow-y: auto; }
 .receta {
     display: flex; align-items: center; gap: 10px;
-    border: 2px solid #555; padding: 4px 8px; background: rgba(255,255,255,.05);
-    cursor: pointer;
+    background: #b0b0b0; border: 2px solid; border-color: #ffffff #373737 #373737 #ffffff;
+    padding: 4px 8px; cursor: pointer; color: #2e2e2e;
 }
 .receta.falta { opacity: .5; cursor: default; }
-.receta:not(.falta):hover { border-color: #fff; }
+.receta:not(.falta):hover { background: #c9c9c9; }
 .receta-info { flex: 1; display: flex; flex-direction: column; text-align: left; }
-.receta-info span { font-size: 11px; color: #bbb; }
+.receta-info span { font-size: 11px; color: #4c4c4c; }
 .receta canvas { image-rendering: pixelated; }
 
 /* Barra de progreso */

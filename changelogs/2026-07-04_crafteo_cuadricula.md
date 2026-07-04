@@ -54,6 +54,17 @@ celda, y el producto aparece en la ranura de resultado.
   sin forma, autocolocado, límite 2×2) y recuento de bloques 62 → 63.
   Suite: 66 → 74.
 
+## Ajuste de la misma sesión: disposición clásica del panel
+
+Tras la primera versión, la pantalla se reorganizó a la disposición clásica
+del género: etiqueta «Fabricación» sobre la cuadrícula con el **botón del
+recetario** al costado (panel lateral conmutable), flecha y ranura de
+resultado; «Inventario» como **rejilla fija de ranuras** (las vacías,
+visibles; 3+ filas de 9) con la hotbar separada debajo; **tooltip flotante**
+con el nombre del item bajo el puntero; y estética de banco de trabajo con
+paleta propia (panel claro, ranuras hundidas con bisel, cantidades dentro de
+la ranura). Todo con estilos y arte procedural del proyecto.
+
 ## Impacto
 
 - El crafteo se siente como el método clásico del género: arrastrar

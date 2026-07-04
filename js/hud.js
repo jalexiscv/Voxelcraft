@@ -2,7 +2,7 @@
  * HUD sobre DOM: hotbar de 9 ranuras con iconos isométricos pintados desde
  * el atlas, selector de bloques, barra de progreso y texto de depuración.
  */
-import { DEFS, PLACEABLE } from './blocks.js';
+import { DEFS, PLACEABLE, B } from './blocks.js';
 import { TILE_PX, ATLAS_GRID } from './atlas.js';
 import { ITEM_DEFS, isItem, RECIPES, matchGrid, autoColocar } from './items.js';
 
@@ -33,6 +33,9 @@ export class HUD {
             craftInv: document.getElementById('craft-inv'),
             craftHotbar: document.getElementById('craft-hotbar'),
             craftBook: document.getElementById('craft-book'),
+            craftBookBtn: document.getElementById('craft-book-btn'),
+            craftBookIcon: document.getElementById('craft-book-icon'),
+            craftTooltip: document.getElementById('craft-tooltip'),
             craftCursor: document.getElementById('craft-cursor'),
             progress: document.getElementById('progress'),
             progressLabel: document.getElementById('progress-label'),
@@ -45,12 +48,28 @@ export class HUD {
         this.buildPicker();
         this.buildHearts();
 
-        // el material «en mano» sigue al puntero dentro de la pantalla de crafteo
+        // el material «en mano» y el tooltip siguen al puntero en el crafteo
         this.craftState = null;
+        this.bookOpen = false;
         this.els.craft.addEventListener('mousemove', (e) => {
             this.els.craftCursor.style.left = `${e.clientX + 10}px`;
             this.els.craftCursor.style.top = `${e.clientY + 10}px`;
+            this.els.craftTooltip.style.left = `${e.clientX + 14}px`;
+            this.els.craftTooltip.style.top = `${e.clientY - 26}px`;
         });
+        this.drawIcon(this.els.craftBookIcon, B.BOOKSHELF); // icono del recetario
+        this.els.craftBookBtn.addEventListener('click', () => {
+            this.bookOpen = !this.bookOpen;
+            this.renderCraft();
+        });
+    }
+
+    /** Tooltip flotante con el nombre del item bajo el puntero. */
+    tooltip(texto) {
+        const t = this.els.craftTooltip;
+        if (!texto) { t.classList.add('hidden'); return; }
+        t.textContent = texto;
+        t.classList.remove('hidden');
     }
 
     /* ---- Salud ---- */
@@ -231,12 +250,11 @@ export class HUD {
         return isItem(id) ? (ITEM_DEFS[id] ? ITEM_DEFS[id].name : '?') : DEFS[id].name;
     }
 
-    /** Ranura genérica: icono del id (si lo hay) y cantidad opcional. */
+    /** Ranura genérica: icono del id (si lo hay), cantidad y tooltip. */
     ranura(id, n) {
         const cell = document.createElement('div');
         cell.className = 'cslot';
         if (id) {
-            cell.title = this.nombreDe(id);
             const canvas = document.createElement('canvas');
             this.drawIcon(canvas, id);
             cell.appendChild(canvas);
@@ -246,6 +264,8 @@ export class HUD {
                 badge.textContent = n > 1 ? String(n) : '';
                 cell.appendChild(badge);
             }
+            cell.addEventListener('mouseenter', () => this.tooltip(this.nombreDe(id)));
+            cell.addEventListener('mouseleave', () => this.tooltip(null));
         }
         return cell;
     }
@@ -258,7 +278,6 @@ export class HUD {
      */
     openCraft(w) {
         this.craftState = { w, cells: new Array(w * w).fill(0), mano: 0 };
-        this.els.craftTitle.textContent = w === 3 ? 'Mesa de crafteo' : 'Inventario';
         this.els.craft.classList.remove('hidden');
         this.renderCraft();
     }
@@ -268,6 +287,7 @@ export class HUD {
         if (st) for (const id of st.cells) if (id) this.inventory.add(id);
         this.craftState = null;
         this.setMano(0);
+        this.tooltip(null);
         this.els.craft.classList.add('hidden');
         this.refreshCounts();
     }
@@ -335,21 +355,18 @@ export class HUD {
         }
         res.appendChild(out);
 
-        // existencias: clic toma el material en mano (clic de nuevo lo suelta)
+        // existencias: rejilla fija de ranuras (las vacías, visibles); clic
+        // toma el material en mano (clic de nuevo, o en una vacía, lo suelta)
         const stock = this.els.craftInv;
         stock.innerHTML = '';
         const ids = inv.ids();
-        if (ids.length === 0 && st.cells.every((c) => !c)) {
-            const vacio = document.createElement('p');
-            vacio.className = 'hint';
-            vacio.textContent = 'Aún no has recolectado materiales: rompe bloques para llenar el inventario.';
-            stock.appendChild(vacio);
-        }
-        for (const id of ids) {
-            const cell = this.ranura(id, inv.count(id));
-            if (st.mano === id) cell.classList.add('activo');
+        const total = Math.max(27, Math.ceil(ids.length / 9) * 9); // 3+ filas de 9
+        for (let k = 0; k < total; k++) {
+            const id = ids[k];
+            const cell = this.ranura(id || 0, id ? inv.count(id) : undefined);
+            if (id && st.mano === id) cell.classList.add('activo');
             cell.addEventListener('click', () => {
-                this.setMano(st.mano === id ? 0 : id);
+                this.setMano(id && st.mano !== id ? id : 0);
                 this.renderCraft();
             });
             stock.appendChild(cell);
@@ -374,9 +391,12 @@ export class HUD {
             barra.appendChild(cell);
         });
 
-        // recetario: clic autocoloca los ingredientes en la cuadrícula
+        // recetario: panel lateral conmutable; clic autocoloca los ingredientes
         const libro = this.els.craftBook;
-        libro.innerHTML = '';
+        libro.classList.toggle('hidden', !this.bookOpen);
+        this.els.craftBookBtn.classList.toggle('activo', this.bookOpen);
+        libro.innerHTML = '<h3 class="craft-etiqueta">Recetario</h3>';
+        if (!this.bookOpen) return;
         for (const r of RECIPES) {
             const colocable = autoColocar(r, st.w, inv) !== null;
             const grande = r.pattern && (r.pattern.length > st.w || r.pattern[0].length > st.w);

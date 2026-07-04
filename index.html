@@ -27,30 +27,24 @@
 
     <!-- Inventario y crafteo por cuadrícula (E: personal 2×2; mesa: 3×3) -->
     <div id="craft" class="overlay hidden">
-        <div class="panel craft-panel">
-            <h2 id="craft-title">Inventario</h2>
-            <div class="craft-cuerpo">
-                <div class="craft-izq">
-                    <div class="craft-linea">
-                        <div id="craft-grid"></div>
-                        <div class="craft-flecha">&#10140;</div>
-                        <div id="craft-result"></div>
-                    </div>
-                    <h3>Materiales</h3>
-                    <div id="craft-inv"></div>
-                    <h3>Hotbar</h3>
-                    <div id="craft-hotbar"></div>
+        <div class="craft-cuerpo">
+            <div id="craft-book" class="panel craft-panel craft-libro hidden"></div>
+            <div class="panel craft-panel">
+                <h3 id="craft-title" class="craft-etiqueta">Fabricación</h3>
+                <div class="craft-linea">
+                    <button id="craft-book-btn" type="button" title="Recetario"><canvas id="craft-book-icon" width="36" height="36"></canvas></button>
+                    <div id="craft-grid"></div>
+                    <div class="craft-flecha">&#10140;</div>
+                    <div id="craft-result"></div>
                 </div>
-                <div class="craft-der">
-                    <h3>Recetario</h3>
-                    <div id="craft-book"></div>
-                </div>
+                <h3 class="craft-etiqueta">Inventario</h3>
+                <div id="craft-inv"></div>
+                <div id="craft-hotbar"></div>
+                <p class="craft-ayuda">Clic: tomar / colocar / devolver &middot; resultado: fabricar &middot; E/Esc: cerrar</p>
             </div>
-            <p class="hint">Clic en un material: tomarlo en mano &middot; clic en la cuadrícula: colocarlo
-                &middot; celda ocupada con la mano vacía: devolverlo &middot; clic en el resultado: fabricar
-                &middot; E/Esc: cerrar</p>
         </div>
         <canvas id="craft-cursor" class="hidden" width="36" height="36"></canvas>
+        <div id="craft-tooltip" class="hidden"></div>
     </div>
 
     <!-- Barra de progreso de generación -->
