@@ -86,3 +86,5 @@
 | 82 | 2026-07-04 | Changelogs detallados de biomas, cielo y esqueletos |
 | 83 | 2026-07-04 | [Integración y calibración del sistema de biomas](2026-07-04_biomas_integracion_calibracion.md) |
 | 84 | 2026-07-04 | [Esqueletos rediseñados y flechas clavadas](2026-07-04_esqueletos_flechas_clavadas.md) |
+| 85 | 2026-07-04 | [Menú al estilo clásico: modo de juego, dificultad y opciones antes de generar](2026-07-04_menu_modos_de_juego.md) |
+| 86 | 2026-07-04 | [Inventario de supervivencia (recolección y cantidades) y acceso total en creativo](2026-07-04_inventario_supervivencia.md) |

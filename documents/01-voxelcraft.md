@@ -26,6 +26,7 @@ Minecraft/ (raíz del proyecto)
     ├── sky.js               <-- Sol y luna: arco celeste, fases y crepúsculos
     ├── player.js            <-- Física AABB, natación, vuelo y raycast DDA
     ├── audio.js             <-- Sonido, voces de mobs y música generativa (WebAudio)
+    ├── inventory.js         <-- Inventario de supervivencia (puro, testeable)
     ├── hud.js               <-- Hotbar, selector, corazones de salud, depuración
     ├── mobs.js              <-- Mobs: IA, física, aparición, flechas y explosiones
     ├── mobrender.js         <-- Render WebGL de mobs (partes-caja animadas)
@@ -60,13 +61,14 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Sol y luna con fases y resplandor crepuscular | ✅ |
 | 14 biomas climáticos (materiales, vegetación y mobs por bioma) | ✅ (ver [03-biomas.md](03-biomas.md)) |
 | Modos de juego (Supervivencia/Creativo) y dificultad (Normal/Pacífica) elegidos al crear el mundo | ✅ |
+| Inventario de supervivencia (romper recolecta, colocar consume) y acceso total en Creativo | ✅ |
 | Depuración (F3), reaparición (R) | ✅ |
 | Mobs (68 criaturas con IA), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
 | Multijugador | ❌ (ver «Futuro») |
 
 ## Verificación
 
-Tres suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 121 comprobaciones; ver [02-mobs.md](02-mobs.md)) y `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)). La de humo (52 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
+Tres suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 121 comprobaciones; ver [02-mobs.md](02-mobs.md)) y `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)). La de humo (57 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
 
 ## Futuro
 
