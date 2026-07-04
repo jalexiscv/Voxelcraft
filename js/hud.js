@@ -5,6 +5,7 @@
 import { DEFS, PLACEABLE, B } from './blocks.js';
 import { TILE_PX, ATLAS_GRID } from './atlas.js';
 import { ITEM_DEFS, isItem, RECIPES, matchGrid, autoColocar, FUNDICIONES, COMBUSTIBLES, fundir } from './items.js';
+import { Inventory } from './inventory.js';
 
 const ICON = 36;  // lado del canvas de icono
 const K = 11;     // semiancho del rombo isométrico
@@ -44,6 +45,9 @@ export class HUD {
             furnaceUsos: document.getElementById('furnace-usos'),
             furnaceBtn: document.getElementById('furnace-btn'),
             furnaceFlecha: document.getElementById('furnace-flecha'),
+            chest: document.getElementById('chest'),
+            chestGrid: document.getElementById('chest-grid'),
+            chestInv: document.getElementById('chest-inv'),
             progress: document.getElementById('progress'),
             progressLabel: document.getElementById('progress-label'),
             progressFill: document.getElementById('progress-fill'),
@@ -58,9 +62,11 @@ export class HUD {
         this.buildHunger();
 
         // el material «en mano» y el tooltip siguen al puntero en el crafteo
-        // (el horno comparte el manejador: su tooltip usa el mismo elemento)
+        // (el horno y el cofre comparten el manejador: su tooltip usa el
+        // mismo elemento)
         this.craftState = null;
         this.furnaceState = null;
+        this.chestState = null;
         this.bookOpen = false;
         const seguirPuntero = (e) => {
             this.els.craftCursor.style.left = `${e.clientX + 10}px`;
@@ -70,6 +76,7 @@ export class HUD {
         };
         this.els.craft.addEventListener('mousemove', seguirPuntero);
         this.els.furnace.addEventListener('mousemove', seguirPuntero);
+        this.els.chest.addEventListener('mousemove', seguirPuntero);
         this.drawIcon(this.els.craftBookIcon, B.BOOKSHELF); // icono del recetario
         this.els.craftBookBtn.addEventListener('click', () => {
             this.bookOpen = !this.bookOpen;
@@ -334,9 +341,10 @@ export class HUD {
     }
 
     closeCraft() {
-        // si lo abierto es el horno, ciérralo: main.js llama a closeCraft()
-        // con E/Esc, y así el horno se despide por el mismo camino
+        // si lo abierto es el horno o el cofre, ciérralo: main.js llama a
+        // closeCraft() con E/Esc, y así ambos se despiden por el mismo camino
         if (this.furnaceOpen()) { this.closeFurnace(); return; }
+        if (this.chestOpen()) { this.closeChest(); return; }
         const st = this.craftState;
         if (st) for (const id of st.cells) if (id) this.inventory.add(id);
         this.craftState = null;
@@ -347,12 +355,12 @@ export class HUD {
     }
 
     /**
-     * ¿Hay pantalla de banco abierta? Cuenta TAMBIÉN el horno: main.js
-     * gobierna E/Esc, la pausa de la simulación y el menú del pointer lock
-     * con craftOpen()/closeCraft(), y al englobar aquí ambas pantallas el
-     * horno se abre/cierra igual que el crafteo sin tocar main.js.
+     * ¿Hay pantalla de banco abierta? Cuenta TAMBIÉN el horno y el cofre:
+     * main.js gobierna E/Esc, la pausa de la simulación y el menú del
+     * pointer lock con craftOpen()/closeCraft(), y al englobar aquí las
+     * tres pantallas todas se abren/cierran igual sin tocar main.js.
      */
-    craftOpen() { return !this.els.craft.classList.contains('hidden') || this.furnaceOpen(); }
+    craftOpen() { return !this.els.craft.classList.contains('hidden') || this.furnaceOpen() || this.chestOpen(); }
 
     /** Material «en mano»: se muestra como icono flotante junto al puntero. */
     setMano(id) {
@@ -604,6 +612,88 @@ export class HUD {
         const listo = this.puedeFundir();
         this.els.furnaceBtn.disabled = !listo;
         this.els.furnaceFlecha.classList.toggle('inactiva', !listo);
+    }
+
+    /* ---- Pantalla del cofre (contenido por bloque en world.blockData) ---- */
+
+    /**
+     * Abre la interfaz del cofre. `acceso` encapsula el bloque concreto:
+     * leer() devuelve su contenido (objeto plano id → cantidad, o null si
+     * está vacío) y escribir(data) lo persiste. Cada transferencia guarda
+     * AL MOMENTO, así cerrar por cualquier vía (E/Esc/menú) no pierde nada.
+     */
+    openChest(acceso) {
+        if (!this.inventory) return; // solo supervivencia: en creativo no se guarda
+        this.chestState = { acceso, inv: new Inventory(acceso.leer() || {}) };
+        this.els.chest.classList.remove('hidden');
+        this.renderChest();
+    }
+
+    closeChest() {
+        this.chestState = null;
+        this.tooltip(null);
+        this.els.chest.classList.add('hidden');
+        this.refreshCounts();
+    }
+
+    chestOpen() { return !this.els.chest.classList.contains('hidden'); }
+
+    /** Persiste el contenido del cofre; vacío → null (el bloque queda limpio). */
+    guardarCofre() {
+        const st = this.chestState;
+        const data = st.inv.toJSON();
+        st.acceso.escribir(Object.keys(data).length > 0 ? data : null);
+    }
+
+    /** Repinta la pantalla del cofre: su rejilla y el inventario del jugador. */
+    renderChest() {
+        const st = this.chestState;
+        if (!st) return;
+        const inv = this.inventory;
+
+        // rejilla del COFRE: 27 casillas fijas (3 filas de 9, como el cofre
+        // clásico; crece por filas si llegara a haber más pilas) con pilas
+        // de hasta 64; clic pasa TODA la pila al inventario
+        const rejilla = this.els.chestGrid;
+        rejilla.innerHTML = '';
+        const pilasCofre = st.inv.stacks();
+        const totalCofre = Math.max(27, Math.ceil(pilasCofre.length / 9) * 9);
+        for (let k = 0; k < totalCofre; k++) {
+            const pila = pilasCofre[k];
+            const cell = this.ranura(pila ? pila.id : 0, pila ? pila.n : undefined);
+            if (pila) {
+                cell.addEventListener('click', () => {
+                    st.inv.take(pila.id, pila.n);
+                    inv.add(pila.id, pila.n);
+                    this.guardarCofre();
+                    this.refreshCounts();
+                    this.renderChest();
+                });
+            }
+            rejilla.appendChild(cell);
+        }
+
+        // INVENTARIO del jugador: rejilla fija de ranuras (las vacías,
+        // visibles, como el stock del crafteo); clic guarda la pila
+        // (hasta 64 unidades) en el cofre
+        const stock = this.els.chestInv;
+        stock.innerHTML = '';
+        const pilas = inv.stacks();
+        const total = Math.max(27, Math.ceil(pilas.length / 9) * 9); // 3+ filas de 9
+        for (let k = 0; k < total; k++) {
+            const pila = pilas[k];
+            const cell = this.ranura(pila ? pila.id : 0, pila ? pila.n : undefined);
+            if (pila) {
+                cell.addEventListener('click', () => {
+                    inv.take(pila.id, pila.n);
+                    st.inv.add(pila.id, pila.n);
+                    this.guardarCofre();
+                    this.refreshCounts();
+                    this.renderChest();
+                });
+            }
+            stock.appendChild(cell);
+        }
     }
 
     /* ---- Progreso y depuración ---- */

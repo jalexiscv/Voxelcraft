@@ -581,6 +581,23 @@ function boot() {
             game.breaking.hits += fuerzaDeGolpe(def);
             sound.dig(def.sound);
             if (game.breaking.hits >= game.breaking.need) {
+                // romper un cofre con contenido: su botín cae ANTES del set
+                // a AIR (que limpia el estado del bloque). Tope de 64 drops
+                // de golpe (la capacidad del sistema: los de más expulsarían
+                // a los primeros); el resto va directo al inventario
+                if (hit.id === B.CHEST) {
+                    const botin = game.world.getBlockData(hit.x, hit.y, hit.z);
+                    if (botin) {
+                        let sueltos = 0;
+                        for (const [id, n] of Object.entries(botin)) {
+                            for (let k = 0; k < n; k++) {
+                                if (sueltos < 64) { game.drops.spawn(Number(id), hit.x, hit.y, hit.z); sueltos++; }
+                                else game.inventory.add(Number(id));
+                            }
+                        }
+                        hud.refreshCounts();
+                    }
+                }
                 game.world.set(hit.x, hit.y, hit.z, B.AIR);
                 game.breaking = null;
                 // el bloque roto queda flotando como cubito (drop)
@@ -600,6 +617,17 @@ function boot() {
             // usar el horno abre la interfaz de fundición
             if (hit.id === B.FURNACE && game.mode === 'supervivencia' && hud.openFurnace) {
                 hud.openFurnace();
+                document.exitPointerLock();
+                return;
+            }
+            // usar el cofre abre su interfaz: el acceso encapsula ESTE
+            // bloque para que el HUD lea y persista su contenido al momento
+            if (hit.id === B.CHEST && game.mode === 'supervivencia' && hud.openChest) {
+                const [cx, cy, cz] = [hit.x, hit.y, hit.z];
+                hud.openChest({
+                    leer: () => game.world.getBlockData(cx, cy, cz),
+                    escribir: (data) => { game.world.setBlockData(cx, cy, cz, data); },
+                });
                 document.exitPointerLock();
                 return;
             }

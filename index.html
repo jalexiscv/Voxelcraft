@@ -66,9 +66,22 @@
         </div>
     </div>
 
+    <!-- Cofre: intercambio de pilas entre el bloque y el inventario -->
+    <div id="chest" class="overlay hidden">
+        <div class="craft-cuerpo">
+            <div class="panel craft-panel">
+                <h3 class="craft-etiqueta chest-titulo">Cofre</h3>
+                <div id="chest-grid"></div>
+                <h3 class="craft-etiqueta">Inventario</h3>
+                <div id="chest-inv"></div>
+                <p class="craft-ayuda">Clic en el cofre: sacar la pila &middot; clic en el inventario: guardarla &middot; E/Esc: cerrar</p>
+            </div>
+        </div>
+    </div>
+
     <!-- El icono «en mano» y el tooltip son fijos (fixed) y los comparten
-         el crafteo y el horno: viven FUERA de ambos overlays para que
-         ocultar uno no los oculte al otro -->
+         el crafteo, el horno y el cofre: viven FUERA de los overlays para
+         que ocultar uno no los oculte al otro -->
     <canvas id="craft-cursor" class="hidden" width="36" height="36"></canvas>
     <div id="craft-tooltip" class="hidden"></div>
 
@@ -135,6 +148,7 @@
                     <tr><td>E</td><td>Inventario y crafteo 2×2 (Supervivencia)</td></tr>
                     <tr><td>Clic der en la mesa</td><td>Mesa de crafteo 3×3</td></tr>
                     <tr><td>Clic der en el horno</td><td>Fundición (entrada + combustible)</td></tr>
+                    <tr><td>Clic der en el cofre</td><td>Abrir cofre</td></tr>
                     <tr><td>Clic der con alimento</td><td>Comer (repone hambre)</td></tr>
                     <tr><td>M</td><td>Música sí/no</td></tr>
                     <tr><td>F3</td><td>Depuración</td></tr>
