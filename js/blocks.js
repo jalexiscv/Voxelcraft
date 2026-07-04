@@ -24,10 +24,19 @@ export const B = {
 };
 
 /**
+ * Dureza por familia de material (nº de golpes a mano para romper) y
+ * herramienta que lo acelera. El sonido del bloque ya codifica su familia,
+ * así que sirve de valor por defecto; cada def puede sobrescribirlo.
+ */
+const DUREZA_POR_SONIDO = { stone: 5, wood: 3, grass: 2, sand: 2, gravel: 2, cloth: 1, none: 1 };
+const HERRAMIENTA_POR_SONIDO = { stone: 'pico', wood: 'hacha', grass: 'pala', sand: 'pala', gravel: 'pala', cloth: 'pala' };
+
+/**
  * Crea una definición de bloque con valores por defecto sensatos.
  * top/side/bottom son índices de tésela del atlas (side se usa como defecto).
  */
 function def(name, side, opts = {}) {
+    const sound = opts.sound || 'stone';
     return {
         name,
         top: opts.top !== undefined ? opts.top : side,
@@ -39,14 +48,16 @@ function def(name, side, opts = {}) {
         cross: opts.cross || false,       // se dibuja como dos quads en X (plantas)
         hideSame: opts.hideSame || false, // no dibujar caras entre bloques del mismo id
         bright: opts.bright || false,     // emite luz propia (lava)
-        sound: opts.sound || 'stone',
+        sound,
         breakable: opts.breakable !== undefined ? opts.breakable : true,
         placeable: opts.placeable !== undefined ? opts.placeable : true,
+        hardness: opts.hardness !== undefined ? opts.hardness : (DUREZA_POR_SONIDO[sound] || 2),
+        tool: opts.tool !== undefined ? opts.tool : (HERRAMIENTA_POR_SONIDO[sound] || null),
     };
 }
 
 const plant = (name, tile, sound = 'grass') =>
-    def(name, tile, { solid: false, opaque: false, cross: true, sound });
+    def(name, tile, { solid: false, opaque: false, cross: true, sound, hardness: 1, tool: null });
 
 /** Definiciones indexadas por id de bloque. */
 export const DEFS = [];
@@ -62,17 +73,17 @@ DEFS[B.WATER]        = def('Agua', TILE.WATER, { solid: false, opaque: false, li
 DEFS[B.LAVA]         = def('Lava', TILE.LAVA, { solid: false, opaque: true, liquid: true, hideSame: true, bright: true, breakable: false, placeable: false, sound: 'none' });
 DEFS[B.SAND]         = def('Arena', TILE.SAND, { sound: 'sand' });
 DEFS[B.GRAVEL]       = def('Grava', TILE.GRAVEL, { sound: 'gravel' });
-DEFS[B.GOLD_ORE]     = def('Mena de oro', TILE.GOLD_ORE);
-DEFS[B.IRON_ORE]     = def('Mena de hierro', TILE.IRON_ORE);
-DEFS[B.COAL_ORE]     = def('Mena de carbón', TILE.COAL_ORE);
+DEFS[B.GOLD_ORE]     = def('Mena de oro', TILE.GOLD_ORE, { hardness: 6 });
+DEFS[B.IRON_ORE]     = def('Mena de hierro', TILE.IRON_ORE, { hardness: 6 });
+DEFS[B.COAL_ORE]     = def('Mena de carbón', TILE.COAL_ORE, { hardness: 6 });
 DEFS[B.LOG]          = def('Tronco', TILE.LOG_SIDE, { top: TILE.LOG_TOP, sound: 'wood' });
-DEFS[B.LEAVES]       = def('Hojas', TILE.LEAVES, { opaque: false, sound: 'grass' });
+DEFS[B.LEAVES]       = def('Hojas', TILE.LEAVES, { opaque: false, sound: 'grass', hardness: 1, tool: null });
 DEFS[B.SPONGE]       = def('Esponja', TILE.SPONGE, { sound: 'grass' });
-DEFS[B.GLASS]        = def('Cristal', TILE.GLASS, { opaque: false, hideSame: true });
+DEFS[B.GLASS]        = def('Cristal', TILE.GLASS, { opaque: false, hideSame: true, hardness: 1 });
 DEFS[B.GOLD_BLOCK]   = def('Bloque de oro', TILE.GOLD_BLOCK);
 DEFS[B.BRICKS]       = def('Ladrillos', TILE.BRICKS);
 DEFS[B.MOSSY_COBBLE] = def('Adoquín musgoso', TILE.MOSSY);
-DEFS[B.OBSIDIAN]     = def('Obsidiana', TILE.OBSIDIAN);
+DEFS[B.OBSIDIAN]     = def('Obsidiana', TILE.OBSIDIAN, { hardness: 12 });
 DEFS[B.BOOKSHELF]    = def('Librería', TILE.BOOKSHELF, { top: TILE.PLANKS, bottom: TILE.PLANKS, sound: 'wood' });
 DEFS[B.FLOWER_YELLOW]   = plant('Flor amarilla', TILE.FLOWER_YELLOW);
 DEFS[B.FLOWER_RED]      = plant('Rosa', TILE.FLOWER_RED);
@@ -91,7 +102,7 @@ for (let i = 0; i < 16; i++) {
 /* ---- Bloques del plan de biomas (documents/03-biomas.md) ---- */
 DEFS[B.SNOW]           = def('Nieve', TILE.SNOW, { sound: 'cloth' });
 DEFS[B.SNOWY_GRASS]    = def('Hierba nevada', TILE.GRASS_SNOW_SIDE, { top: TILE.SNOW, bottom: TILE.DIRT, sound: 'grass' });
-DEFS[B.ICE]            = def('Hielo', TILE.ICE, { opaque: false, hideSame: true });
+DEFS[B.ICE]            = def('Hielo', TILE.ICE, { opaque: false, hideSame: true, hardness: 2 });
 DEFS[B.SPRUCE_LOG]     = def('Tronco de abeto', TILE.SPRUCE_LOG_SIDE, { top: TILE.LOG_TOP, sound: 'wood' });
 DEFS[B.SPRUCE_LEAVES]  = def('Hojas de abeto', TILE.SPRUCE_LEAVES, { opaque: false, sound: 'grass' });
 DEFS[B.JUNGLE_LOG]     = def('Tronco de jungla', TILE.JUNGLE_LOG_SIDE, { top: TILE.LOG_TOP, sound: 'wood' });

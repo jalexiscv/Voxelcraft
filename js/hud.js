@@ -4,6 +4,7 @@
  */
 import { DEFS, PLACEABLE } from './blocks.js';
 import { TILE_PX, ATLAS_GRID } from './atlas.js';
+import { ITEM_DEFS, isItem, craftable } from './items.js';
 
 const ICON = 36;  // lado del canvas de icono
 const K = 11;     // semiancho del rombo isométrico
@@ -25,6 +26,8 @@ export class HUD {
             hotbar: document.getElementById('hotbar'),
             picker: document.getElementById('picker'),
             pickerGrid: document.getElementById('picker-grid'),
+            craft: document.getElementById('craft'),
+            craftList: document.getElementById('craft-list'),
             progress: document.getElementById('progress'),
             progressLabel: document.getElementById('progress-label'),
             progressFill: document.getElementById('progress-fill'),
@@ -76,6 +79,11 @@ export class HUD {
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, ICON, ICON);
+        if (isItem(blockId)) { // sprite plano del item (palos, herramientas)
+            const it = ITEM_DEFS[blockId];
+            if (it) ctx.drawImage(this.shadedTile(it.tile, 1), 2, 2, ICON - 4, ICON - 4);
+            return;
+        }
         const def = DEFS[blockId];
         if (!def) return;
 
@@ -164,8 +172,10 @@ export class HUD {
 
     buildPicker() {
         this.els.pickerGrid.innerHTML = '';
-        // creativo: todos los materiales; supervivencia: solo lo recolectado
-        const ids = this.inventory ? this.inventory.ids().filter((id) => DEFS[id] && DEFS[id].placeable)
+        // creativo: todos los materiales; supervivencia: lo recolectado
+        // (bloques colocables y herramientas fabricadas)
+        const ids = this.inventory
+            ? this.inventory.ids().filter((id) => isItem(id) || (DEFS[id] && DEFS[id].placeable))
             : PLACEABLE;
         if (ids.length === 0) {
             const vacio = document.createElement('p');
@@ -177,7 +187,7 @@ export class HUD {
         for (const id of ids) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.title = DEFS[id].name;
+            cell.title = this.nombreDe(id);
             const canvas = document.createElement('canvas');
             this.drawIcon(canvas, id);
             cell.appendChild(canvas);
@@ -200,6 +210,45 @@ export class HUD {
         if (this.inventory) this.buildPicker(); // las existencias cambian al jugar
         this.els.picker.classList.remove('hidden');
     }
+
+    /* ---- Mesa de crafteo ---- */
+
+    /** Nombre legible de un id, sea bloque o item. */
+    nombreDe(id) {
+        return isItem(id) ? (ITEM_DEFS[id] ? ITEM_DEFS[id].name : '?') : DEFS[id].name;
+    }
+
+    /** Reconstruye la lista de recetas según las existencias del inventario. */
+    buildCraft(inv, recipes, onCraft) {
+        const list = this.els.craftList;
+        list.innerHTML = '';
+        for (const r of recipes) {
+            const puede = craftable(inv, r);
+            const row = document.createElement('div');
+            row.className = 'receta' + (puede ? '' : ' falta');
+            const canvas = document.createElement('canvas');
+            this.drawIcon(canvas, r.out.id);
+            const info = document.createElement('div');
+            info.className = 'receta-info';
+            const nombre = document.createElement('strong');
+            nombre.textContent = r.out.n > 1 ? `${r.name} ×${r.out.n}` : r.name;
+            const coste = document.createElement('span');
+            coste.textContent = r.in
+                .map((i) => `${i.n}× ${this.nombreDe(i.id)} (tienes ${inv.count(i.id)})`)
+                .join(' · ');
+            info.append(nombre, coste);
+            const btn = document.createElement('button');
+            btn.textContent = 'Fabricar';
+            btn.disabled = !puede;
+            btn.addEventListener('click', () => onCraft(r));
+            row.append(canvas, info, btn);
+            list.appendChild(row);
+        }
+    }
+
+    openCraft() { this.els.craft.classList.remove('hidden'); }
+    closeCraft() { this.els.craft.classList.add('hidden'); }
+    craftOpen() { return !this.els.craft.classList.contains('hidden'); }
     closePicker() { this.els.picker.classList.add('hidden'); }
     pickerOpen() { return !this.els.picker.classList.contains('hidden'); }
 

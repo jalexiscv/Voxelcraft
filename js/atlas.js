@@ -26,6 +26,9 @@ export const TILE = {
     CACTUS_SIDE: 58, CACTUS_TOP: 59,
     MYCELIUM_TOP: 60, MYCELIUM_SIDE: 61, PODZOL_TOP: 62, PODZOL_SIDE: 63,
     DEAD_BUSH: 64, TALL_GRASS: 65,
+    // herramientas del crafteo (sprites planos; items en js/items.js)
+    PALO: 66, PICO_MADERA: 67, HACHA_MADERA: 68, PALA_MADERA: 69,
+    PICO_PIEDRA: 70, HACHA_PIEDRA: 71, PALA_PIEDRA: 72,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -408,6 +411,56 @@ painters[TILE.TALL_GRASS] = (t) => {
         }
     }
 };
+
+/* ---- Herramientas del crafteo (sprites planos con fondo transparente) ---- */
+
+const MANGO = [124, 92, 56];
+const SOMBRA_MANGO = [92, 66, 38];
+
+/** Mango diagonal de la esquina inferior izquierda hacia arriba a la derecha. */
+function mangoDiagonal(t, desde = 2, hasta = 11) {
+    for (let i = desde; i <= hasta; i++) {
+        t.px(i, 15 - i, ...MANGO);
+        t.px(i + 1, 15 - i, ...SOMBRA_MANGO);
+    }
+}
+
+painters[TILE.PALO] = (t) => mangoDiagonal(t, 2, 12);
+
+const picoTile = (cabeza, brillo) => (t) => {
+    mangoDiagonal(t);
+    // cabeza en arco (parábola suave) con las puntas caídas
+    for (let x = 5; x <= 14; x++) {
+        const y = Math.round(1 + 0.09 * (x - 10) * (x - 10));
+        t.px(x, y, ...cabeza);
+        t.px(x, y + 1, ...(x === 5 || x === 14 ? cabeza : brillo));
+    }
+};
+
+const hachaTile = (cabeza, brillo) => (t) => {
+    mangoDiagonal(t);
+    for (let y = 1; y <= 5; y++) {
+        for (let x = 8; x <= 12; x++) {
+            if (x + y <= 16) t.px(x, y, ...(y === 1 || x === 8 ? brillo : cabeza));
+        }
+    }
+};
+
+const palaTile = (cabeza, brillo) => (t) => {
+    mangoDiagonal(t, 2, 9);
+    for (let y = 1; y <= 5; y++) {
+        for (let x = 10; x <= 13; x++) t.px(x, y, ...(y === 1 ? brillo : cabeza));
+    }
+};
+
+const CABEZA_MADERA = [150, 112, 62], BRILLO_MADERA = [178, 138, 84];
+const CABEZA_PIEDRA = [128, 128, 128], BRILLO_PIEDRA = [162, 162, 162];
+painters[TILE.PICO_MADERA] = picoTile(CABEZA_MADERA, BRILLO_MADERA);
+painters[TILE.HACHA_MADERA] = hachaTile(CABEZA_MADERA, BRILLO_MADERA);
+painters[TILE.PALA_MADERA] = palaTile(CABEZA_MADERA, BRILLO_MADERA);
+painters[TILE.PICO_PIEDRA] = picoTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
+painters[TILE.HACHA_PIEDRA] = hachaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
+painters[TILE.PALA_PIEDRA] = palaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
 
 /**
  * Construye el atlas completo. Devuelve el canvas (para subirlo como textura

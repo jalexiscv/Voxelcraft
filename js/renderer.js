@@ -4,6 +4,8 @@
  * sol y luna como billboards, cubo de selección y plano de nubes.
  */
 import { moonUV } from './sky.js';
+import { DEFS } from './blocks.js';
+import { tileUV } from './atlas.js';
 
 const VS = `#version 300 es
 layout(location=0) in vec3 aPos;
@@ -86,6 +88,16 @@ void main() {
 
 const STRIDE = 6 * 4; // 6 floats por vértice
 
+/* Esquinas y luz de las 6 caras del cubito de drop (semiarista 1, se escala). */
+const DROP_QUADS = [
+    { c: [[-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]], luz: 1.0, cara: 'top' },
+    { c: [[-1, -1, 1], [1, -1, 1], [1, -1, -1], [-1, -1, -1]], luz: 0.55, cara: 'bottom' },
+    { c: [[1, -1, -1], [1, -1, 1], [1, 1, 1], [1, 1, -1]], luz: 0.8, cara: 'side' },
+    { c: [[-1, -1, 1], [-1, -1, -1], [-1, 1, -1], [-1, 1, 1]], luz: 0.8, cara: 'side' },
+    { c: [[1, -1, 1], [-1, -1, 1], [-1, 1, 1], [1, 1, 1]], luz: 0.7, cara: 'side' },
+    { c: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1]], luz: 0.7, cara: 'side' },
+];
+
 export class Renderer {
     constructor(canvas, atlasCanvas, cloudCanvas, sunCanvas, moonCanvas) {
         const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
@@ -110,6 +122,19 @@ export class Renderer {
         this.selectionVAO = this.makeSelectionCube();
         this.skyQuadVAO = this.makeSkyQuad();
         this.cloud = null;
+
+        // búfer dinámico de los drops (se rellena cada fotograma)
+        this.dropVAO = gl.createVertexArray();
+        this.dropBuf = gl.createBuffer();
+        gl.bindVertexArray(this.dropVAO);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.dropBuf);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, STRIDE, 0);
+        gl.enableVertexAttribArray(1);
+        gl.vertexAttribPointer(1, 2, gl.FLOAT, false, STRIDE, 12);
+        gl.enableVertexAttribArray(2);
+        gl.vertexAttribPointer(2, 1, gl.FLOAT, false, STRIDE, 20);
+        gl.bindVertexArray(null);
 
         gl.enable(gl.DEPTH_TEST);
         gl.disable(gl.CULL_FACE); // permite plantas en X y agua bicara sin duplicar lógica
@@ -201,6 +226,45 @@ export class Renderer {
     clearChunks() {
         for (const c of this.chunks.values()) { this.freeMesh(c.solid); this.freeMesh(c.water); }
         this.chunks.clear();
+    }
+
+    /**
+     * Dibuja los drops como cubitos de 0,28 que giran y flotan, con las
+     * téselas de su bloque. Asume el estado de la pasada sólida (programa
+     * principal, atlas ligado, cutoff 0.5: los huecos alfa se recortan).
+     */
+    drawDrops(drops, time) {
+        const gl = this.gl;
+        const S = 0.14;
+        const data = new Float32Array(drops.length * 36 * 6);
+        let o = 0;
+        for (let i = 0; i < drops.length; i++) {
+            const d = drops[i];
+            const def = DEFS[d.id];
+            if (!def) continue;
+            const a = time * 1.6 + i * 0.9;                             // giro propio
+            const cos = Math.cos(a), sin = Math.sin(a);
+            const cy = d.pos[1] + 0.1 + Math.sin(time * 2 + i) * 0.045; // flota
+            for (const q of DROP_QUADS) {
+                const [u0, v0, u1, v1] = tileUV(def[q.cara]);
+                const uv = [[u0, v1], [u1, v1], [u1, v0], [u0, v0]];
+                const esquina = (k) => {
+                    const [ex, ey, ez] = q.c[k];
+                    const x = ex * S * cos - ez * S * sin;
+                    const z = ex * S * sin + ez * S * cos;
+                    return [d.pos[0] + x, cy + ey * S, d.pos[2] + z, uv[k][0], uv[k][1], q.luz];
+                };
+                for (const k of [0, 1, 2, 0, 2, 3]) {
+                    data.set(esquina(k), o);
+                    o += 6;
+                }
+            }
+        }
+        gl.bindVertexArray(this.dropVAO);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.dropBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+        gl.drawArrays(gl.TRIANGLES, 0, o / 6);
+        gl.bindVertexArray(null);
     }
 
     makeSelectionCube() {
@@ -345,16 +409,20 @@ export class Renderer {
             if (c.solid) { gl.bindVertexArray(c.solid.vao); gl.drawArrays(gl.TRIANGLES, 0, c.solid.n); }
         }
 
+        // 1a. drops: cubitos que giran y flotan (mismo estado que los chunks)
+        if (f.drops && f.drops.length) this.drawDrops(f.drops, f.time || 0);
+
         // 1b. entidades (mobs y flechas): opacas, antes de las transparencias;
         // el callback debe dejar restaurado este programa
         if (f.drawEntities) f.drawEntities();
 
-        // 2. cubo de selección
+        // 2. cubo de selección (enrojece con el progreso de picado)
         if (f.selection) {
             gl.useProgram(this.lineProg);
             gl.uniformMatrix4fv(this.lu.uPV, false, f.pv);
             gl.uniform3f(this.lu.uPos, f.selection[0], f.selection[1], f.selection[2]);
-            gl.uniform4f(this.lu.uColor, 0, 0, 0, 0.7);
+            const p = f.breakProgress || 0;
+            gl.uniform4f(this.lu.uColor, p, p * 0.2, 0.05 * p, 0.7 + 0.3 * p);
             gl.bindVertexArray(this.selectionVAO);
             gl.drawArrays(gl.LINES, 0, 24);
             gl.useProgram(this.prog);

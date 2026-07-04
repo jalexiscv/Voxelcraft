@@ -266,5 +266,46 @@ console.log('== Inventario ==');
     check('agotar un material lo vacía del selector', inv.take(B.DIRT) && inv.ids().length === 0);
 }
 
+/* ==== Dureza, crafteo y drops ==== */
+console.log('== Dureza, crafteo y drops ==');
+{
+    check('todo bloque rompible tiene dureza ≥ 1',
+        DEFS.every((d) => !d || !d.breakable || d.hardness >= 1));
+    check('la obsidiana es más dura que la roca', DEFS[B.OBSIDIAN].hardness > DEFS[B.STONE].hardness);
+    check('las plantas se rompen de un golpe', DEFS[B.TALL_GRASS].hardness === 1);
+
+    const { RECIPES, craft, craftable, ITEM_DEFS, isItem } = await import(base + 'items.js');
+    const { Inventory } = await import(base + 'inventory.js');
+    check('las recetas solo citan bloques o items existentes',
+        RECIPES.every((r) => [r.out, ...r.in].every(({ id }) =>
+            (isItem(id) ? ITEM_DEFS[id] : DEFS[id]) !== undefined)));
+
+    const inv = new Inventory();
+    const receta = (nombre) => RECIPES.find((r) => r.name === nombre);
+    check('sin materiales no se puede fabricar', !craftable(inv, receta('Pico de madera')));
+    // 2 troncos → 8 tablones; 2 para palos y 3 para el pico
+    inv.add(B.LOG, 2);
+    check('troncos → tablones → palos → pico (cadena completa)',
+        craft(inv, receta('Tablones')) && craft(inv, receta('Tablones')) &&
+        craft(inv, receta('Palos')) && craft(inv, receta('Pico de madera')) &&
+        ITEM_DEFS[receta('Pico de madera').out.id].tool.tipo === 'pico');
+
+    const { DropSystem } = await import(base + 'drops.js');
+    const suelo = { solidAt: (x, y) => y < 10 };
+    const lejos = [40, 10, 40];
+    const drops = new DropSystem();
+    drops.spawn(B.DIRT, 0, 20, 0, () => 0.5);
+    for (let i = 0; i < 200; i++) drops.update(1 / 30, lejos, suelo, () => {});
+    check('el drop cae y reposa sobre el suelo',
+        drops.list.length === 1 && drops.list[0].pos[1] > 9 && drops.list[0].pos[1] < 11.5);
+    let recogido = null;
+    for (let i = 0; i < 90; i++) drops.update(1 / 30, [0.5, 9.6, 0.5], suelo, (id) => { recogido = id; });
+    check('al acercarse, el drop vuela a la mano y se recoge', recogido === B.DIRT);
+    const efimero = new DropSystem();
+    efimero.spawn(B.SAND, 0, 20, 0, () => 0.5);
+    for (let i = 0; i < 70; i++) efimero.update(1, lejos, suelo, () => {});
+    check('un drop no recogido se desvanece', efimero.list.length === 0);
+}
+
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);
 process.exit(fail ? 1 : 0);

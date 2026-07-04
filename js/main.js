@@ -20,6 +20,8 @@ import { Renderer } from './renderer.js';
 import { Player, raycast } from './player.js';
 import { MobSystem } from './mobs.js';
 import { Inventory } from './inventory.js';
+import { DropSystem } from './drops.js';
+import { ITEM_DEFS, isItem, RECIPES, craft } from './items.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { SoundEngine } from './audio.js';
@@ -61,6 +63,9 @@ function boot() {
         mode: 'supervivencia',  // 'supervivencia' | 'creativo'
         difficulty: 'normal',   // 'normal' | 'pacifica'
         inventory: new Inventory(), // solo cuenta en supervivencia
+        drops: new DropSystem(),    // cubitos flotando tras romper bloques
+        breaking: null,             // {x, y, z, hits, need}: picado en curso
+        breakingT: 0,               // s restantes antes de olvidar el picado
         time: 0,
         timeOfDay: 0,
         dayCount: 0,            // días completos: gobierna la fase lunar
@@ -329,6 +334,8 @@ function boot() {
         // en creativo el HUD ofrece todos los materiales sin cantidades
         game.inventory = new Inventory();
         hud.setInventory(game.mode === 'supervivencia' ? game.inventory : null);
+        game.drops = new DropSystem();
+        game.breaking = null;
         $('death').classList.add('hidden');
         game.requested.clear();
         game.timeOfDay = 0;
@@ -386,7 +393,7 @@ function boot() {
     });
 
     document.addEventListener('pointerlockchange', () => {
-        if (!locked() && game.state === 'playing' && !hud.pickerOpen() && !game.dead) {
+        if (!locked() && game.state === 'playing' && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) {
             showMenu(true);
             showSection('main');
             game.buttons.clear();
@@ -424,10 +431,26 @@ function boot() {
         if (game.state !== 'playing') return;
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
         if (e.code === 'Escape' && hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); return; }
+        if (e.code === 'Escape' && hud.craftOpen()) { hud.closeCraft(); canvas.requestPointerLock(); return; }
         if (e.code === 'F3') { e.preventDefault(); hud.toggleDebug(); return; }
-        if (e.code === 'KeyB' || e.code === 'KeyE') {
+        if (e.code === 'KeyB') {
             if (hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); }
             else if (locked()) { document.exitPointerLock(); hud.openPicker(); }
+            return;
+        }
+        if (e.code === 'KeyE') {
+            // mesa de crafteo en supervivencia; en creativo E abre el selector
+            if (game.mode !== 'supervivencia') {
+                if (hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); }
+                else if (locked()) { document.exitPointerLock(); hud.openPicker(); }
+                return;
+            }
+            if (hud.craftOpen()) { hud.closeCraft(); canvas.requestPointerLock(); }
+            else if (locked()) {
+                document.exitPointerLock();
+                hud.buildCraft(game.inventory, RECIPES, alFabricar);
+                hud.openCraft();
+            }
             return;
         }
         if (e.code === 'KeyM') { sound.ensure(); sound.toggleMusic(); return; }
@@ -463,12 +486,26 @@ function boot() {
         if (!hit) return;
         const def = DEFS[hit.id];
 
-        if (button === 0 && def.breakable) {           // romper (y recolectar)
-            game.world.set(hit.x, hit.y, hit.z, B.AIR);
+        if (button === 0 && def.breakable) {           // picar (dureza en golpes)
+            if (game.mode === 'creativo') {            // creativo: rotura instantánea
+                game.world.set(hit.x, hit.y, hit.z, B.AIR);
+                sound.dig(def.sound);
+                return;
+            }
+            // cada golpe avanza el picado del MISMO bloque; cambiar de
+            // objetivo (o soltar un rato) reinicia el progreso
+            const b = game.breaking;
+            if (!b || b.x !== hit.x || b.y !== hit.y || b.z !== hit.z) {
+                game.breaking = { x: hit.x, y: hit.y, z: hit.z, hits: 0, need: def.hardness };
+            }
+            game.breakingT = 0.6;
+            game.breaking.hits += fuerzaDeGolpe(def);
             sound.dig(def.sound);
-            if (game.mode === 'supervivencia' && def.placeable) {
-                game.inventory.add(hit.id);
-                hud.refreshCounts();
+            if (game.breaking.hits >= game.breaking.need) {
+                game.world.set(hit.x, hit.y, hit.z, B.AIR);
+                game.breaking = null;
+                // el bloque roto queda flotando como cubito (drop)
+                if (def.placeable) game.drops.spawn(dropDe(hit.id), hit.x, hit.y, hit.z);
             }
         } else if (button === 1 && def.placeable) {    // copiar
             // en supervivencia solo se puede elegir lo que se tiene
@@ -480,6 +517,7 @@ function boot() {
             const replaceable = target === B.AIR || DEFS[target].liquid || DEFS[target].cross;
             if (!replaceable) return;
             const id = hud.activeBlock();
+            if (isItem(id) || !DEFS[id]) return;       // las herramientas no se colocan
             if (DEFS[id].solid && player.intersectsBlock(tx, ty, tz)) return;
             if (game.mode === 'supervivencia') {
                 if (!game.inventory.take(id)) return; // sin existencias
@@ -488,6 +526,27 @@ function boot() {
             game.world.set(tx, ty, tz, id);
             sound.place(DEFS[id].sound);
         }
+    }
+
+    /** Golpes que aporta cada clic: 1 a mano, ×factor con la herramienta adecuada. */
+    function fuerzaDeGolpe(def) {
+        const it = ITEM_DEFS[hud.activeBlock()];
+        return it && it.tool && it.tool.tipo === def.tool ? it.tool.factor : 1;
+    }
+
+    /** Qué suelta cada bloque: la roca suelta adoquín y la hierba, tierra. */
+    function dropDe(id) {
+        if (id === B.STONE) return B.COBBLE;
+        if (id === B.GRASS || id === B.SNOWY_GRASS || id === B.MYCELIUM || id === B.PODZOL) return B.DIRT;
+        return id;
+    }
+
+    /** Fabricar desde la mesa: consume ingredientes y refresca la interfaz. */
+    function alFabricar(receta) {
+        if (!craft(game.inventory, receta)) return;
+        sound.place('wood');
+        hud.refreshCounts();
+        hud.buildCraft(game.inventory, RECIPES, alFabricar);
     }
 
     /* ---- Bucle principal ---- */
@@ -500,7 +559,7 @@ function boot() {
         game.fps = game.fps * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
 
         if (game.state === 'playing' && game.world) {
-            if (!paused() && !hud.pickerOpen() && !game.dead) simulate(dt);
+            if (!paused() && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) simulate(dt);
             draw();
         }
         requestAnimationFrame(frame);
@@ -548,6 +607,19 @@ function boot() {
             creative: game.mode === 'creativo',      // los hostiles ignoran al jugador
             peaceful: game.difficulty === 'pacifica', // no aparecen hostiles
         });
+
+        // drops: caen, giran y vuelan a la mano al acercarse
+        game.drops.update(dt, player.pos, game.world, (id) => {
+            game.inventory.add(id);
+            hud.refreshCounts();
+            sound.place('cloth');
+        });
+
+        // el picado a medias se olvida si se deja de golpear un rato
+        if (game.breaking) {
+            game.breakingT -= dt;
+            if (game.breakingT <= 0) game.breaking = null;
+        }
 
         // regeneración lenta si no se ha recibido daño en un rato
         game.hurtGraceT = Math.max(0, game.hurtGraceT - dt);
@@ -599,6 +671,11 @@ function boot() {
             fogNear: fogFar * 0.55,
             fogFar,
             selection: hit ? [hit.x, hit.y, hit.z] : null,
+            breakProgress: hit && game.breaking && game.breaking.x === hit.x &&
+                game.breaking.y === hit.y && game.breaking.z === hit.z
+                ? Math.min(1, game.breaking.hits / game.breaking.need) : 0,
+            drops: game.drops.list,
+            time: game.time,
             cloudOffset: game.time * 0.003,
             sunDir: sunDirection(game.timeOfDay),
             sunGlow: sunGlow(game.timeOfDay),
