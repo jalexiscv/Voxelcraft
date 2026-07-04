@@ -70,5 +70,5 @@ Sin sistema de objetos, domesticación, monturas, crías ni comercio, algunos mo
 
 *   `node test/mobs.mjs` — **121 comprobaciones** (geometría y UV, física por modos con mundos simulados, IA pasiva/neutral/hostil, mecha y explosión, flechas con daño por tirador que quedan clavadas al fallar, teletransporte, congelación al mirar, aparición por hábitats y biomas, y contrato de las 68 definiciones). Todas en verde el 2026-07-04.
 *   `node test/validate-mob.mjs <id>` — validador por definición (campos, UV sin solapes ni texels invisibles, pintado determinista, pies al suelo, orientación de partes frontales).
-*   `node test/smoke.mjs` — la suite del motor sigue en verde (66 OK).
+*   `node test/smoke.mjs` — la suite del motor sigue en verde (74 OK).
 *   Los 68 mobs fueron construidos por **agentes en paralelo** contra el contrato validable y revisados de forma adversaria por agentes independientes (por mob en la primera hornada, por lotes de 5 en la segunda).

@@ -21,6 +21,7 @@ export const B = {
     ACACIA_LOG: 51, ACACIA_LEAVES: 52, CHERRY_LOG: 53, CHERRY_LEAVES: 54,
     PALE_LOG: 55, PALE_LEAVES: 56,
     CACTUS: 57, MYCELIUM: 58, PODZOL: 59, DEAD_BUSH: 60, TALL_GRASS: 61,
+    CRAFTING_TABLE: 62, // mesa de crafteo: al usarla abre la cuadrícula 3×3
 };
 
 /**
@@ -118,6 +119,7 @@ DEFS[B.MYCELIUM]       = def('Micelio', TILE.MYCELIUM_SIDE, { top: TILE.MYCELIUM
 DEFS[B.PODZOL]         = def('Podzol', TILE.PODZOL_SIDE, { top: TILE.PODZOL_TOP, bottom: TILE.DIRT, sound: 'grass' });
 DEFS[B.DEAD_BUSH]      = plant('Arbusto seco', TILE.DEAD_BUSH);
 DEFS[B.TALL_GRASS]     = plant('Hierba alta', TILE.TALL_GRASS);
+DEFS[B.CRAFTING_TABLE] = def('Mesa de crafteo', TILE.CRAFTING_SIDE, { top: TILE.CRAFTING_TOP, bottom: TILE.PLANKS, sound: 'wood' });
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */
 export const PLACEABLE = DEFS

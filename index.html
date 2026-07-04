@@ -25,13 +25,32 @@
         </div>
     </div>
 
-    <!-- Mesa de crafteo (tecla E, supervivencia) -->
+    <!-- Inventario y crafteo por cuadrícula (E: personal 2×2; mesa: 3×3) -->
     <div id="craft" class="overlay hidden">
-        <div class="panel">
-            <h2>Mesa de crafteo</h2>
-            <div id="craft-list"></div>
-            <p class="hint">Fusiona materiales para fabricar &middot; E/Esc: cerrar</p>
+        <div class="panel craft-panel">
+            <h2 id="craft-title">Inventario</h2>
+            <div class="craft-cuerpo">
+                <div class="craft-izq">
+                    <div class="craft-linea">
+                        <div id="craft-grid"></div>
+                        <div class="craft-flecha">&#10140;</div>
+                        <div id="craft-result"></div>
+                    </div>
+                    <h3>Materiales</h3>
+                    <div id="craft-inv"></div>
+                    <h3>Hotbar</h3>
+                    <div id="craft-hotbar"></div>
+                </div>
+                <div class="craft-der">
+                    <h3>Recetario</h3>
+                    <div id="craft-book"></div>
+                </div>
+            </div>
+            <p class="hint">Clic en un material: tomarlo en mano &middot; clic en la cuadrícula: colocarlo
+                &middot; celda ocupada con la mano vacía: devolverlo &middot; clic en el resultado: fabricar
+                &middot; E/Esc: cerrar</p>
         </div>
+        <canvas id="craft-cursor" class="hidden" width="36" height="36"></canvas>
     </div>
 
     <!-- Barra de progreso de generación -->
@@ -94,7 +113,8 @@
                     <tr><td>Clic central</td><td>Copiar bloque apuntado</td></tr>
                     <tr><td>1–9 / rueda</td><td>Ranura de la hotbar</td></tr>
                     <tr><td>B</td><td>Selector de bloques</td></tr>
-                    <tr><td>E</td><td>Mesa de crafteo (Supervivencia)</td></tr>
+                    <tr><td>E</td><td>Inventario y crafteo 2×2 (Supervivencia)</td></tr>
+                    <tr><td>Clic der en la mesa</td><td>Mesa de crafteo 3×3</td></tr>
                     <tr><td>M</td><td>Música sí/no</td></tr>
                     <tr><td>F3</td><td>Depuración</td></tr>
                     <tr><td>R</td><td>Reaparecer</td></tr>

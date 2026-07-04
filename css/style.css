@@ -129,19 +129,47 @@ input[type=text], select {
 #picker-grid .cell:hover { border-color: #fff; background: rgba(255,255,255,.15); }
 #picker-grid canvas { image-rendering: pixelated; }
 
-/* Mesa de crafteo */
-#craft-list {
-    display: flex; flex-direction: column; gap: 6px;
-    max-height: 340px; overflow-y: auto; min-width: 380px;
+/* Pantalla de inventario y crafteo por cuadrícula */
+.craft-panel { min-width: 640px; }
+.craft-cuerpo { display: flex; gap: 18px; align-items: flex-start; text-align: left; }
+.craft-izq { flex: 1; }
+.craft-der { width: 250px; }
+.craft-panel h3 { margin: 10px 0 4px; font-size: 13px; color: #ccc; }
+.craft-linea { display: flex; align-items: center; gap: 12px; justify-content: center; padding: 6px 0; }
+.craft-flecha { font-size: 26px; color: #ccc; }
+#craft-grid { display: grid; gap: 4px; }
+#craft-inv {
+    display: grid; grid-template-columns: repeat(8, 46px); gap: 4px;
+    max-height: 170px; overflow-y: auto;
 }
-#craft-list .receta {
+#craft-hotbar { display: flex; gap: 4px; }
+.cslot {
+    width: 46px; height: 46px; border: 2px solid #555; background: rgba(255,255,255,.06);
+    display: flex; align-items: center; justify-content: center; position: relative;
+    cursor: pointer;
+}
+.cslot:hover { border-color: #999; }
+.cslot.activo { border-color: #fff; background: rgba(255,255,255,.16); }
+.cslot.resultado { width: 54px; height: 54px; border-color: #777; cursor: default; }
+.cslot.resultado.lista { border-color: #7c5; background: rgba(140,220,90,.12); cursor: pointer; }
+.cslot canvas { image-rendering: pixelated; }
+#craft-cursor {
+    position: fixed; z-index: 30; pointer-events: none; image-rendering: pixelated;
+}
+#craft-book {
+    display: flex; flex-direction: column; gap: 5px;
+    max-height: 330px; overflow-y: auto;
+}
+.receta {
     display: flex; align-items: center; gap: 10px;
     border: 2px solid #555; padding: 4px 8px; background: rgba(255,255,255,.05);
+    cursor: pointer;
 }
-#craft-list .receta.falta { opacity: .55; }
-#craft-list .receta-info { flex: 1; display: flex; flex-direction: column; text-align: left; }
-#craft-list .receta-info span { font-size: 12px; color: #bbb; }
-#craft-list canvas { image-rendering: pixelated; }
+.receta.falta { opacity: .5; cursor: default; }
+.receta:not(.falta):hover { border-color: #fff; }
+.receta-info { flex: 1; display: flex; flex-direction: column; text-align: left; }
+.receta-info span { font-size: 11px; color: #bbb; }
+.receta canvas { image-rendering: pixelated; }
 
 /* Barra de progreso */
 .bar { width: 300px; height: 18px; border: 2px solid #fff; margin: 0 auto; }

@@ -4,7 +4,7 @@
  */
 import { DEFS, PLACEABLE } from './blocks.js';
 import { TILE_PX, ATLAS_GRID } from './atlas.js';
-import { ITEM_DEFS, isItem, craftable } from './items.js';
+import { ITEM_DEFS, isItem, RECIPES, matchGrid, autoColocar } from './items.js';
 
 const ICON = 36;  // lado del canvas de icono
 const K = 11;     // semiancho del rombo isométrico
@@ -27,7 +27,13 @@ export class HUD {
             picker: document.getElementById('picker'),
             pickerGrid: document.getElementById('picker-grid'),
             craft: document.getElementById('craft'),
-            craftList: document.getElementById('craft-list'),
+            craftTitle: document.getElementById('craft-title'),
+            craftGrid: document.getElementById('craft-grid'),
+            craftResult: document.getElementById('craft-result'),
+            craftInv: document.getElementById('craft-inv'),
+            craftHotbar: document.getElementById('craft-hotbar'),
+            craftBook: document.getElementById('craft-book'),
+            craftCursor: document.getElementById('craft-cursor'),
             progress: document.getElementById('progress'),
             progressLabel: document.getElementById('progress-label'),
             progressFill: document.getElementById('progress-fill'),
@@ -38,6 +44,13 @@ export class HUD {
         this.buildHotbar();
         this.buildPicker();
         this.buildHearts();
+
+        // el material «en mano» sigue al puntero dentro de la pantalla de crafteo
+        this.craftState = null;
+        this.els.craft.addEventListener('mousemove', (e) => {
+            this.els.craftCursor.style.left = `${e.clientX + 10}px`;
+            this.els.craftCursor.style.top = `${e.clientY + 10}px`;
+        });
     }
 
     /* ---- Salud ---- */
@@ -211,21 +224,165 @@ export class HUD {
         this.els.picker.classList.remove('hidden');
     }
 
-    /* ---- Mesa de crafteo ---- */
+    /* ---- Pantalla de inventario y crafteo (cuadrícula clásica) ---- */
 
     /** Nombre legible de un id, sea bloque o item. */
     nombreDe(id) {
         return isItem(id) ? (ITEM_DEFS[id] ? ITEM_DEFS[id].name : '?') : DEFS[id].name;
     }
 
-    /** Reconstruye la lista de recetas según las existencias del inventario. */
-    buildCraft(inv, recipes, onCraft) {
-        const list = this.els.craftList;
-        list.innerHTML = '';
-        for (const r of recipes) {
-            const puede = craftable(inv, r);
+    /** Ranura genérica: icono del id (si lo hay) y cantidad opcional. */
+    ranura(id, n) {
+        const cell = document.createElement('div');
+        cell.className = 'cslot';
+        if (id) {
+            cell.title = this.nombreDe(id);
+            const canvas = document.createElement('canvas');
+            this.drawIcon(canvas, id);
+            cell.appendChild(canvas);
+            if (n !== undefined) {
+                const badge = document.createElement('span');
+                badge.className = 'count';
+                badge.textContent = n > 1 ? String(n) : '';
+                cell.appendChild(badge);
+            }
+        }
+        return cell;
+    }
+
+    /**
+     * Abre la pantalla clásica: cuadrícula personal (w=2) o mesa de crafteo
+     * (w=3) con ranura de resultado, existencias, hotbar y recetario. El
+     * estado (celdas y material en mano) vive aquí; las unidades colocadas
+     * se descuentan del inventario y AL CERRAR las celdas se devuelven.
+     */
+    openCraft(w) {
+        this.craftState = { w, cells: new Array(w * w).fill(0), mano: 0 };
+        this.els.craftTitle.textContent = w === 3 ? 'Mesa de crafteo' : 'Inventario';
+        this.els.craft.classList.remove('hidden');
+        this.renderCraft();
+    }
+
+    closeCraft() {
+        const st = this.craftState;
+        if (st) for (const id of st.cells) if (id) this.inventory.add(id);
+        this.craftState = null;
+        this.setMano(0);
+        this.els.craft.classList.add('hidden');
+        this.refreshCounts();
+    }
+
+    craftOpen() { return !this.els.craft.classList.contains('hidden'); }
+
+    /** Material «en mano»: se muestra como icono flotante junto al puntero. */
+    setMano(id) {
+        if (this.craftState) this.craftState.mano = id;
+        const cur = this.els.craftCursor;
+        if (!id) { cur.classList.add('hidden'); return; }
+        this.drawIcon(cur, id);
+        cur.classList.remove('hidden');
+    }
+
+    /** Repinta toda la pantalla de crafteo (cuadrícula, stock, hotbar, libro). */
+    renderCraft() {
+        const st = this.craftState;
+        if (!st) return;
+        const inv = this.inventory;
+
+        // cuadrícula de crafteo: colocar 1 unidad del material en mano,
+        // o devolver la celda al inventario si la mano está vacía
+        const grid = this.els.craftGrid;
+        grid.innerHTML = '';
+        grid.style.gridTemplateColumns = `repeat(${st.w}, 46px)`;
+        st.cells.forEach((id, i) => {
+            const cell = this.ranura(id);
+            cell.addEventListener('click', () => {
+                if (st.mano && inv.count(st.mano) > 0) {
+                    if (st.cells[i]) inv.add(st.cells[i]); // desaloja lo que hubiera
+                    st.cells[i] = st.mano;
+                    inv.take(st.mano, 1);
+                    if (inv.count(st.mano) === 0) this.setMano(0);
+                } else if (st.cells[i]) {
+                    inv.add(st.cells[i]);
+                    st.cells[i] = 0;
+                }
+                this.renderCraft();
+            });
+            grid.appendChild(cell);
+        });
+
+        // resultado: aparece cuando la disposición casa con una receta
+        const res = this.els.craftResult;
+        res.innerHTML = '';
+        const receta = matchGrid(st.cells, st.w);
+        const out = this.ranura(receta ? receta.out.id : 0, receta ? receta.out.n : undefined);
+        out.classList.add('resultado');
+        if (receta) {
+            out.classList.add('lista');
+            out.addEventListener('click', () => {
+                st.cells.fill(0); // las unidades ya salieron del inventario
+                inv.add(receta.out.id, receta.out.n);
+                if (this.onCraftDone) this.onCraftDone(receta);
+                // fabricación en cadena: reponer la misma receta si alcanza
+                const otraVez = autoColocar(receta, st.w, inv);
+                if (otraVez) {
+                    for (const id of otraVez) if (id) inv.take(id, 1);
+                    st.cells = otraVez;
+                }
+                this.refreshCounts();
+                this.renderCraft();
+            });
+        }
+        res.appendChild(out);
+
+        // existencias: clic toma el material en mano (clic de nuevo lo suelta)
+        const stock = this.els.craftInv;
+        stock.innerHTML = '';
+        const ids = inv.ids();
+        if (ids.length === 0 && st.cells.every((c) => !c)) {
+            const vacio = document.createElement('p');
+            vacio.className = 'hint';
+            vacio.textContent = 'Aún no has recolectado materiales: rompe bloques para llenar el inventario.';
+            stock.appendChild(vacio);
+        }
+        for (const id of ids) {
+            const cell = this.ranura(id, inv.count(id));
+            if (st.mano === id) cell.classList.add('activo');
+            cell.addEventListener('click', () => {
+                this.setMano(st.mano === id ? 0 : id);
+                this.renderCraft();
+            });
+            stock.appendChild(cell);
+        }
+
+        // hotbar: con material en mano lo asigna a la ranura; sin él, la activa
+        const barra = this.els.craftHotbar;
+        barra.innerHTML = '';
+        this.slots.forEach((slotId, i) => {
+            const cell = this.ranura(slotId, inv.count(slotId));
+            if (i === this.active) cell.classList.add('activo');
+            cell.addEventListener('click', () => {
+                if (st.mano) {
+                    this.slots[i] = st.mano;
+                    this.drawIcon(this.slotCanvases[i], st.mano);
+                } else {
+                    this.setActive(i);
+                }
+                this.refreshCounts();
+                this.renderCraft();
+            });
+            barra.appendChild(cell);
+        });
+
+        // recetario: clic autocoloca los ingredientes en la cuadrícula
+        const libro = this.els.craftBook;
+        libro.innerHTML = '';
+        for (const r of RECIPES) {
+            const colocable = autoColocar(r, st.w, inv) !== null;
+            const grande = r.pattern && (r.pattern.length > st.w || r.pattern[0].length > st.w);
             const row = document.createElement('div');
-            row.className = 'receta' + (puede ? '' : ' falta');
+            row.className = 'receta' + (colocable ? '' : ' falta');
+            row.title = grande ? 'Necesita la mesa de crafteo (3×3)' : '';
             const canvas = document.createElement('canvas');
             this.drawIcon(canvas, r.out.id);
             const info = document.createElement('div');
@@ -233,22 +390,23 @@ export class HUD {
             const nombre = document.createElement('strong');
             nombre.textContent = r.out.n > 1 ? `${r.name} ×${r.out.n}` : r.name;
             const coste = document.createElement('span');
-            coste.textContent = r.in
-                .map((i) => `${i.n}× ${this.nombreDe(i.id)} (tienes ${inv.count(i.id)})`)
-                .join(' · ');
+            coste.textContent = r.in.map((i) => `${i.n}× ${this.nombreDe(i.id)}`).join(' · ') +
+                (r.pattern ? ' — con forma' : '');
             info.append(nombre, coste);
-            const btn = document.createElement('button');
-            btn.textContent = 'Fabricar';
-            btn.disabled = !puede;
-            btn.addEventListener('click', () => onCraft(r));
-            row.append(canvas, info, btn);
-            list.appendChild(row);
+            row.append(canvas, info);
+            if (colocable) {
+                row.addEventListener('click', () => {
+                    for (const id of st.cells) if (id) inv.add(id); // vacía lo anterior
+                    const cells = autoColocar(r, st.w, inv);
+                    if (!cells) { this.renderCraft(); return; }
+                    for (const id of cells) if (id) inv.take(id, 1);
+                    st.cells = cells;
+                    this.renderCraft();
+                });
+            }
+            libro.appendChild(row);
         }
     }
-
-    openCraft() { this.els.craft.classList.remove('hidden'); }
-    closeCraft() { this.els.craft.classList.add('hidden'); }
-    craftOpen() { return !this.els.craft.classList.contains('hidden'); }
     closePicker() { this.els.picker.classList.add('hidden'); }
     pickerOpen() { return !this.els.picker.classList.contains('hidden'); }
 

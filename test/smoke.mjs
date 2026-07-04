@@ -38,7 +38,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('62 tipos definidos', DEFS.length === 62 && DEFS.every(d => d));
+check('63 tipos definidos', DEFS.length === 63 && DEFS.every(d => d));
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -274,7 +274,7 @@ console.log('== Dureza, crafteo y drops ==');
     check('la obsidiana es más dura que la roca', DEFS[B.OBSIDIAN].hardness > DEFS[B.STONE].hardness);
     check('las plantas se rompen de un golpe', DEFS[B.TALL_GRASS].hardness === 1);
 
-    const { RECIPES, craft, craftable, ITEM_DEFS, isItem } = await import(base + 'items.js');
+    const { RECIPES, craft, craftable, ITEM_DEFS, isItem, ITEMS, matchGrid, autoColocar } = await import(base + 'items.js');
     const { Inventory } = await import(base + 'inventory.js');
     check('las recetas solo citan bloques o items existentes',
         RECIPES.every((r) => [r.out, ...r.in].every(({ id }) =>
@@ -289,6 +289,29 @@ console.log('== Dureza, crafteo y drops ==');
         craft(inv, receta('Tablones')) && craft(inv, receta('Tablones')) &&
         craft(inv, receta('Palos')) && craft(inv, receta('Pico de madera')) &&
         ITEM_DEFS[receta('Pico de madera').out.id].tool.tipo === 'pico');
+
+    // crafteo por cuadrícula: recetas con FORMA (patrón, con espejo) y sin ella
+    const P = B.PLANKS, S = ITEMS.PALO;
+    check('la T del pico casa en la mesa 3×3',
+        (matchGrid([P, P, P, 0, S, 0, 0, S, 0], 3) || {}).name === 'Pico de madera');
+    check('la misma cuenta mal dispuesta NO fabrica el pico',
+        (matchGrid([P, P, P, S, S, 0, 0, 0, 0], 3) || {}).name !== 'Pico de madera');
+    check('el hacha admite su espejo horizontal',
+        (matchGrid([P, P, 0, S, P, 0, S, 0, 0], 3) || {}).name === 'Hacha de madera');
+    check('una receta sin forma casa en cualquier celda',
+        (matchGrid([0, 0, B.LOG, 0], 2) || {}).name === 'Tablones');
+    check('la mesa se fabrica con 2×2 de tablones',
+        (matchGrid([P, P, P, P], 2) || {}).name === 'Mesa de crafteo');
+    {
+        const invG = new Inventory();
+        invG.add(P, 3); invG.add(S, 2);
+        const pico = RECIPES.find((r) => r.name === 'Pico de madera');
+        check('el pico no cabe en la cuadrícula personal 2×2', autoColocar(pico, 2, invG) === null);
+        const cells = autoColocar(pico, 3, invG);
+        check('el recetario autocoloca la forma del pico en la mesa',
+            cells !== null && (matchGrid(cells, 3) || {}).name === 'Pico de madera');
+        check('sin existencias no se autocoloca', autoColocar(pico, 3, new Inventory()) === null);
+    }
 
     const { DropSystem } = await import(base + 'drops.js');
     const suelo = { solidAt: (x, y) => y < 10 };

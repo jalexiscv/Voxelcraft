@@ -21,7 +21,7 @@ import { Player, raycast } from './player.js';
 import { MobSystem } from './mobs.js';
 import { Inventory } from './inventory.js';
 import { DropSystem } from './drops.js';
-import { ITEM_DEFS, isItem, RECIPES, craft } from './items.js';
+import { ITEM_DEFS, isItem } from './items.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { SoundEngine } from './audio.js';
@@ -439,7 +439,7 @@ function boot() {
             return;
         }
         if (e.code === 'KeyE') {
-            // mesa de crafteo en supervivencia; en creativo E abre el selector
+            // inventario con cuadrícula 2×2 en supervivencia; en creativo, selector
             if (game.mode !== 'supervivencia') {
                 if (hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); }
                 else if (locked()) { document.exitPointerLock(); hud.openPicker(); }
@@ -447,9 +447,8 @@ function boot() {
             }
             if (hud.craftOpen()) { hud.closeCraft(); canvas.requestPointerLock(); }
             else if (locked()) {
+                hud.openCraft(2);
                 document.exitPointerLock();
-                hud.buildCraft(game.inventory, RECIPES, alFabricar);
-                hud.openCraft();
             }
             return;
         }
@@ -469,6 +468,7 @@ function boot() {
     window.addEventListener('blur', () => { keys.clear(); game.buttons.clear(); });
 
     hud.onPick = () => canvas.requestPointerLock();
+    hud.onCraftDone = () => sound.place('wood');
 
     /* ---- Interacción con bloques ---- */
 
@@ -511,7 +511,13 @@ function boot() {
             // en supervivencia solo se puede elegir lo que se tiene
             if (game.mode === 'supervivencia' && game.inventory.count(hit.id) === 0) return;
             hud.assign(hit.id);
-        } else if (button === 2) {                     // colocar (consume en supervivencia)
+        } else if (button === 2) {                     // usar / colocar
+            // usar la mesa de crafteo abre su cuadrícula de 3×3
+            if (hit.id === B.CRAFTING_TABLE && game.mode === 'supervivencia') {
+                hud.openCraft(3);
+                document.exitPointerLock();
+                return;
+            }
             const [tx, ty, tz] = [hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz];
             const target = game.world.get(tx, ty, tz);
             const replaceable = target === B.AIR || DEFS[target].liquid || DEFS[target].cross;
@@ -541,13 +547,6 @@ function boot() {
         return id;
     }
 
-    /** Fabricar desde la mesa: consume ingredientes y refresca la interfaz. */
-    function alFabricar(receta) {
-        if (!craft(game.inventory, receta)) return;
-        sound.place('wood');
-        hud.refreshCounts();
-        hud.buildCraft(game.inventory, RECIPES, alFabricar);
-    }
 
     /* ---- Bucle principal ---- */
 

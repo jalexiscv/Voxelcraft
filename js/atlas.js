@@ -29,6 +29,7 @@ export const TILE = {
     // herramientas del crafteo (sprites planos; items en js/items.js)
     PALO: 66, PICO_MADERA: 67, HACHA_MADERA: 68, PALA_MADERA: 69,
     PICO_PIEDRA: 70, HACHA_PIEDRA: 71, PALA_PIEDRA: 72,
+    CRAFTING_TOP: 73, CRAFTING_SIDE: 74,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -461,6 +462,25 @@ painters[TILE.PALA_MADERA] = palaTile(CABEZA_MADERA, BRILLO_MADERA);
 painters[TILE.PICO_PIEDRA] = picoTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
 painters[TILE.HACHA_PIEDRA] = hachaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
 painters[TILE.PALA_PIEDRA] = palaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
+
+painters[TILE.CRAFTING_TOP] = (t) => {
+    painters[TILE.PLANKS](t);
+    // cuadrícula de trabajo marcada en la cara superior
+    for (let i = 2; i <= 13; i++) {
+        t.px(i, 5, 84, 62, 38); t.px(i, 10, 84, 62, 38);
+        t.px(5, i, 84, 62, 38); t.px(10, i, 84, 62, 38);
+    }
+};
+
+painters[TILE.CRAFTING_SIDE] = (t) => {
+    painters[TILE.PLANKS](t);
+    // herramientas colgadas: silueta de sierra y martillo
+    for (let x = 3; x <= 6; x++) t.px(x, 4, 120, 120, 126);
+    for (let y = 4; y <= 8; y++) t.px(6, y, 96, 70, 44);
+    for (let x = 9; x <= 12; x++) t.px(x, 5, 120, 120, 126);
+    t.px(10, 4, 150, 150, 156); t.px(11, 4, 150, 150, 156);
+    for (let y = 5; y <= 9; y++) t.px(10, y, 96, 70, 44);
+};
 
 /**
  * Construye el atlas completo. Devuelve el canvas (para subirlo como textura
