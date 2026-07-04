@@ -38,7 +38,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('63 tipos definidos', DEFS.length === 63 && DEFS.every(d => d));
+check('70 tipos definidos', DEFS.length === 70 && DEFS.every(d => d));
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -319,6 +319,26 @@ console.log('== Dureza, crafteo y drops ==');
             cells !== null && (matchGrid(cells, 3) || {}).name === 'Pico de madera');
         check('sin existencias no se autocoloca', autoColocar(pico, 3, new Inventory()) === null);
     }
+
+    // horno: fundiciones, combustibles y la receta en anillo
+    const { FUNDICIONES, COMBUSTIBLES, fundir } = await import(base + 'items.js');
+    check('toda fundición produce un bloque o item existente',
+        FUNDICIONES.every((f) => (isItem(f.out) ? ITEM_DEFS[f.out] : DEFS[f.out]) &&
+            (isItem(f.in) ? ITEM_DEFS[f.in] : DEFS[f.in])));
+    check('todo combustible existe y aporta usos', Object.entries(COMBUSTIBLES)
+        .every(([id, usos]) => usos > 0 && (isItem(Number(id)) ? ITEM_DEFS[id] : DEFS[id])));
+    {
+        const horno = new Inventory();
+        horno.add(B.IRON_ORE, 2);
+        const salida = fundir(horno, B.IRON_ORE);
+        check('fundir mena de hierro da lingote y consume la mena',
+            salida === ITEMS.LINGOTE_HIERRO && horno.count(B.IRON_ORE) === 1 &&
+            horno.count(ITEMS.LINGOTE_HIERRO) === 1);
+        check('no se funde lo que no tiene fundición', fundir(horno, B.DIRT) === 0);
+    }
+    const C = B.COBBLE;
+    check('el horno se fabrica con el anillo de 8 adoquines',
+        (matchGrid([C, C, C, C, 0, C, C, C, C], 3) || {}).name === 'Horno');
 
     const { DropSystem } = await import(base + 'drops.js');
     const suelo = { solidAt: (x, y) => y < 10 };

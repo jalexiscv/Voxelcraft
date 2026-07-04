@@ -21,7 +21,7 @@ import { Player, raycast } from './player.js';
 import { MobSystem } from './mobs.js';
 import { Inventory } from './inventory.js';
 import { DropSystem } from './drops.js';
-import { ITEM_DEFS, isItem } from './items.js';
+import { ITEM_DEFS, ITEMS, isItem } from './items.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { SoundEngine } from './audio.js';
@@ -187,6 +187,11 @@ function boot() {
         },
         damagePlayer: (dmg, dir) => damagePlayer(dmg, dir),
         explosion: () => sound.explosion(),
+        // botín al morir un mob: solo en supervivencia (en creativo no hay)
+        drop: (id, x, y, z) => {
+            if (game.mode !== 'supervivencia') return;
+            game.drops.spawn(id, x - 0.5, y - 0.4, z - 0.5);
+        },
     };
 
     function damagePlayer(dmg, dir) {
@@ -511,7 +516,9 @@ function boot() {
             const dir = lookDir(player.yaw, player.pitch);
             const mhit = game.mobs.raycastMob(player.eye(), dir, REACH);
             if (mhit) {
-                game.mobs.hurt(mhit.mob, 4, dir);
+                // el puñetazo hace 4; una espada en mano, su propio daño
+                const it = ITEM_DEFS[hud.activeBlock()];
+                game.mobs.hurt(mhit.mob, (it && it.sword) || 4, dir);
                 return;
             }
         }
@@ -551,6 +558,27 @@ function boot() {
                 document.exitPointerLock();
                 return;
             }
+            // usar el horno abre la interfaz de fundición
+            if (hit.id === B.FURNACE && game.mode === 'supervivencia' && hud.openFurnace) {
+                hud.openFurnace();
+                document.exitPointerLock();
+                return;
+            }
+            // la puerta alterna abierta/cerrada con el uso
+            if (hit.id === B.DOOR_CLOSED || hit.id === B.DOOR_OPEN) {
+                game.world.set(hit.x, hit.y, hit.z,
+                    hit.id === B.DOOR_CLOSED ? B.DOOR_OPEN : B.DOOR_CLOSED);
+                sound.place('wood');
+                return;
+            }
+            // la cama salta la noche: al usarla de noche, amanece
+            if (hit.id === B.BED) {
+                if (dayFactor() < 0.45) {
+                    game.timeOfDay = 0.77; // justo tras el alba
+                    sound.place('cloth');
+                }
+                return;
+            }
             const [tx, ty, tz] = [hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz];
             const target = game.world.get(tx, ty, tz);
             const replaceable = target === B.AIR || DEFS[target].liquid || DEFS[target].cross;
@@ -573,10 +601,12 @@ function boot() {
         return it && it.tool && it.tool.tipo === def.tool ? it.tool.factor : 1;
     }
 
-    /** Qué suelta cada bloque: la roca suelta adoquín y la hierba, tierra. */
+    /** Qué suelta cada bloque: la roca, adoquín; los suelos, tierra; la mena de carbón, carbón. */
     function dropDe(id) {
         if (id === B.STONE) return B.COBBLE;
         if (id === B.GRASS || id === B.SNOWY_GRASS || id === B.MYCELIUM || id === B.PODZOL) return B.DIRT;
+        if (id === B.COAL_ORE) return ITEMS.CARBON;
+        if (id === B.DOOR_OPEN) return B.DOOR_CLOSED; // la puerta se recoge cerrada
         return id;
     }
 

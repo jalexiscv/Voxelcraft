@@ -26,6 +26,15 @@ export const ITEMS = {
     PALO: 200,
     PICO_MADERA: 201, HACHA_MADERA: 202, PALA_MADERA: 203,
     PICO_PIEDRA: 204, HACHA_PIEDRA: 205, PALA_PIEDRA: 206,
+    // materiales que sueltan los mobs (tabla en documents/04-items.md)
+    CUERO: 207, PLUMA: 208, CARNE_CRUDA: 209, CARNE_ASADA: 210,
+    HUESO: 211, HILO: 212, POLVORA: 213, CARNE_PODRIDA: 214,
+    PERLA: 215, BOLA_SLIME: 216, TINTA: 217, PEZ_CRUDO: 218,
+    PEZ_ASADO: 219, ESCAMA: 220, MEMBRANA: 221,
+    // fundición y nivel de hierro
+    CARBON: 222, LINGOTE_HIERRO: 223, LINGOTE_ORO: 224,
+    PICO_HIERRO: 225, HACHA_HIERRO: 226, PALA_HIERRO: 227,
+    ESPADA_MADERA: 228, ESPADA_PIEDRA: 229, ESPADA_HIERRO: 230,
 };
 
 /** Definiciones de item por id: nombre, tésela del sprite y herramienta. */
@@ -37,7 +46,61 @@ export const ITEM_DEFS = {
     [ITEMS.PICO_PIEDRA]:  { name: 'Pico de piedra', tile: TILE.PICO_PIEDRA, tool: { tipo: 'pico', factor: 3 } },
     [ITEMS.HACHA_PIEDRA]: { name: 'Hacha de piedra', tile: TILE.HACHA_PIEDRA, tool: { tipo: 'hacha', factor: 3 } },
     [ITEMS.PALA_PIEDRA]:  { name: 'Pala de piedra', tile: TILE.PALA_PIEDRA, tool: { tipo: 'pala', factor: 3 } },
+    [ITEMS.CUERO]:         { name: 'Cuero', tile: TILE.CUERO },
+    [ITEMS.PLUMA]:         { name: 'Pluma', tile: TILE.PLUMA },
+    [ITEMS.CARNE_CRUDA]:   { name: 'Carne cruda', tile: TILE.CARNE_CRUDA },
+    [ITEMS.CARNE_ASADA]:   { name: 'Carne asada', tile: TILE.CARNE_ASADA },
+    [ITEMS.HUESO]:         { name: 'Hueso', tile: TILE.HUESO },
+    [ITEMS.HILO]:          { name: 'Hilo', tile: TILE.HILO },
+    [ITEMS.POLVORA]:       { name: 'Pólvora', tile: TILE.POLVORA },
+    [ITEMS.CARNE_PODRIDA]: { name: 'Carne podrida', tile: TILE.CARNE_PODRIDA },
+    [ITEMS.PERLA]:         { name: 'Perla', tile: TILE.PERLA },
+    [ITEMS.BOLA_SLIME]:    { name: 'Bola de slime', tile: TILE.BOLA_SLIME },
+    [ITEMS.TINTA]:         { name: 'Tinta', tile: TILE.TINTA },
+    [ITEMS.PEZ_CRUDO]:     { name: 'Pez crudo', tile: TILE.PEZ_CRUDO },
+    [ITEMS.PEZ_ASADO]:     { name: 'Pez asado', tile: TILE.PEZ_ASADO },
+    [ITEMS.ESCAMA]:        { name: 'Escama', tile: TILE.ESCAMA },
+    [ITEMS.MEMBRANA]:      { name: 'Membrana', tile: TILE.MEMBRANA },
+    [ITEMS.CARBON]:        { name: 'Carbón', tile: TILE.CARBON },
+    [ITEMS.LINGOTE_HIERRO]: { name: 'Lingote de hierro', tile: TILE.LINGOTE_HIERRO },
+    [ITEMS.LINGOTE_ORO]:   { name: 'Lingote de oro', tile: TILE.LINGOTE_ORO },
+    [ITEMS.PICO_HIERRO]:   { name: 'Pico de hierro', tile: TILE.PICO_HIERRO, tool: { tipo: 'pico', factor: 4 } },
+    [ITEMS.HACHA_HIERRO]:  { name: 'Hacha de hierro', tile: TILE.HACHA_HIERRO, tool: { tipo: 'hacha', factor: 4 } },
+    [ITEMS.PALA_HIERRO]:   { name: 'Pala de hierro', tile: TILE.PALA_HIERRO, tool: { tipo: 'pala', factor: 4 } },
+    [ITEMS.ESPADA_MADERA]: { name: 'Espada de madera', tile: TILE.ESPADA_MADERA, sword: 5 },
+    [ITEMS.ESPADA_PIEDRA]: { name: 'Espada de piedra', tile: TILE.ESPADA_PIEDRA, sword: 6 },
+    [ITEMS.ESPADA_HIERRO]: { name: 'Espada de hierro', tile: TILE.ESPADA_HIERRO, sword: 8 },
 };
+
+/**
+ * Fundiciones del horno (entrada → salida, 1:1) y combustibles (usos que
+ * aporta cada unidad). La interfaz del horno vive en el HUD; la fundición
+ * es por sesión (sin estado por bloque: adaptación documentada).
+ */
+export const FUNDICIONES = [
+    { in: B.IRON_ORE, out: ITEMS.LINGOTE_HIERRO },
+    { in: B.GOLD_ORE, out: ITEMS.LINGOTE_ORO },
+    { in: B.SAND, out: B.GLASS },
+    { in: B.COBBLE, out: B.STONE },
+    { in: B.LOG, out: ITEMS.CARBON },          // carbón vegetal
+    { in: ITEMS.CARNE_CRUDA, out: ITEMS.CARNE_ASADA },
+    { in: ITEMS.PEZ_CRUDO, out: ITEMS.PEZ_ASADO },
+];
+
+export const COMBUSTIBLES = {
+    [ITEMS.CARBON]: 4,
+    [B.LOG]: 2,
+    [B.PLANKS]: 1,
+    [ITEMS.PALO]: 1,
+};
+
+/** Funde una unidad: consume entrada y devuelve el id producido, o 0. */
+export function fundir(inv, entradaId) {
+    const f = FUNDICIONES.find((x) => x.in === entradaId);
+    if (!f || !inv.take(entradaId, 1)) return 0;
+    inv.add(f.out, 1);
+    return f.out;
+}
 
 export const isItem = (id) => id >= ITEM_BASE;
 
@@ -64,6 +127,30 @@ export const RECIPES = [
         pattern: ['CC', 'CS', ' S'], keys: { C: B.COBBLE, S: ITEMS.PALO } },
     { name: 'Pala de piedra', out: { id: ITEMS.PALA_PIEDRA, n: 1 },
         pattern: ['C', 'S', 'S'], keys: { C: B.COBBLE, S: ITEMS.PALO } },
+    { name: 'Pico de hierro', out: { id: ITEMS.PICO_HIERRO, n: 1 },
+        pattern: ['HHH', ' S ', ' S '], keys: { H: ITEMS.LINGOTE_HIERRO, S: ITEMS.PALO } },
+    { name: 'Hacha de hierro', out: { id: ITEMS.HACHA_HIERRO, n: 1 },
+        pattern: ['HH', 'HS', ' S'], keys: { H: ITEMS.LINGOTE_HIERRO, S: ITEMS.PALO } },
+    { name: 'Pala de hierro', out: { id: ITEMS.PALA_HIERRO, n: 1 },
+        pattern: ['H', 'S', 'S'], keys: { H: ITEMS.LINGOTE_HIERRO, S: ITEMS.PALO } },
+    { name: 'Espada de madera', out: { id: ITEMS.ESPADA_MADERA, n: 1 },
+        pattern: ['P', 'P', 'S'], keys: { P: B.PLANKS, S: ITEMS.PALO } },
+    { name: 'Espada de piedra', out: { id: ITEMS.ESPADA_PIEDRA, n: 1 },
+        pattern: ['C', 'C', 'S'], keys: { C: B.COBBLE, S: ITEMS.PALO } },
+    { name: 'Espada de hierro', out: { id: ITEMS.ESPADA_HIERRO, n: 1 },
+        pattern: ['H', 'H', 'S'], keys: { H: ITEMS.LINGOTE_HIERRO, S: ITEMS.PALO } },
+    { name: 'Horno', out: { id: B.FURNACE, n: 1 },
+        pattern: ['CCC', 'C C', 'CCC'], keys: { C: B.COBBLE } },
+    { name: 'Puerta', out: { id: B.DOOR_CLOSED, n: 1 },
+        pattern: ['PP', 'PP', 'PP'], keys: { P: B.PLANKS } },
+    { name: 'Valla', out: { id: B.FENCE, n: 2 },
+        pattern: ['SPS', 'SPS'], keys: { S: ITEMS.PALO, P: B.PLANKS } },
+    { name: 'Ventana', out: { id: B.WINDOW, n: 2 },
+        pattern: ['GG', 'GG'], keys: { G: B.GLASS } },
+    { name: 'Antorcha', out: { id: B.TORCH, n: 4 },
+        pattern: ['C', 'S'], keys: { C: ITEMS.CARBON, S: ITEMS.PALO } },
+    { name: 'Cama', out: { id: B.BED, n: 1 },
+        pattern: ['WWW', 'PPP'], keys: { W: B.WOOL0, P: B.PLANKS } },
     { name: 'Librería', out: { id: B.BOOKSHELF, n: 1 }, in: [{ id: B.PLANKS, n: 6 }] },
     { name: 'Cristal', out: { id: B.GLASS, n: 1 }, in: [{ id: B.SAND, n: 2 }] },
 ];

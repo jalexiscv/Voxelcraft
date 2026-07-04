@@ -10,6 +10,8 @@ import { pathToFileURL } from 'node:url';
 import { partUVRects, partBox, ANIMS } from '../js/mobs/model.js';
 import { Skin } from '../js/mobs/skin.js';
 import { toSeed } from '../js/noise.js';
+import { DEFS } from '../js/blocks.js';
+import { ITEM_DEFS, isItem } from '../js/items.js';
 
 const SOUND_KINDS = ['say', 'hurt', 'death'];
 
@@ -103,6 +105,25 @@ export function validate(def, expectedId) {
     }
     if (def.spawn && def.spawn.block && !['GRASS', 'SAND', 'ANY'].includes(def.spawn.block)) {
         err(`spawn.block "${def.spawn.block}" desconocido (GRASS|SAND|ANY)`);
+    }
+
+    /* ---- Botín (drops al morir; tabla en documents/04-items.md) ---- */
+    if (def.drops !== undefined) {
+        if (!Array.isArray(def.drops)) {
+            err('drops debe ser un array de {id, min, max, chance}');
+        } else {
+            for (const d of def.drops) {
+                const existe = d && (isItem(d.id) ? ITEM_DEFS[d.id] : DEFS[d.id]);
+                if (!existe) { err(`drops: id ${d && d.id} no existe (bloque o item)`); continue; }
+                const min = d.min || 0, max = d.max !== undefined ? d.max : min;
+                if (!Number.isInteger(min) || !Number.isInteger(max) || min < 0 || max < min || max > 8) {
+                    err(`drops ${d.id}: min/max inválidos (0 ≤ min ≤ max ≤ 8)`);
+                }
+                if (d.chance !== undefined && !(d.chance > 0 && d.chance <= 1)) {
+                    err(`drops ${d.id}: chance debe estar en (0, 1]`);
+                }
+            }
+        }
     }
 
     /* ---- Variantes (tonalidades por individuo) ---- */

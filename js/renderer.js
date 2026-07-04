@@ -6,6 +6,7 @@
 import { moonUV } from './sky.js';
 import { DEFS } from './blocks.js';
 import { tileUV } from './atlas.js';
+import { ITEM_DEFS, isItem } from './items.js';
 
 const VS = `#version 300 es
 layout(location=0) in vec3 aPos;
@@ -240,11 +241,34 @@ export class Renderer {
         let o = 0;
         for (let i = 0; i < drops.length; i++) {
             const d = drops[i];
-            const def = DEFS[d.id];
-            if (!def) continue;
             const a = time * 1.6 + i * 0.9;                             // giro propio
             const cos = Math.cos(a), sin = Math.sin(a);
             const cy = d.pos[1] + 0.1 + Math.sin(time * 2 + i) * 0.045; // flota
+
+            // items (herramientas, materiales): sprite plano en X que gira
+            if (isItem(d.id)) {
+                const it = ITEM_DEFS[d.id];
+                if (!it) continue;
+                const [u0, v0, u1, v1] = tileUV(it.tile);
+                const uv = [[u0, v1], [u1, v1], [u1, v0], [u0, v0]];
+                const S2 = 0.22;
+                for (const plano of [
+                    [[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]],
+                    [[0, -1, -1], [0, -1, 1], [0, 1, 1], [0, 1, -1]],
+                ]) {
+                    for (const k of [0, 1, 2, 0, 2, 3]) {
+                        const [ex, ey, ez] = plano[k];
+                        const x = ex * S2 * cos - ez * S2 * sin;
+                        const z = ex * S2 * sin + ez * S2 * cos;
+                        data.set([d.pos[0] + x, cy + ey * S2, d.pos[2] + z, uv[k][0], uv[k][1], 1], o);
+                        o += 6;
+                    }
+                }
+                continue;
+            }
+
+            const def = DEFS[d.id];
+            if (!def) continue;
             for (const q of DROP_QUADS) {
                 const [u0, v0, u1, v1] = tileUV(def[q.cara]);
                 const uv = [[u0, v1], [u1, v1], [u1, v0], [u0, v0]];

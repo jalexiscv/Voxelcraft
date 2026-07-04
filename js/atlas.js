@@ -30,6 +30,17 @@ export const TILE = {
     PALO: 66, PICO_MADERA: 67, HACHA_MADERA: 68, PALA_MADERA: 69,
     PICO_PIEDRA: 70, HACHA_PIEDRA: 71, PALA_PIEDRA: 72,
     CRAFTING_TOP: 73, CRAFTING_SIDE: 74,
+    // items de drops y fundición (documents/04-items.md)
+    CUERO: 75, PLUMA: 76, CARNE_CRUDA: 77, CARNE_ASADA: 78, HUESO: 79,
+    HILO: 80, POLVORA: 81, CARNE_PODRIDA: 82, PERLA: 83, BOLA_SLIME: 84,
+    TINTA: 85, PEZ_CRUDO: 86, PEZ_ASADO: 87, ESCAMA: 88, MEMBRANA: 89,
+    CARBON: 90, LINGOTE_HIERRO: 91, LINGOTE_ORO: 92,
+    PICO_HIERRO: 93, HACHA_HIERRO: 94, PALA_HIERRO: 95,
+    ESPADA_MADERA: 96, ESPADA_PIEDRA: 97, ESPADA_HIERRO: 98,
+    // bloques funcionales
+    FURNACE_SIDE: 99, FURNACE_TOP: 101,
+    DOOR_T: 102, DOOR_OPEN_T: 103, FENCE_T: 104, WINDOW_T: 105,
+    TORCH_T: 106, BED_TOP: 107,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -501,6 +512,171 @@ painters[TILE.CRAFTING_SIDE] = (t) => {
     for (let x = 9; x <= 12; x++) t.px(x, 6, 120, 120, 126);
     t.px(10, 5, 150, 150, 156); t.px(11, 5, 150, 150, 156);
     for (let y = 6; y <= 10; y++) t.px(10, y, 96, 70, 44);
+};
+
+/* ---- Items de drops y fundición (sprites planos, fondo transparente) ---- */
+
+/** Mancha orgánica centrada: base + sombra inferior + brillo superior. */
+const manchaTile = (base, sombra, brillo) => (t) => {
+    for (let y = 4; y <= 11; y++) {
+        const half = 5 - Math.abs(y - 8) * 0.8;
+        for (let x = Math.round(8 - half); x <= Math.round(7 + half); x++) {
+            t.px(x, y, ...(y > 9 ? sombra : base));
+        }
+    }
+    t.px(6, 5, ...brillo); t.px(7, 5, ...brillo);
+};
+
+painters[TILE.CUERO] = manchaTile([176, 118, 62], [140, 90, 46], [200, 146, 88]);
+painters[TILE.CARNE_CRUDA] = manchaTile([214, 82, 74], [170, 56, 50], [236, 130, 122]);
+painters[TILE.CARNE_ASADA] = manchaTile([158, 96, 52], [118, 68, 36], [196, 134, 82]);
+painters[TILE.CARNE_PODRIDA] = manchaTile([148, 120, 64], [108, 88, 46], [172, 150, 92]);
+painters[TILE.POLVORA] = (t) => { manchaTile([108, 108, 108], [72, 72, 72], [140, 140, 140])(t); t.speckle(8, [58, 58, 58]); };
+painters[TILE.BOLA_SLIME] = manchaTile([112, 196, 96], [78, 152, 66], [168, 226, 150]);
+painters[TILE.TINTA] = manchaTile([42, 42, 58], [24, 24, 36], [78, 78, 104]);
+painters[TILE.CARBON] = (t) => { manchaTile([52, 52, 52], [30, 30, 30], [90, 90, 90])(t); t.speckle(5, [16, 16, 16]); };
+painters[TILE.ESCAMA] = manchaTile([96, 168, 172], [64, 126, 130], [150, 212, 214]);
+painters[TILE.MEMBRANA] = manchaTile([190, 178, 150], [148, 138, 112], [216, 208, 186]);
+
+painters[TILE.PLUMA] = (t) => {
+    for (let i = 0; i <= 8; i++) {                         // pluma diagonal
+        t.px(4 + i, 12 - i, 236, 236, 232);
+        t.px(5 + i, 12 - i, 214, 214, 208);
+    }
+    for (let i = 2; i <= 6; i++) t.px(3 + i, 14 - i, 168, 168, 162); // cañón
+};
+
+painters[TILE.HUESO] = (t) => {
+    for (let i = 0; i <= 7; i++) t.px(4 + i, 11 - i, 234, 230, 218); // caña
+    t.px(3, 12, 234, 230, 218); t.px(4, 12, 234, 230, 218); t.px(3, 11, 234, 230, 218);
+    t.px(11, 4, 234, 230, 218); t.px(12, 4, 234, 230, 218); t.px(12, 5, 234, 230, 218);
+    t.px(4, 13, 196, 190, 174); t.px(13, 4, 196, 190, 174); // sombras de las cabezas
+};
+
+painters[TILE.HILO] = (t) => {
+    for (let a = 0; a < 20; a++) {                          // ovillo
+        const x = Math.round(8 + Math.cos(a * 0.9) * (2 + a * 0.1));
+        const y = Math.round(8 + Math.sin(a * 0.9) * (2 + a * 0.08));
+        t.px(x, y, 226, 226, 222);
+    }
+    t.px(8, 8, 198, 198, 192);
+};
+
+painters[TILE.PERLA] = (t) => {
+    manchaTile([64, 150, 140], [40, 108, 100], [140, 214, 202])(t);
+    t.px(7, 6, 210, 246, 240);                              // destello
+};
+
+const pezTile = (cuerpo, sombra) => (t) => {
+    for (let x = 4; x <= 10; x++) {                         // cuerpo
+        const half = 2 - Math.abs(x - 7) * 0.5;
+        for (let y = Math.round(8 - half); y <= Math.round(8 + half); y++) t.px(x, y, ...cuerpo);
+    }
+    t.px(11, 7, ...sombra); t.px(11, 9, ...sombra); t.px(12, 8, ...sombra); // cola
+    t.px(5, 7, 20, 20, 20);                                 // ojo
+};
+painters[TILE.PEZ_CRUDO] = pezTile([150, 170, 190], [110, 130, 150]);
+painters[TILE.PEZ_ASADO] = pezTile([190, 140, 80], [150, 104, 56]);
+
+const lingoteTile = (claro, medio, oscuro) => (t) => {
+    for (let y = 7; y <= 11; y++) {                         // lingote trapezoidal
+        const in0 = 3 + (11 - y), in1 = 12 - (11 - y) + 1;
+        for (let x = in0; x <= in1; x++) t.px(x, y, ...(y === 7 ? claro : y >= 10 ? oscuro : medio));
+    }
+};
+painters[TILE.LINGOTE_HIERRO] = lingoteTile([230, 230, 232], [196, 198, 202], [150, 152, 158]);
+painters[TILE.LINGOTE_ORO] = lingoteTile([252, 234, 140], [236, 196, 80], [190, 148, 48]);
+
+const CABEZA_HIERRO = [206, 208, 212], BRILLO_HIERRO = [236, 238, 242];
+painters[TILE.PICO_HIERRO] = picoTile(CABEZA_HIERRO, BRILLO_HIERRO);
+painters[TILE.HACHA_HIERRO] = hachaTile(CABEZA_HIERRO, BRILLO_HIERRO);
+painters[TILE.PALA_HIERRO] = palaTile(CABEZA_HIERRO, BRILLO_HIERRO);
+
+const espadaTile = (hoja, brillo) => (t) => {
+    mangoDiagonal(t, 2, 4);                                 // empuñadura corta
+    t.px(4, 10, 96, 66, 38); t.px(6, 12, 96, 66, 38);       // guarda
+    for (let i = 0; i <= 7; i++) {                          // hoja diagonal
+        t.px(5 + i, 10 - i, ...hoja);
+        t.px(6 + i, 10 - i, ...brillo);
+    }
+    t.px(13, 2, ...brillo);                                 // punta
+};
+painters[TILE.ESPADA_MADERA] = espadaTile([166, 128, 78], [196, 158, 104]);
+painters[TILE.ESPADA_PIEDRA] = espadaTile([128, 128, 128], [162, 162, 162]);
+painters[TILE.ESPADA_HIERRO] = espadaTile([206, 208, 212], [240, 242, 246]);
+
+/* ---- Bloques funcionales ---- */
+
+painters[TILE.FURNACE_SIDE] = (t) => {
+    painters[TILE.COBBLE](t);
+    for (let y = 9; y <= 13; y++) {                         // boca del horno
+        for (let x = 5; x <= 10; x++) t.px(x, y, 26, 22, 20);
+    }
+    t.px(6, 12, 240, 160, 60); t.px(8, 11, 240, 160, 60);   // brasas
+    t.px(9, 13, 200, 90, 40); t.px(7, 13, 200, 90, 40);
+};
+
+painters[TILE.FURNACE_TOP] = (t) => {
+    painters[TILE.COBBLE](t);
+    for (let x = 4; x <= 11; x++) for (let y = 4; y <= 11; y++) t.px(x, y, 92, 92, 92);
+    for (let x = 5; x <= 10; x++) for (let y = 5; y <= 10; y++) t.px(x, y, 70, 70, 70);
+};
+
+painters[TILE.DOOR_T] = (t) => {
+    painters[TILE.PLANKS](t);
+    for (let i = 0; i < TILE_PX; i++) {                     // marco
+        t.px(i, 0, 84, 60, 34); t.px(i, 15, 84, 60, 34);
+        t.px(0, i, 84, 60, 34); t.px(15, i, 84, 60, 34);
+    }
+    for (let y = 3; y <= 6; y++) {                          // ventanuco (hueco alfa)
+        for (let x = 5; x <= 10; x++) t.px(x, y, 0, 0, 0, 0);
+    }
+    t.px(12, 9, 210, 190, 120); t.px(12, 10, 210, 190, 120); // pomo
+};
+
+painters[TILE.DOOR_OPEN_T] = (t) => {
+    // hoja abierta pegada al canto: casi todo hueco, tablón lateral visible
+    for (let y = 0; y < TILE_PX; y++) {
+        for (let x = 0; x <= 3; x++) {
+            const d = t.rng.int(9) - 4;
+            t.px(x, y, 170 + d, 132 + d, 82 + d);
+        }
+        t.px(0, y, 84, 60, 34);
+    }
+    t.px(2, 8, 210, 190, 120);                              // pomo
+};
+
+painters[TILE.FENCE_T] = (t) => {
+    for (let y = 2; y < TILE_PX; y++) { t.px(7, y, 124, 92, 56); t.px(8, y, 104, 76, 46); } // poste
+    for (const ry of [5, 10]) {                             // travesaños
+        for (let x = 0; x < TILE_PX; x++) { t.px(x, ry, 140, 106, 64); t.px(x, ry + 1, 116, 86, 50); }
+    }
+};
+
+painters[TILE.WINDOW_T] = (t) => {
+    painters[TILE.GLASS](t);
+    for (let i = 0; i < TILE_PX; i++) {                     // marco de madera
+        t.px(i, 0, 124, 92, 56); t.px(i, 15, 124, 92, 56);
+        t.px(0, i, 124, 92, 56); t.px(15, i, 124, 92, 56);
+        t.px(i, 7, 140, 106, 64); t.px(7, i, 140, 106, 64); // parteluz
+    }
+};
+
+painters[TILE.TORCH_T] = (t) => {
+    for (let y = 7; y <= 14; y++) { t.px(7, y, 124, 92, 56); t.px(8, y, 104, 76, 46); } // palo
+    t.px(7, 5, 252, 220, 100); t.px(8, 5, 252, 220, 100);   // llama
+    t.px(7, 6, 244, 160, 60); t.px(8, 6, 244, 160, 60);
+    t.px(7, 4, 255, 244, 180);
+};
+
+painters[TILE.BED_TOP] = (t) => {
+    t.noiseFill([170, 52, 52], 8);                          // manta roja
+    for (let y = 1; y <= 4; y++) for (let x = 2; x <= 13; x++) t.px(x, y, 236, 232, 224); // almohada
+    for (let x = 0; x < TILE_PX; x++) t.px(x, 5, 130, 36, 36); // doblez
+    for (let i = 0; i < TILE_PX; i++) {                     // borde del armazón
+        t.px(i, 0, 110, 84, 50); t.px(i, 15, 110, 84, 50);
+        t.px(0, i, 110, 84, 50); t.px(15, i, 110, 84, 50);
+    }
 };
 
 /**

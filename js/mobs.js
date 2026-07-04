@@ -406,6 +406,17 @@ export class MobSystem {
         if (m.hp <= 0) {
             m.dieT = 0.4;
             this.hooks.sound('death', m);
+            // botín del mob (tabla en su definición; main decide si aplica)
+            if (m.def.drops && this.hooks.drop) {
+                for (const d of m.def.drops) {
+                    if (d.chance !== undefined && this.rng.float() >= d.chance) continue;
+                    const min = d.min || 0;
+                    const n = min + this.rng.int((d.max !== undefined ? d.max : min) - min + 1);
+                    for (let k = 0; k < n; k++) {
+                        this.hooks.drop(d.id, m.pos[0], m.pos[1] + 0.4, m.pos[2]);
+                    }
+                }
+            }
             return;
         }
         this.hooks.sound('hurt', m);

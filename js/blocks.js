@@ -22,6 +22,12 @@ export const B = {
     PALE_LOG: 55, PALE_LEAVES: 56,
     CACTUS: 57, MYCELIUM: 58, PODZOL: 59, DEAD_BUSH: 60, TALL_GRASS: 61,
     CRAFTING_TABLE: 62, // mesa de crafteo: al usarla abre la cuadrícula 3×3
+    // bloques funcionales (documents/04-items.md)
+    FURNACE: 63,        // horno: al usarlo abre la interfaz de fundición
+    DOOR_CLOSED: 64, DOOR_OPEN: 65, // puerta: clic derecho alterna
+    FENCE: 66, WINDOW: 67,
+    TORCH: 68,          // brilla con luz propia (decorativa)
+    BED: 69,            // clic derecho de noche → amanece
 };
 
 /**
@@ -120,6 +126,15 @@ DEFS[B.PODZOL]         = def('Podzol', TILE.PODZOL_SIDE, { top: TILE.PODZOL_TOP,
 DEFS[B.DEAD_BUSH]      = plant('Arbusto seco', TILE.DEAD_BUSH);
 DEFS[B.TALL_GRASS]     = plant('Hierba alta', TILE.TALL_GRASS);
 DEFS[B.CRAFTING_TABLE] = def('Mesa de crafteo', TILE.CRAFTING_SIDE, { top: TILE.CRAFTING_TOP, bottom: TILE.PLANKS, sound: 'wood' });
+
+/* ---- Bloques funcionales (documents/04-items.md) ---- */
+DEFS[B.FURNACE]     = def('Horno', TILE.FURNACE_SIDE, { top: TILE.FURNACE_TOP, hardness: 5 });
+DEFS[B.DOOR_CLOSED] = def('Puerta', TILE.DOOR_T, { opaque: false, sound: 'wood' });
+DEFS[B.DOOR_OPEN]   = def('Puerta abierta', TILE.DOOR_OPEN_T, { solid: false, opaque: false, placeable: false, sound: 'wood' });
+DEFS[B.FENCE]       = def('Valla', TILE.FENCE_T, { cross: true, opaque: false, sound: 'wood' });
+DEFS[B.WINDOW]      = def('Ventana', TILE.WINDOW_T, { opaque: false, hideSame: true, hardness: 1 });
+DEFS[B.TORCH]       = def('Antorcha', TILE.TORCH_T, { cross: true, solid: false, opaque: false, bright: true, sound: 'wood', hardness: 1, tool: null });
+DEFS[B.BED]         = def('Cama', TILE.PLANKS, { top: TILE.BED_TOP, sound: 'cloth', hardness: 2 });
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */
 export const PLACEABLE = DEFS
