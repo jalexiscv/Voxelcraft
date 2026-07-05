@@ -668,6 +668,95 @@ console.log('== Antidron kamikaze ==');
     check('el antidron no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
 }
 
+/* ==== Dron escapista ==== */
+console.log('== Dron escapista ==');
+{
+    const escapista = (await import('../js/mobs/dron_escapista.js')).default;
+    const dron = (await import('../js/mobs/dron.js')).default;
+    const antidron = (await import('../js/mobs/antidron.js')).default;
+    // jugador cerca del grupo: dentro del ACTIVE_RADIUS los mobs corren su IA
+    const ctx = { pos: [10, 11, 10], eye: [10, 12.62, 10], day: 1 };
+
+    // más rápido: su flySpeed triplica (o casi) al del dron y supera al antidron
+    check('el escapista es ~3× más rápido que el dron y más que el antidron',
+        escapista.flySpeed >= dron.speed * 2.8 && escapista.flySpeed > antidron.flySpeed);
+
+    // vuela errático: recorre mucho terreno y cambia de rumbo a saltos bruscos
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const e = new Mob(escapista, 20.5, 16, 20.5);
+        s.mobs.push(e);
+        const yaws = [], pos0 = [...e.pos];
+        for (let t = 0; t < 6; t += DT) { s.update(DT, ctx); yaws.push(e.yaw); }
+        check('el escapista vuela sin caer (airborne, se mantiene en el aire)',
+            e.airborne && e.pos[1] > 12 && !e.dying());
+        // recorrido amplio (velocidad alta) y muchos quiebres de rumbo
+        const recorrido = Math.hypot(e.pos[0] - pos0[0], e.pos[2] - pos0[2]);
+        let quiebres = 0;
+        for (let i = 1; i < yaws.length; i++) {
+            let d = Math.abs(yaws[i] - yaws[i - 1]);
+            d = Math.min(d, Math.PI * 2 - d);
+            if (d > 0.8) quiebres++;
+        }
+        check('traza ángulos imposibles (varios quiebres bruscos de rumbo)', quiebres >= 3);
+        check('mantiene alta velocidad en los quiebres (recorre mucho terreno)', recorrido > 8);
+    }
+
+    // giro instantáneo: al reescribir el rumbo, la rapidez horizontal no cae
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 3);
+        const e = new Mob(escapista, 20.5, 16, 20.5);
+        s.mobs.push(e);
+        let vMin = Infinity, ticks = 0;
+        for (let t = 0; t < 4; t += DT) {
+            s.update(DT, ctx);
+            const vh = Math.hypot(e.vel[0], e.vel[2]);
+            if (++ticks > 20) vMin = Math.min(vMin, vh); // tras el arranque
+        }
+        check('no pierde velocidad al quebrar (snapTurn mantiene la rapidez)',
+            vMin > escapista.flySpeed * 0.7);
+    }
+
+    // los DRONES lo persiguen de inmediato (presa de práctica), sin inspección
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const g = new Mob(dron, 0.5, 14, 0.5);
+        const e = new Mob(escapista, 8.5, 15, 0.5);
+        s.mobs.push(g, e);
+        const d0 = Math.hypot(g.pos[0] - e.pos[0], g.pos[2] - e.pos[2]);
+        // un solo tick: el dron ya debe estar en 'chase' con la presa, no patrullando
+        s.update(DT, ctx);
+        check('el dron persigue al escapista de inmediato (chase, sin inspección)',
+            g.state === 'chase' && g.inspectTarget === null);
+    }
+
+    // los ANTIDRONES también lo persiguen (lo detectan como objetivo)
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const a = new Mob(antidron, 0.5, 11, 0.5);
+        const e = new Mob(escapista, 6.5, 15, 0.5);
+        s.mobs.push(a, e);
+        let yMax = a.pos[1];
+        for (let t = 0; t < 3; t += DT) { s.update(DT, ctx); yMax = Math.max(yMax, a.pos[1]); }
+        check('el antidron despega para perseguir al escapista', a.airborne && yMax > 12);
+    }
+
+    // no ataca a nadie (es presa, no cazador) ni aparece de forma natural
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const e = new Mob(escapista, 20.5, 15, 20.5);
+        const vaca = new Mob(pig, 21.5, 11, 20.5);
+        s.mobs.push(e, vaca);
+        const hpVaca = vaca.hp;
+        simulate(s, 4, ctx);
+        check('el escapista no agrede a otros mobs (es presa, no cazador)',
+            vaca.hp === hpVaca && !vaca.dying());
+    }
+    const salvaje = new MobSystem({ dron_escapista: escapista }, new MockWorld(40), silentHooks(), 3);
+    simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
+    check('el escapista no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
+}
+
 /* ==== Contrato de las 68 definiciones (elenco oficial del Overworld) ==== */
 console.log('== Definiciones de mobs ==');
 {
@@ -707,8 +796,8 @@ console.log('== Definiciones de mobs ==');
     }
 
     // mobs PROPIOS de la casa (no vanilla): mismo contrato validable, con
-    // la anim 'rotor' de las hélices del dron y el antidron
-    const PROPIOS = ['dron', 'antidron'];
+    // la anim 'rotor' de las hélices del dron/antidron y el escapista anular
+    const PROPIOS = ['dron', 'antidron', 'dron_escapista'];
     for (const id of PROPIOS) {
         const def = (await import(`../js/mobs/${id}.js`)).default;
         const { errors } = validate(def, id);

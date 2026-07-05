@@ -69,6 +69,23 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   gimbal de cámara colgando, LEDs de batería y cuatro rotores hacia
   arriba-fuera (dos claros y dos oscuros) que giran con `rotor`.
 
+- **Dron escapista** (`dron_escapista`) — dron de PRÁCTICA (IA
+  `behavior.evasive`). Vuela como un **mosquito**: SIEMPRE a máxima
+  velocidad (`flySpeed` **hasta 3× la de un dron**), con quiebres BRUSCOS
+  de rumbo y altura cada `dartFast`/`dartSlow` s — cambios de dirección
+  casi instantáneos («ángulos imposibles») que **no frenan la marcha**,
+  porque con `snapTurn` la velocidad salta al rumbo nuevo en vez de
+  reorientarse poco a poco. Si un cazador (dron/antidron) entra en su
+  `alertRadius`, sesga la huida en la dirección opuesta y quiebra más a
+  menudo. Es una **presa de práctica** (`behavior.quarry`): **drones y
+  antidrones lo persiguen de inmediato** — el guardián lo caza sin
+  inspección (prioridad sobre todo lo demás) y el antidron lo detecta como
+  objetivo igual que a un dron. No ataca a nadie. Modelo elaborado según
+  la imagen de referencia: nave anular con un **anillo hueco central**
+  (corona de 10 segmentos), casco beige de manta raya que lo rodea (proa,
+  flancos, popa), dos alas en delta con el filo de fuga magenta, líneas de
+  energía magenta, góndolas/toberas y cuatro púas-antena.
+
 ## Arquitectura
 
 ```

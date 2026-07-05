@@ -87,6 +87,7 @@ import guardian from './guardian.js';
 // Propios de la casa (no vanilla): solo por huevo de aparición
 import dron from './dron.js';
 import antidron from './antidron.js';
+import dron_escapista from './dron_escapista.js';
 
 /** Tipos indexados por id, agrupados por las categorías oficiales del juego. */
 export const MOBS = {
@@ -108,5 +109,5 @@ export const MOBS = {
     evoker, ravager, slime, silverfish, ghast, vex, creaking, breeze,
     warden, guardian,
     // propios de la casa
-    dron, antidron,
+    dron, antidron, dron_escapista,
 };

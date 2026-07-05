@@ -88,6 +88,11 @@ export class Mob {
         this.swooping = false;       // ya en fase de picado sobre el dron
         this.jitterT = 0;
         this.jitterYaw = 0;
+        // dron escapista: vuelo errático de mosquito. Rumbo/altura objetivo
+        // que se re-sortean a saltos bruscos, y reloj hasta el próximo quiebre.
+        this.dartT = 0;
+        this.dartYaw = yaw;
+        this.dartY = y;
     }
 
     dying() { return this.dieT >= 0; }
@@ -190,7 +195,8 @@ export class MobSystem {
 
         m.angerT = Math.max(0, m.angerT - dt);
         // en modo creativo los hostiles ignoran al jugador (deambulan como pasivos)
-        if (m.def.behavior && m.def.behavior.antidron) this.antidronAI(m, dt, ctx, dist);
+        if (m.def.behavior && m.def.behavior.evasive) this.evasiveAI(m, dt, ctx, dist);
+        else if (m.def.behavior && m.def.behavior.antidron) this.antidronAI(m, dt, ctx, dist);
         else if (m.def.behavior && m.def.behavior.guardian) this.guardianAI(m, dt, ctx, dist);
         else if ((m.def.hostile || m.angerT > 0) && !ctx.creative) this.hostileAI(m, dt, ctx, dist);
         else this.passiveAI(m, dt, ctx, dist);
@@ -234,6 +240,62 @@ export class MobSystem {
     }
 
     /**
+     * IA del dron ESCAPISTA (behavior.evasive): vuela como un mosquito,
+     * SIEMPRE a máxima velocidad (flySpeed, hasta 3× la de un dron), con
+     * quiebres BRUSCOS de rumbo y altura — cambios de dirección casi
+     * instantáneos («ángulos imposibles») que no frenan la marcha, porque
+     * el rumbo se reescribe de golpe y la velocidad se mantiene en su tope.
+     * Si un perseguidor (dron/antidron) ronda cerca, sesga la huida en la
+     * dirección OPUESTA y quiebra más a menudo. Es una presa de práctica:
+     * no ataca a nadie.
+     */
+    evasiveAI(m, dt, ctx, dist) {
+        const b = m.def.behavior;
+        m.airborne = true;       // vuela por-instancia (aunque no sea flying)
+        m.state = 'wander';
+        m.dartT -= dt;
+
+        // perseguidor más cercano (dron o antidron) dentro del radio de alerta
+        let caza = null, mejor = Infinity;
+        for (const otro of this.mobs) {
+            if (otro === m || otro.dying()) continue;
+            const bo = otro.def.behavior;
+            if (!bo || !(bo.guardian || bo.antidron)) continue;
+            const d = Math.hypot(otro.pos[0] - m.pos[0], otro.pos[1] - m.pos[1], otro.pos[2] - m.pos[2]);
+            if (d < (b.alertRadius || 24) && d < mejor) { mejor = d; caza = otro; }
+        }
+
+        // quiebre: cada intervalo (más corto si lo persiguen) reescribe el
+        // rumbo y la altura objetivo DE GOLPE — el giro es discontinuo, de
+        // ahí la trayectoria antinatural. Un choque de pared fuerza otro.
+        const periodo = caza ? (b.dartFast || 0.28) : (b.dartSlow || 0.6);
+        if (m.dartT <= 0 || m.hitWall) {
+            m.dartT = periodo * (0.6 + this.rng.float() * 0.8);
+            let base;
+            if (caza) {
+                // huir del cazador: rumbo opuesto ± un abanico ancho (zigzag
+                // impredecible alrededor de la dirección de escape)
+                const away = Math.atan2(-(m.pos[0] - caza.pos[0]), -(m.pos[2] - caza.pos[2])) + Math.PI;
+                base = away + (this.rng.float() * 2 - 1) * (b.evadeSpread || 1.6);
+            } else {
+                base = this.rng.float() * Math.PI * 2; // vagar en cualquier dirección
+            }
+            m.dartYaw = base;
+            // altura errática: brincos y caídas dentro de una banda sobre el suelo
+            const suelo = this.world.hasChunk(Math.floor(m.pos[0]) >> 4, Math.floor(m.pos[2]) >> 4)
+                ? this.world.surfaceY(Math.floor(m.pos[0]), Math.floor(m.pos[2])) + 1 : m.pos[1];
+            m.dartY = suelo + 3 + this.rng.float() * (b.ceiling || 9);
+        }
+
+        // aplica el rumbo/altura de golpe (sin suavizar: el giro es «imposible»)
+        m.yaw = m.dartYaw;
+        m.targetY = m.dartY;
+        m.speed = m.def.flySpeed || m.def.speed;
+        // mira hacia donde vuela (da sensación de reacción nerviosa)
+        this.lookAt(m, [m.pos[0] - Math.sin(m.yaw) * 4, m.pos[1], m.pos[2] - Math.cos(m.yaw) * 4]);
+    }
+
+    /**
      * IA del antidrón kamikaze (behavior.antidron): reposa QUIETO en el
      * suelo (mob terrestre, con gravedad) hasta detectar un dron en
      * `detectRadius`. Entonces DESPEGA (`airborne`: vuelo por-instancia),
@@ -255,8 +317,10 @@ export class MobSystem {
             let mejor = Infinity;
             for (const otro of this.mobs) {
                 if (otro === m || otro.dying()) continue;
-                // un dron: cualquier mob guardián (marca de «es un dron»)
-                if (!(otro.def.behavior && otro.def.behavior.guardian)) continue;
+                // objetivo: un dron (guardián) o el escapista (presa de
+                // práctica) — el antidron los persigue a ambos
+                const bo = otro.def.behavior;
+                if (!bo || !(bo.guardian || bo.quarry)) continue;
                 const d = Math.hypot(otro.pos[0] - m.pos[0], otro.pos[1] - m.pos[1], otro.pos[2] - m.pos[2]);
                 if (d < (b.detectRadius || 20) && d < mejor) { mejor = d; objetivo = otro; }
             }
@@ -357,13 +421,22 @@ export class MobSystem {
         // (ambos en el radio aéreo, el triple de amplio). Los mobs del
         // MISMO tipo que el guardián se ignoran: los drones son aliados
         // entre sí, no se auto-vigilan (sí vigilan pájaros, abejas…).
+        // el dron escapista (behavior.quarry) es una PRESA de práctica: se
+        // persigue de inmediato, sin inspección, midiendo la distancia al
+        // GUARDIÁN (no al jugador) para no perderlo cuando escapa lejos
+        let presa = null, mejorP = Infinity;
         let terrestre = null, mejorT = Infinity;
         let volAgresivo = null, mejorVA = Infinity;
         let volCualquiera = null, mejorVC = Infinity;
         for (const otro of this.mobs) {
             if (otro === m || otro.dying() || otro.def.id === m.def.id) continue;
+            const bo = otro.def.behavior || {};
             const agresivo = otro.def.hostile || otro.angerT > 0;
             const d = Math.hypot(otro.pos[0] - ctx.pos[0], otro.pos[1] - ctx.pos[1], otro.pos[2] - ctx.pos[2]);
+            if (bo.quarry) {
+                const dm = Math.hypot(otro.pos[0] - m.pos[0], otro.pos[1] - m.pos[1], otro.pos[2] - m.pos[2]);
+                if (dm < (b.chaseRadius || 48) && dm < mejorP) { mejorP = dm; presa = otro; }
+            }
             if (otro.def.flying) {
                 if (d < radioAire && d < mejorVC) { mejorVC = d; volCualquiera = otro; }
                 if (agresivo && d < radioAire && d < mejorVA) { mejorVA = d; volAgresivo = otro; }
@@ -371,6 +444,9 @@ export class MobSystem {
                 mejorT = d; terrestre = otro;
             }
         }
+
+        // 0) prioridad ABSOLUTA a la presa de práctica: persecución inmediata
+        if (presa) { this.chaseTarget(m, ctx, presa); return; }
 
         // 1) prioridad al agresor terrestre: ataque directo
         if (terrestre) { this.chaseTarget(m, ctx, terrestre); return; }
@@ -628,6 +704,11 @@ export class MobSystem {
                     m.vel[2] = this.rng.float() * 2 - 1;
                 }
             }
+        } else if (m.def.snapTurn && m.airborne) {
+            // dron escapista: la velocidad SALTA al rumbo nuevo (giro
+            // instantáneo sin perder rapidez — los «ángulos imposibles»)
+            m.vel[0] = wishX;
+            m.vel[2] = wishZ;
         } else {
             // el antidron embiste con aceleración alta (dashAccel) para
             // cerrar sobre el dron pese al zigzag; el resto usa ACCEL

@@ -87,7 +87,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Cámara de vigilancia: bloque dinámico dibujado como entidad animada (paneo ±70° cada 8 s y LED parpadeante), crafteable con hierro, cristal y palo | ✅ (ver [04-items.md](04-items.md)) |
 | Partículas: explosiones (bola de fuego, humo y chispas), nube al morir un mob, chispas al herirlo y fragmentos con el color del bloque al romperlo — intérprete de efectos Bedrock (`particles/*.json`) con Molang | ✅ (ver [08-particulas.md](08-particulas.md)) |
 | Depuración (F3), reaparición (R) | ✅ |
-| Mobs (68 criaturas con IA + dron guardián y antidron kamikaze propios de la casa), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
+| Mobs (68 criaturas con IA + dron guardián, antidron kamikaze y dron escapista propios de la casa), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
 | Multijugador | ❌ (ver «Futuro») |
 
 ## Verificación
