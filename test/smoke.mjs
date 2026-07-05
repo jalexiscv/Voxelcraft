@@ -1332,6 +1332,38 @@ console.log('== Modelos geo ==');
         Math.abs(trader[0].rot[0] - 43 * Math.PI / 180) < 1e-9 &&
         Math.abs(trader[2].rot[0] - 43 * Math.PI / 180) < 1e-9 && !trader[3].rot);
 
+    // rigidez de la mirada: una parte con rot z horneada (oreja de mula del
+    // burro, Rz ±15° con pivote en la base del cuello) debe girar EN BLOQUE
+    // con la cabeza al mirar — el punto donde ambas piezas se tocan en
+    // reposo tiene que seguir coincidiendo a cualquier yaw/pitch de mirada
+    {
+        const { mat4Identity, mat4RotateX: rX, mat4RotateZ: rZ } = await import(base + 'math.js');
+        const aplicar = (M, v) => [
+            M[0] * v[0] + M[4] * v[1] + M[8] * v[2] + M[12],
+            M[1] * v[0] + M[5] * v[1] + M[9] * v[2] + M[13],
+            M[2] * v[0] + M[6] * v[1] + M[10] * v[2] + M[14],
+        ];
+        const G30 = Math.PI / 6, G15 = Math.PI / 12;
+        const cabezaGeo = { pivot: [0, 17, -8], rot: [-G30, 0, 0], anim: 'head' };
+        const orejaGeo = { pivot: [0, 17, -8], rot: [-G30, 0, G15], anim: 'head' };
+        // base de la oreja en su propio marco, y ese mismo punto expresado en
+        // el marco de la cabeza: inv(pose cabeza) · pose oreja · vOreja
+        const vOreja = [-2, 15, 3.5];
+        const mT = new Float32Array(16), mP = new Float32Array(16);
+        rZ(mT, G15); rX(mP, -G30); mat4Multiply(mP, mT, mP);
+        rX(mT, G30); mat4Multiply(mP, mT, mP);
+        const vCabeza = aplicar(mP, vOreja);
+        mat4Identity(mr.mBase);
+        const mirando = { headYaw: 1.1, yaw: 0, headPitch: 0.5 };
+        const mCab = new Float32Array(16), mOre = new Float32Array(16);
+        mr.partMatrix(mCab, cabezaGeo, mirando, 0, 0);
+        mr.partMatrix(mOre, orejaGeo, mirando, 0, 0);
+        const pC = aplicar(mCab, vCabeza), pO = aplicar(mOre, vOreja);
+        const gap = Math.hypot(pC[0] - pO[0], pC[1] - pO[1], pC[2] - pO[2]);
+        check('la mirada gira en bloque: la oreja con rot z no se despega de la cabeza',
+            gap < 1e-3);
+    }
+
     // traslados de pose: el enderman legacy trae la cabeza incrustada en el
     // torso y los pies 4 px bajo tierra; mov desplaza el pivote (la caja,
     // relativa a él, viaja entera) sin añadir rotación

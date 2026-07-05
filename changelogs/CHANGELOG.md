@@ -124,3 +124,4 @@
 | 120 | 2026-07-05 | [Mano en primera persona: brazo, objeto en mano y golpe clásico](2026-07-05_mano_primera_persona.md) |
 | 121 | 2026-07-05 | [Corrección de modelos geo: caballo y comerciante deformes (herencia de animación y brazos plegados)](2026-07-05_caballo_trader_deformes.md) |
 | 122 | 2026-07-05 | [Reaparición siempre en la superficie (a veces se aparecía bajo el suelo)](2026-07-05_reaparicion_superficie.md) |
+| 123 | 2026-07-05 | [Corrección de modelos geo: orejas del burro despegadas de la cabeza al mirar](2026-07-05_orejas_burro_despegadas.md) |

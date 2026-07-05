@@ -250,10 +250,24 @@ export class MobRenderer {
         gl.useProgram(this.r.prog); // devolver el programa de chunks
     }
 
-    /** M = base · T(pivot) · Rz · Ry · Rx (pose estática + animación). */
+    /** M = base · T(pivot) · [mirada si anim=head] · Rz · Ry · Rx. */
     partMatrix(out, part, m, swing, flap) {
         mat4Translate(this.mA, part.pivot[0], part.pivot[1], part.pivot[2]);
         mat4Multiply(out, this.mBase, this.mA);
+
+        // La mirada se COMPONE antes de la pose estática: es el giro del
+        // grupo rígido cabeza+hocico+orejas alrededor del pivote común.
+        // Sumarla al Euler compartido (como las demás animaciones) aplicaría
+        // el rot y/z horneado de una parte en el marco del mundo en vez del
+        // de la cabeza ya girada, y las orejas en abanico del burro (Rz ±15°
+        // con el pivote en la base del cuello) se despegarían al mirar.
+        // Para partes con rot solo en X (o sin rot) es equivalente a sumar.
+        if (part.anim === 'head') {
+            let rel = m.headYaw - m.yaw;
+            rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+            if (rel) { mat4RotateY(this.mA, rel); mat4Multiply(out, out, this.mA); }
+            if (m.headPitch) { mat4RotateX(this.mA, m.headPitch); mat4Multiply(out, out, this.mA); }
+        }
 
         let rx = part.rot ? part.rot[0] : 0;
         let ry = part.rot ? part.rot[1] : 0;
@@ -267,13 +281,6 @@ export class MobRenderer {
             case 'legY1': ry -= swing * 0.35; break;
             case 'flapL': rz += flap; break;
             case 'flapR': rz -= flap; break;
-            case 'head': {
-                let rel = m.headYaw - m.yaw;
-                rel = Math.atan2(Math.sin(rel), Math.cos(rel));
-                ry += rel;
-                rx += m.headPitch;
-                break;
-            }
         }
         if (rz) { mat4RotateZ(this.mA, rz); mat4Multiply(out, out, this.mA); }
         if (ry) { mat4RotateY(this.mA, ry); mat4Multiply(out, out, this.mA); }

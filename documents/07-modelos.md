@@ -156,6 +156,10 @@ variante que el render).
     coincide se hereda tal cual y, si la parte no está rotada, su pivote
     se re-ancla (la pose estática no cambia). Solo una parte rotada con
     pivote distinto queda rígida (anotado en `avisos`).
+*   En el render, la **mirada se compone antes de la pose estática**
+    (`mobrender.partMatrix`): el grupo cabeza+hocico+orejas gira en bloque
+    alrededor del pivote común, y las partes con `rot` y/z horneada — las
+    orejas en abanico de la mula — no se despegan de la cabeza al mirar.
 *   **Filtro de atrezo** (`filtrarAtrezo` en `js/modelpack.js`): los
     huesos de equipamiento que el juego original muestra por estado
     (silla, bridas, bocado, riendas, alforjas, armaduras, alfombras…) se
