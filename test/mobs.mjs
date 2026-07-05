@@ -946,6 +946,29 @@ console.log('== Definiciones de mobs ==');
     check('el dron usa la anim rotor en sus hélices', (await import('../js/mobs/dron.js')).default
         .parts.some((p) => p.anim === 'rotor'));
 
+    // Límites AMPLIADOS del contrato (modelos más complejos): hasta 64 partes
+    // y pieles de 256×256. Se validan con defs sintéticas mínimas.
+    {
+        const base = {
+            id: 'zz', name: 'Z', hostile: false, aabb: { w: 0.5, h: 0.5 },
+            hp: 5, speed: 1,
+            paint(skin) { skin.fill(0, 0, skin.w, skin.h, [128, 128, 128]); }, // cubre todo
+            voice: { say: [{ f: 1, d: 1 }], hurt: [{ f: 1, d: 1 }], death: [{ f: 1, d: 1 }] },
+        };
+        const parteN = (n) => Array.from({ length: n }, (_, i) => ({
+            name: `p${i}`, size: [1, 1, 1], pivot: [0, 0, 0], origin: [0, 0, 0],
+            uv: [(i % 32) * 4, Math.floor(i / 32) * 4], // sin solapes en 256×256
+        }));
+        check('acepta una piel de 256×256',
+            validate({ ...base, skin: { w: 256, h: 256 }, parts: parteN(1) }, 'zz').errors.length === 0);
+        check('acepta hasta 64 partes (modelos complejos)',
+            validate({ ...base, skin: { w: 256, h: 256 }, parts: parteN(64) }, 'zz').errors.length === 0);
+        check('rechaza más de 64 partes',
+            validate({ ...base, skin: { w: 256, h: 256 }, parts: parteN(65) }, 'zz').errors.length > 0);
+        check('rechaza una piel de tamaño no soportado (200)',
+            validate({ ...base, skin: { w: 200, h: 200 }, parts: parteN(1) }, 'zz').errors.length > 0);
+    }
+
     // Campo `sonidos` (pack local opcional, contrato en documents/02-mobs.md):
     // todo prefijo es ruta bajo mob/ en minúsculas, sin extensión, sin barra
     // inicial y sin número de variante (la variante la elige el manifest).

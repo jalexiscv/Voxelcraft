@@ -19,7 +19,7 @@
  * Distribución de la piel 128×128:
  *   (0,0)    proa 16×2×6    → 44×8     (46,0) popa 14×2×5 → 38×7
  *   (0,20)   morro 6×2×8    → 28×10    (46,20) ala 12×1×10 → 44×11 (ambas)
- *   (0,36)   seg. anillo 6×2×2 → 16×4  (los 10 segmentos comparten)
+ *   (0,36)   seg. anillo 4×2×2 → 12×4  (los 16 segmentos comparten)
  *   (0,44)   flanco 5×2×16  → 42×18    (ambos comparten)
  *   (46,44)  góndola 3×3×6  → 18×9     (ambas)  (72,44) aleta 2×3×6 → 16×9
  *   (104,36) antena 1×1×9   → 20×11    (las cuatro comparten)
@@ -38,20 +38,20 @@ const NEGRO = [44, 45, 52];            // toberas y juntas
 const MAGENTA = [232, 30, 180];        // líneas de energía y luces (brief)
 const MAGENTA_OSC = [150, 20, 120];    // magenta en sombra
 
-/** Diez segmentos del anillo, en corona alrededor de un HUECO central
- *  (radio 9 px). Diez (no doce) para no rebasar el tope de 24 partes.
- *  Cada segmento es un arco corto tangente; juntos cierran la corona
+/** Dieciséis segmentos del anillo, en corona alrededor de un HUECO central
+ *  (radio 9 px). Con el tope de 64 partes, la corona es más redonda que
+ *  antes. Cada segmento es un arco corto tangente; juntos cierran la corona
  *  dejando el agujero abierto, como en el plano. */
 function anilloParts() {
-    const R = 9, N = 10, out = [];
+    const R = 9, N = 16, out = [];
     for (let i = 0; i < N; i++) {
         const a = (i / N) * Math.PI * 2;
         const px = Math.sin(a) * R, pz = Math.cos(a) * R;
         out.push({
             name: `anillo_${i}`,
-            size: [6, 2, 2],           // largo tangencial, fino radialmente
+            size: [4, 2, 2],           // largo tangencial, fino radialmente
             pivot: [px, 5, pz],
-            origin: [-3, -1, -1],
+            origin: [-2, -1, -1],
             uv: [0, 36],
             rot: [0, -a, 0],           // tangente a la corona
         });
@@ -96,7 +96,7 @@ export default {
         skin.fill(46, 0, 38, 7, BEIGE, 6);         // popa
         skin.fill(0, 44, 42, 18, BEIGE, 6);        // flanco (ambos)
         skin.fill(46, 20, 44, 11, BEIGE, 6);       // ala (ambas)
-        skin.fill(0, 36, 16, 4, GRIS, 4);          // segmento de anillo (los 10)
+        skin.fill(0, 36, 12, 4, GRIS, 4);          // segmento de anillo (los 16)
         skin.fill(46, 44, 18, 9, GRIS, 4);         // góndola (ambas)
         skin.fill(104, 36, 20, 10, GRIS_CLARO, 3); // antena (las 4)
         skin.fill(72, 44, 16, 9, BEIGE, 6);        // aleta dorsal
@@ -126,9 +126,9 @@ export default {
         skin.fill(56, 29, 12, 1, MAGENTA);
         skin.fill(61, 23, 1, 6, GRIS_CLARO);       // larguero central
 
-        // segmento de anillo (2,36)..(8,40): bisel gris claro con destello
-        skin.fill(0, 38, 16, 1, GRIS_CLARO, 1);
-        skin.px(3, 37, MAGENTA); skin.px(11, 37, MAGENTA);
+        // segmento de anillo (0,36)..(12,40): bisel gris claro con destello
+        skin.fill(0, 38, 12, 1, GRIS_CLARO, 1);
+        skin.px(3, 37, MAGENTA); skin.px(8, 37, MAGENTA);
 
         // góndola/tobera (52,44)..(58,50): boca negra con anillo magenta
         skin.fill(53, 46, 4, 4, NEGRO, 2);         // boca
@@ -148,7 +148,7 @@ export default {
         { name: 'morro', size: [6, 2, 8], pivot: [0, 5, -14], origin: [-3, -1, -8], uv: [0, 20] },
         { name: 'ala_i', size: [12, 1, 10], pivot: [-13, 5, 6], origin: [-12, -0.5, -5], uv: [46, 20], rot: [0, 0.34, 0] },
         { name: 'ala_d', size: [12, 1, 10], pivot: [13, 5, 6], origin: [0, -0.5, -5], uv: [46, 20], rot: [0, -0.34, 0] },
-        // corona del anillo hueco: 10 segmentos tangentes
+        // corona del anillo hueco: 16 segmentos tangentes
         ...anilloParts(),
         // dos góndolas/toberas bajo los flancos, hacia atrás
         { name: 'gondola_i', size: [3, 3, 6], pivot: [-11, 3.5, 6], origin: [-1.5, -3, -3], uv: [46, 44] },

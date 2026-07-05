@@ -93,7 +93,7 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   el guardián lo caza sin inspección (prioridad sobre todo lo demás) y el
   antidron lo detecta como objetivo igual que a un dron. No ataca a nadie.
   Modelo elaborado según la imagen de referencia: nave anular con un
-  **anillo hueco central** (corona de 10 segmentos), casco beige de manta
+  **anillo hueco central** (corona de 16 segmentos), casco beige de manta
   raya que lo rodea (proa, flancos, popa), dos alas en delta con el filo
   de fuga magenta, líneas de energía magenta, góndolas/toberas y cuatro
   púas-antena.
@@ -118,7 +118,7 @@ Integración: `main.js` crea un `MobSystem` por mundo y le inyecta *hooks* (soni
 
 ## El contrato de definición
 
-Cada mob es un archivo de **solo datos** (importable en Node) con: `aabb`, `hp`, `speed`, `skin` (64×64; grandes 128×64/128×128), `paint(skin)` determinista, `parts` (cajas con `size/pivot/origin/uv/rot/anim`), `voice` (tonos con curva o ruido para decir/herir/morir) y:
+Cada mob es un archivo de **solo datos** (importable en Node) con: `aabb`, `hp`, `speed`, `skin` (32/64/128/**256** por lado, cuadrada o rectangular; 256×256 para modelos muy detallados), `paint(skin)` determinista, `parts` (**hasta 64 cajas** con `size/pivot/origin/uv/rot/anim`; el tope alto permite modelos 3D complejos como el anillo de 16 segmentos del escapista), `voice` (tonos con curva o ruido para decir/herir/morir) y:
 
 *   **Locomoción y rasgos**: `flying`, `aquatic`, `hop` (a saltos), `glide`, `timid`, `hideOnHurt`, `noBurn`, `glow`.
 *   **Tonalidades**: `variants` (2..8 pieles; `paint(skin, v)` pinta cada variante con la misma semilla por variante) y `variantBiome` opcional (`{ <bioma>: <variante> }`: tonalidad fija en ese bioma; en el resto se sortea al aparecer). El conejo es el ejemplo canónico.

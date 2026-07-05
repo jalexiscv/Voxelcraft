@@ -31,12 +31,12 @@ export function validate(def, expectedId) {
     }
     if (!(def.hp >= 1 && def.hp <= 40)) err('hp fuera de rango (1..40)');
     if (!(def.speed >= 0.2 && def.speed <= 8)) err('speed fuera de rango (0.2..8)');
-    if (!def.skin || ![32, 64, 128].includes(def.skin.w) || ![32, 64, 128].includes(def.skin.h)) {
-        err('skin.w/h deben ser 32, 64 o 128');
+    if (!def.skin || ![32, 64, 128, 256].includes(def.skin.w) || ![32, 64, 128, 256].includes(def.skin.h)) {
+        err('skin.w/h deben ser 32, 64, 128 o 256');
     }
     if (typeof def.paint !== 'function') err('falta paint(skin)');
-    if (!Array.isArray(def.parts) || def.parts.length < 1 || def.parts.length > 24) {
-        err('parts debe tener entre 1 y 24 partes');
+    if (!Array.isArray(def.parts) || def.parts.length < 1 || def.parts.length > 64) {
+        err('parts debe tener entre 1 y 64 partes');
     }
     if (def.hostile && !def.behavior) err('un hostil requiere behavior');
 
