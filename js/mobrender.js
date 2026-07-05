@@ -7,9 +7,18 @@
  * contrafase según la rapidez, mirada de la cabeza, aleteo al caer, apertura
  * en Y para patas de araña. Efectos: destello rojo al recibir daño, parpadeo
  * blanco de la mecha del creeper y vuelco al morir.
+ *
+ * Override local opcional (js/modelpack.js): la primera vez que un tipo de
+ * mob entra en pantalla se sondea en segundo plano si el usuario tiene su
+ * geometría vanilla en models/ (y su textura en textures/, ambos fuera del
+ * repo). Mientras el sondeo no resuelve —o si no hay pack— se dibuja el
+ * modelo procedural de siempre; si resuelve, la malla del tipo se sustituye
+ * por la del geo con la textura del pack o, en su defecto, con la auto-piel
+ * (paleta procedural propia proyectada al desplegado del geo).
  */
 import { buildModel } from './mobs/model.js';
 import { Skin } from './mobs/skin.js';
+import { modeloDe, texturaDe, autoPiel } from './modelpack.js';
 import { toSeed } from './noise.js';
 import {
     mat4Identity, mat4Multiply, mat4Translate,
@@ -93,24 +102,70 @@ export class MobRenderer {
      * variante y cada mob usa la suya (m.variant, asignada al aparecer).
      */
     buildType(def) {
-        const gl = this.gl;
         const texs = [];
         for (let v = 0; v < (def.variants || 1); v++) {
             const skin = new Skin(def.skin.w, def.skin.h, toSeed(def.id) + v * 131);
             def.paint(skin, v);
-            const tex = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, tex);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, def.skin.w, def.skin.h, 0,
-                gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(skin.data.buffer));
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            texs.push(tex);
+            texs.push(this.makeTex(new Uint8Array(skin.data.buffer), skin.w, skin.h));
         }
 
         const parts = buildModel(def).map((p) => ({ ...this.r.makeVAO(p.mesh), ...p }));
-        this.types.set(def.id, { parts, texs });
+        // sondeo: el override del pack local aún no se ha intentado (se lanza
+        // en render() la primera vez que un mob del tipo entra en pantalla)
+        this.types.set(def.id, { parts, texs, sondeo: false });
+    }
+
+    /** Textura NEAREST/CLAMP desde datos crudos (w×h) o una imagen del pack. */
+    makeTex(fuente, w, h) {
+        const gl = this.gl;
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        if (w !== undefined) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, fuente);
+        } else {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fuente);
+        }
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return tex;
+    }
+
+    /**
+     * Override del pack local para un tipo (perezoso y asíncrono): si
+     * modeloDe encuentra un geo, reconstruye las partes con ese modelo y lo
+     * texturiza con el PNG del pack o, si no lo hay, con la auto-piel por
+     * variante (la paleta procedural propia, así el modo variantes sigue
+     * funcionando). Hasta que resuelve —o si no hay pack— no se toca nada:
+     * el tipo sigue dibujándose con el modelo procedural (nunca invisible).
+     */
+    async applyPack(def) {
+        try {
+            const modelo = await modeloDe(def.id);
+            if (!modelo || !modelo.partes.length) return;
+
+            const img = await texturaDe(def.id);
+            const texs = [];
+            if (img) {
+                texs.push(this.makeTex(img)); // misma textura para toda variante
+            } else {
+                for (let v = 0; v < (def.variants || 1); v++) {
+                    const piel = autoPiel(def, modelo, v);
+                    texs.push(this.makeTex(new Uint8Array(piel.data.buffer), piel.w, piel.h));
+                }
+            }
+            const shim = { parts: modelo.partes, skin: { w: modelo.texW, h: modelo.texH } };
+            const parts = buildModel(shim).map((p) => ({ ...this.r.makeVAO(p.mesh), ...p }));
+
+            // cambio atómico entre fotogramas y liberación de lo anterior
+            const viejo = this.types.get(def.id);
+            this.types.set(def.id, { parts, texs, sondeo: true });
+            if (viejo) {
+                for (const p of viejo.parts) this.r.freeMesh(p);
+                for (const t of viejo.texs) this.gl.deleteTexture(t);
+            }
+        } catch { /* sin pack o error de red: el modelo propio sigue */ }
     }
 
     /**
@@ -132,6 +187,10 @@ export class MobRenderer {
         for (const m of mobs) {
             const type = this.types.get(m.def.id);
             if (!type) continue;
+            if (!type.sondeo) {
+                type.sondeo = true; // un único sondeo por tipo, al verse por primera vez
+                this.applyPack(m.def);
+            }
 
             // luz local: a cubierto (cuevas) el mob se ve más oscuro,
             // salvo los que emiten luz propia (calamar brillante, allay…)

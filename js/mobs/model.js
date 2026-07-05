@@ -67,10 +67,17 @@ export function partBox(part) {
 /**
  * Construye la malla de una parte: Float32Array [pos3 (bloques, relativo al
  * pivote), uv2 (normalizadas), luz1]. 6 caras × 2 triángulos.
+ *
+ * `part.mirror` reproduce el espejado de texturas de Bedrock (bones con
+ * `mirror: true`, p. ej. las patas derechas de la vaca vanilla): las caras
+ * +X y −X intercambian sus rectángulos UV y todas las caras reflejan la U
+ * dentro de su rectángulo. La geometría no cambia; sin mirror la salida es
+ * idéntica byte a byte (los modelos propios no lo usan).
  */
 export function buildPartMesh(part, skinW, skinH) {
     const { min: [x0, y0, z0], max: [x1, y1, z1] } = partBox(part);
     const [topR, botR, pxR, frontR, nxR, backR] = partUVRects(part);
+    const mir = !!part.mirror;
     const out = [];
 
     /**
@@ -78,7 +85,8 @@ export function buildPartMesh(part, skinW, skinH) {
      * arriba-izq, arriba-der, abajo-der, abajo-izq del rectángulo `r`.
      */
     const face = (corners, r, shade) => {
-        const us = [r.x + UV_INSET, r.x + r.w - UV_INSET, r.x + r.w - UV_INSET, r.x + UV_INSET];
+        const uA = r.x + UV_INSET, uB = r.x + r.w - UV_INSET;
+        const us = mir ? [uB, uA, uA, uB] : [uA, uB, uB, uA];
         const vs = [r.y + UV_INSET, r.y + UV_INSET, r.y + r.h - UV_INSET, r.y + r.h - UV_INSET];
         for (const i of [0, 1, 2, 0, 2, 3]) {
             out.push(
@@ -90,9 +98,9 @@ export function buildPartMesh(part, skinW, skinH) {
 
     face([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], topR, SHADE.top);      // +Y
     face([[x0, y0, z1], [x1, y0, z1], [x1, y0, z0], [x0, y0, z0]], botR, SHADE.bottom);   // −Y
-    face([[x1, y1, z1], [x1, y1, z0], [x1, y0, z0], [x1, y0, z1]], pxR, SHADE.x);         // +X
+    face([[x1, y1, z1], [x1, y1, z0], [x1, y0, z0], [x1, y0, z1]], mir ? nxR : pxR, SHADE.x); // +X
     face([[x0, y1, z0], [x1, y1, z0], [x1, y0, z0], [x0, y0, z0]], frontR, SHADE.z);      // −Z
-    face([[x0, y1, z1], [x0, y1, z0], [x0, y0, z0], [x0, y0, z1]], nxR, SHADE.x);         // −X
+    face([[x0, y1, z1], [x0, y1, z0], [x0, y0, z0], [x0, y0, z1]], mir ? pxR : nxR, SHADE.x); // −X
     face([[x1, y1, z1], [x0, y1, z1], [x0, y0, z1], [x1, y0, z1]], backR, SHADE.z);       // +Z
     return new Float32Array(out);
 }

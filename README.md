@@ -33,6 +33,7 @@ Minecraft/
 | 04 | [Items y drops](documents/04-items.md) | Botín de los mobs, horno y fundición, herramientas, bloques funcionales, agricultura |
 | 05 | [Aldeas](documents/05-aldeas.md) | Generación procedural de aldeas: algoritmo por celdas, 8 arquetipos, paletas por bioma |
 | 06 | [Sonidos](documents/06-sonidos.md) | Catálogo de eventos y voces, y nombres de archivo del pack local opcional |
+| 07 | [Modelos](documents/07-modelos.md) | Pack local opcional de geometrías: alias de archivo, auto-piel y cadena de respaldo |
 
 ## Historial de cambios
 

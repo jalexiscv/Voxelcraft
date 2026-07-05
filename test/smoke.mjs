@@ -953,5 +953,138 @@ console.log('== FSB5 ==');
         new DataView(wavFad.buffer).getUint32(24, true) === 48000);
 }
 
+/* ==== Modelos geo: parser Bedrock y override local opcional ==== */
+console.log('== Modelos geo ==');
+{
+    // Geo SINTÉTICO construido aquí mismo: la suite JAMÁS depende del
+    // models/ real (es un override local gitignored, quizá ausente).
+    const { parseGeo, animForBone } = await import(base + 'geo.js');
+    const { buildPartMesh } = await import(base + 'mobs/model.js');
+    const { modeloDe, autoPiel } = await import(base + 'modelpack.js');
+    const { MobRenderer } = await import(base + 'mobrender.js');
+
+    const geoSint = {
+        'geometry.sintetico': {
+            texturewidth: 128,
+            textureheight: 64,
+            bones: [
+                { name: 'body', pivot: [0, 12, 0], bind_pose_rotation: [22.5, -45, 90],
+                    cubes: [{ origin: [-4, 12, -6], size: [8, 10, 6], uv: [18, 4] }] },
+                { name: 'head', pivot: [0, 20, -6],
+                    cubes: [{ origin: [-3, 20, -10], size: [6, 6, 6], uv: [0, 0] }] },
+                { name: 'leg0', pivot: [-3, 6, 5], cubes: [{ origin: [-4, 0, 4], size: [2, 6, 2], uv: [0, 16] }] },
+                { name: 'leg1', pivot: [3, 6, 5], cubes: [{ origin: [2, 0, 4], size: [2, 6, 2], uv: [0, 16] }] },
+                { name: 'leg2', pivot: [-3, 6, -5], cubes: [{ origin: [-4, 0, -6], size: [2, 6, 2], uv: [0, 16] }] },
+                { name: 'leg3', pivot: [3, 6, -5], cubes: [{ origin: [2, 0, -6], size: [2, 6, 2], uv: [0, 16] }] },
+                { name: 'doble', pivot: [0, 10, 0],
+                    cubes: [{ origin: [-1, 10, -1], size: [2, 2, 2], uv: [40, 0], inflate: 0.5 },
+                        { origin: [-1, 12, -1], size: [2, 2, 2], uv: [40, 8] }] },
+                { name: 'oculto', neverRender: true, cubes: [{ origin: [0, 0, 0], size: [1, 1, 1], uv: [0, 0] }] },
+                { name: 'sin_cubos', pivot: [0, 0, 0] },
+            ],
+        },
+    };
+
+    const g = parseGeo(geoSint)['geometry.sintetico'];
+    const parte = (n) => g.partes.find((p) => p.name === n);
+    check('parseGeo registra la geometría con su lienzo declarado',
+        g !== undefined && g.texW === 128 && g.texH === 64 && g.avisos.length === 0);
+    check('conversión exacta: origin RELATIVO al pivote (absoluto − pivote por eje)',
+        JSON.stringify(parte('body').origin) === JSON.stringify([-4, 0, -6]) &&
+        JSON.stringify(parte('body').pivot) === JSON.stringify([0, 12, 0]) &&
+        JSON.stringify(parte('head').origin) === JSON.stringify([-3, 0, -4]) &&
+        JSON.stringify(parte('leg0').origin) === JSON.stringify([-1, -6, -1]));
+    const rad = Math.PI / 180;
+    const cerca = (a, b) => Math.abs(a - b) < 1e-12;
+    check('bind_pose_rotation en grados → rot en radianes con signo [−x, −y, +z]',
+        cerca(parte('body').rot[0], -22.5 * rad) && cerca(parte('body').rot[1], 45 * rad) &&
+        cerca(parte('body').rot[2], 90 * rad) && parte('head').rot === undefined);
+    check('un bone con dos cubes da dos partes con el mismo pivote (inflate por cube)',
+        parte('doble_0') !== undefined && parte('doble_1') !== undefined &&
+        JSON.stringify(parte('doble_0').pivot) === JSON.stringify(parte('doble_1').pivot) &&
+        parte('doble_0').inflate === 0.5 && parte('doble_1').inflate === undefined);
+    check('neverRender y bones sin cubes quedan fuera (8 partes visibles)',
+        g.partes.length === 8 && !parte('oculto') && !parte('sin_cubos'));
+    check('anims parseadas: cabeza y marcha diagonal de cuadrúpedo (leg0/leg3 ↔ leg1/leg2)',
+        parte('head').anim === 'head' && parte('body').anim === undefined &&
+        parte('leg0').anim === 'leg0' && parte('leg3').anim === 'leg0' &&
+        parte('leg1').anim === 'leg1' && parte('leg2').anim === 'leg1');
+    check('animForBone: brazos, alas, cuadrúpedo con L/R, bípedo y multipatas',
+        animForBone('leftArm') === 'arm0' && animForBone('rightArm') === 'arm1' &&
+        animForBone('wing0') === 'flapL' && animForBone('wing1') === 'flapR' &&
+        animForBone('rightWing') === 'flapL' && animForBone('leftWing') === 'flapR' &&
+        animForBone('leg_front_right') === 'leg0' && animForBone('leg_back_left') === 'leg0' &&
+        animForBone('leg_front_left') === 'leg1' && animForBone('leg_back_right') === 'leg1' &&
+        animForBone('rightLeg') === 'leg0' && animForBone('leftLeg') === 'leg1' &&
+        animForBone('leg4') === 'leg0' && animForBone('leg5') === 'leg1' &&
+        animForBone('tail') === 'none');
+
+    // mirror: la geometría no cambia, solo se refleja la U dentro de su rect
+    const caja = { name: 'caja', size: [4, 6, 2], pivot: [0, 0, 0], origin: [-2, 0, -1], uv: [4, 4] };
+    const normal = buildPartMesh(caja, 64, 32);
+    const espejo = buildPartMesh({ ...caja, mirror: true }, 64, 32);
+    let igual = normal.length === espejo.length, uCambia = false;
+    for (let i = 0; igual && i < normal.length; i += 6) {
+        if (normal[i] !== espejo[i] || normal[i + 1] !== espejo[i + 1] ||
+            normal[i + 2] !== espejo[i + 2] || normal[i + 4] !== espejo[i + 4] ||
+            normal[i + 5] !== espejo[i + 5]) igual = false;
+        if (normal[i + 3] !== espejo[i + 3]) uCambia = true;
+    }
+    check('mirror solo cambia la U (posición, V y luz idénticas malla a malla)', igual && uCambia);
+
+    // render simulado sin WebGL: basta para construir tipos y aplicar packs
+    const glFalso = {
+        TEXTURE_2D: 0, RGBA: 0, UNSIGNED_BYTE: 0, NEAREST: 0, CLAMP_TO_EDGE: 0,
+        TEXTURE_MIN_FILTER: 0, TEXTURE_MAG_FILTER: 0, TEXTURE_WRAP_S: 0, TEXTURE_WRAP_T: 0,
+        createTexture: () => ({}), bindTexture() {}, texImage2D() {},
+        texParameteri() {}, deleteTexture() {},
+    };
+    const rendFalso = {
+        gl: glFalso,
+        compile: () => ({}),
+        uniformMap: () => ({}),
+        makeVAO: (mesh) => ({ vao: {}, n: mesh.length / 6 }),
+        freeMesh() {},
+    };
+    const defBase = {
+        skin: { w: 16, h: 16 },
+        paint(s) { s.fill(0, 0, 16, 16, [90, 140, 200], 8); },
+        parts: [{ name: 'cuerpo', size: [4, 4, 4], pivot: [0, 4, 0], origin: [-2, -2, -2], uv: [0, 0] }],
+    };
+    const defSin = { ...defBase, id: 'prueba_sin_pack' };
+    const defCon = { ...defBase, id: 'prueba_con_pack' };
+    const mr = new MobRenderer(rendFalso, { [defSin.id]: defSin, [defCon.id]: defCon });
+
+    const fetchReal = globalThis.fetch;
+    // 1) SIN pack: todo sondeo da 404 → mobrender conserva las partes del def
+    globalThis.fetch = () => Promise.resolve({ ok: false });
+    const partesProc = mr.types.get('prueba_sin_pack').parts;
+    await mr.applyPack(defSin);
+    check('sin pack local, mobrender sigue con def.parts (modelo procedural)',
+        mr.types.get('prueba_sin_pack').parts === partesProc &&
+        (await modeloDe('prueba_sin_pack')) === null);
+
+    // 2) CON geo local (servido por el fetch simulado): la malla se sustituye
+    //    y, sin PNG ni createImageBitmap (Node), se texturiza con la auto-piel
+    globalThis.fetch = (url) => Promise.resolve(
+        String(url) === 'models/entity/prueba_con_pack.geo.json'
+            ? { ok: true, json: () => Promise.resolve(geoSint) }
+            : { ok: false });
+    const partesAntes = mr.types.get('prueba_con_pack').parts;
+    await mr.applyPack(defCon);
+    globalThis.fetch = fetchReal;
+    const tipo = mr.types.get('prueba_con_pack');
+    check('con geo local mobrender sustituye la malla y conserva anims y rot',
+        tipo.parts !== partesAntes && tipo.parts.length === 8 &&
+        tipo.parts.some((p) => p.name === 'head' && p.anim === 'head') &&
+        tipo.parts.some((p) => p.name === 'body' && p.rot !== null));
+
+    const modelo = await modeloDe('prueba_con_pack'); // ya cacheado: sin red
+    const piel = autoPiel(defCon, modelo, 0);
+    const alfa = (x, y) => piel.data[(y * piel.w + x) * 4 + 3];
+    check('la auto-piel pinta el desplegado del geo en su lienzo (y solo eso)',
+        piel.w === 128 && piel.h === 64 && alfa(25, 11) === 255 && alfa(127, 63) === 0);
+}
+
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);
 process.exit(fail ? 1 : 0);
