@@ -1059,6 +1059,102 @@ export function buildCloudTexture(seed = 4242) {
     return canvas;
 }
 
+/**
+ * Atlas de PARTÍCULAS 128×128 generado en código (VoxelCraft es 100 %
+ * procedural: nada de PNG de terceros). Reproduce las regiones que los
+ * efectos de `particles/*.json` referencian por UV (en píxeles de un atlas
+ * 128×128), pintando cada celda de 8×8 blanca con alfa — el tinte de cada
+ * partícula lo pone el shader, así una misma bola sirve para humo (gris) o
+ * fuego (naranja):
+ *   - fila y 0..8   : 8 fotogramas de bola que se DISIPA (de llena a rala),
+ *     leídos por explosión/humo/muerte con base_UV [56,0] y step [-8,0].
+ *   - fila y 24..32 : llama (gota densa), uv estática [0,24].
+ *   - fila y 72..80 : 8 fotogramas de destello de crítico (estrella), [0,72].
+ *   - fila y 80..96 : 16 fotogramas de bola grande, large_explosion [0,80].
+ */
+export function buildParticleAtlas(seed = 909) {
+    const S = 128, CELL = 8;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = S;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(S, S);
+    const rng = new PRNG(seed);
+    const put = (px, py, r, g, b, a) => {
+        if (px < 0 || py < 0 || px >= S || py >= S) return;
+        const i = (py * S + px) * 4;
+        if (a <= img.data[i + 3]) return;
+        img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = a;
+    };
+    // bola blanca (se teñirá por el shader) que se disuelve con el fotograma
+    const bola = (cx, cy, densidad) => {
+        const r = CELL / 2;
+        for (let y = 0; y < CELL; y++) {
+            for (let x = 0; x < CELL; x++) {
+                const dx = x - r + 0.5, dy = y - r + 0.5;
+                const d = Math.hypot(dx, dy) / r;
+                if (d > 1) continue;
+                const a = (1 - d) * densidad * (0.55 + 0.45 * rng.float());
+                put(cx + x, cy + y, 255, 255, 255, Math.min(255, a * 255) | 0);
+            }
+        }
+    };
+    // fila y0: 8 frames de disipación (56→0 con step −8, explosión/humo/muerte)
+    for (let f = 0; f < 8; f++) bola(f * CELL, 0, 1 - f / 9);
+    // llama (y24): gota de fuego con color PROPIO (basic_flame no tiñe) —
+    // núcleo amarillo, borde naranja, punta que se apaga a rojo
+    for (let y = 0; y < CELL; y++) {
+        for (let x = 0; x < CELL; x++) {
+            const dx = (x - 3.5) / 3.5, dy = (y - 5) / 4.5;
+            const d = dx * dx + dy * dy;
+            if (d > 1) continue;
+            const t = Math.min(1, d + (y / CELL) * 0.5); // fuera y arriba: más frío
+            const r = 255;
+            const g = (230 - t * 150) | 0;
+            const b = (90 - t * 80) | 0;
+            put(x, 24 + y, r, Math.max(30, g), Math.max(0, b), (235 - t * 60 + rng.int(20)) | 0);
+        }
+    }
+    // crítico/chispa (y72): 8 frames de destello en estrella blanca (se tiñe)
+    for (let f = 0; f < 8; f++) {
+        const rad = 1 + f * 0.4, a = 1 - f / 8;
+        for (let k = -3; k <= 3; k++) {
+            put(f * CELL + 4 + k, 72 + 4, 255, 255, 255, (a * 255) | 0);
+            put(f * CELL + 4, 72 + 4 + k, 255, 255, 255, (a * 255) | 0);
+            if (Math.abs(k) < rad) {
+                put(f * CELL + 4 + k, 72 + 4 + k, 255, 255, 255, (a * 200) | 0);
+                put(f * CELL + 4 - k, 72 + 4 + k, 255, 255, 255, (a * 200) | 0);
+            }
+        }
+    }
+    // bola grande de fuego (y80): 16 frames, de núcleo caliente a humo. El
+    // large_explosion la tiñe hacia gris, pero le damos ya calidez radial
+    for (let f = 0; f < 16; f++) {
+        const cx = f * CELL, dens = 1 - f / 18, r = CELL / 2;
+        const frio = f / 16; // los últimos frames tiran a humo
+        for (let y = 0; y < CELL; y++) {
+            for (let x = 0; x < CELL; x++) {
+                const dx = x - r + 0.5, dy = y - r + 0.5;
+                const d = Math.hypot(dx, dy) / r;
+                if (d > 1) continue;
+                const calor = (1 - d) * (1 - frio);
+                const R = 255;
+                const G = (120 + calor * 130) | 0;
+                const B = (40 + calor * 60) | 0;
+                const a = (1 - d) * dens * (0.6 + 0.4 * rng.float());
+                put(cx + x, 80 + y, R, Math.min(255, G), Math.min(255, B), Math.min(255, a * 255) | 0);
+            }
+        }
+    }
+
+    ctx.putImageData(img, 0, 0);
+    return canvas;
+}
+
+/** UV [u0,v0,u1,v1] normalizadas de un rect en píxeles de un atlas texW×texH. */
+export function pxUV(u0, v0, u1, v1, texW = 128, texH = 128) {
+    return [u0 / texW, v0 / texH, u1 / texW, v1 / texH];
+}
+
 /** Coordenadas UV [u0,v0,u1,v1] de una tésela dentro del atlas. */
 export function tileUV(tile) {
     const s = 1 / ATLAS_GRID;

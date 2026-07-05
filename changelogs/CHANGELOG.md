@@ -131,3 +131,4 @@
 | 127 | 2026-07-05 | [Dron guardián: dos radios de detección e inspección de voladores](2026-07-05_dron_radios_inspeccion.md) |
 | 128 | 2026-07-05 | [Dron guardián: los drones del mismo tipo no se auto-vigilan](2026-07-05_dron_no_autovigilancia.md) |
 | 129 | 2026-07-05 | [Antidron básico: interceptor kamikaze que reposa, despega y embiste a los drones](2026-07-05_antidron_kamikaze.md) |
+| 130 | 2026-07-05 | [Partículas: intérprete de efectos Bedrock y explosiones más realistas](2026-07-05_particulas_explosiones.md) |

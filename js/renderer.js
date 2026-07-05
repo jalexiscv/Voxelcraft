@@ -91,7 +91,54 @@ void main() {
     outColor = vec4(tex.rgb * uTint, tex.a);
 }`;
 
+// Partículas: quads billboard con color RGBA por vértice (el tinte del
+// gradiente Molang) y niebla, para que las nubes de humo se fundan con la
+// lejanía como el terreno. Las esquinas se expanden con los ejes de cámara.
+const PART_VS = `#version 300 es
+layout(location=0) in vec3 aCenter;
+layout(location=1) in vec2 aCorner;
+layout(location=2) in vec2 aUV;
+layout(location=3) in float aSize;
+layout(location=4) in vec4 aColor;
+uniform mat4 uPV;
+uniform vec3 uRight;
+uniform vec3 uUp;
+out vec2 vUV;
+out vec4 vColor;
+out vec3 vWorld;
+void main() {
+    vec3 pos = aCenter + (uRight * aCorner.x + uUp * aCorner.y) * aSize * 0.5;
+    vWorld = pos;
+    gl_Position = uPV * vec4(pos, 1.0);
+    vUV = aUV;
+    vColor = aColor;
+}`;
+
+const PART_FS = `#version 300 es
+precision mediump float;
+in vec2 vUV;
+in vec4 vColor;
+in vec3 vWorld;
+uniform sampler2D uTex;
+uniform vec3 uCamPos;
+uniform vec3 uFogColor;
+uniform float uFogNear;
+uniform float uFogFar;
+out vec4 outColor;
+void main() {
+    vec4 tex = texture(uTex, vUV);
+    float a = tex.a * vColor.a;
+    if (a < 0.02) discard;
+    vec3 rgb = tex.rgb * vColor.rgb;
+    float dist = distance(vWorld, uCamPos);
+    float fog = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
+    outColor = vec4(mix(rgb, uFogColor, fog), a);
+}`;
+
 const STRIDE = 6 * 4; // 6 floats por vértice
+
+// layout de un vértice de partícula: centro3, corner2, uv2, size1, color4
+const PART_STRIDE = 12 * 4;
 
 /* Esquinas y luz de las 6 caras del cubito de drop (semiarista 1, se escala).
    Luz ≤0.96: el shader decodifica la parte entera como luz de bloque. */
@@ -105,7 +152,7 @@ const DROP_QUADS = [
 ];
 
 export class Renderer {
-    constructor(canvas, atlasCanvas, cloudCanvas, sunCanvas, moonCanvas) {
+    constructor(canvas, atlasCanvas, cloudCanvas, sunCanvas, moonCanvas, particleCanvas) {
         const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
         if (!gl) throw new Error('WebGL2 no disponible');
         this.gl = gl;
@@ -114,15 +161,18 @@ export class Renderer {
         this.prog = this.compile(VS, FS);
         this.lineProg = this.compile(LINE_VS, LINE_FS);
         this.skyProg = this.compile(SKY_VS, SKY_FS);
+        this.partProg = this.compile(PART_VS, PART_FS);
         this.u = this.uniformMap(this.prog, ['uPV', 'uTex', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar', 'uDay', 'uCutoff', 'uAlphaMul', 'uUVScroll']);
         this.lu = this.uniformMap(this.lineProg, ['uPV', 'uPos', 'uColor']);
         this.su = this.uniformMap(this.skyProg, ['uPV', 'uCenter', 'uRight', 'uUp', 'uSize', 'uUVRect', 'uTex', 'uTint']);
+        this.pu = this.uniformMap(this.partProg, ['uPV', 'uRight', 'uUp', 'uTex', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar']);
 
         this.atlasTex = this.makeTexture(atlasCanvas, gl.CLAMP_TO_EDGE);
         this.cloudTex = this.makeTexture(cloudCanvas, gl.REPEAT);
         // nearest también en los astros, por coherencia con la estética pixelada
         this.sunTex = sunCanvas ? this.makeTexture(sunCanvas, gl.CLAMP_TO_EDGE) : null;
         this.moonTex = moonCanvas ? this.makeTexture(moonCanvas, gl.CLAMP_TO_EDGE) : null;
+        this.particleTex = particleCanvas ? this.makeTexture(particleCanvas, gl.CLAMP_TO_EDGE) : null;
 
         this.chunks = new Map(); // "cx,cz" → {solid:{vao,buf,n}, water:{...}}
         this.selectionVAO = this.makeSelectionCube();
@@ -140,6 +190,18 @@ export class Renderer {
         gl.vertexAttribPointer(1, 2, gl.FLOAT, false, STRIDE, 12);
         gl.enableVertexAttribArray(2);
         gl.vertexAttribPointer(2, 1, gl.FLOAT, false, STRIDE, 20);
+        gl.bindVertexArray(null);
+
+        // búfer dinámico de partículas: centro3, corner2, uv2, size1, color4
+        this.partVAO = gl.createVertexArray();
+        this.partBuf = gl.createBuffer();
+        gl.bindVertexArray(this.partVAO);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.partBuf);
+        const off = [0, 12, 20, 28, 32], sz = [3, 2, 2, 1, 4];
+        for (let a = 0; a < 5; a++) {
+            gl.enableVertexAttribArray(a);
+            gl.vertexAttribPointer(a, sz[a], gl.FLOAT, false, PART_STRIDE, off[a]);
+        }
         gl.bindVertexArray(null);
 
         gl.enable(gl.DEPTH_TEST);
@@ -381,6 +443,66 @@ export class Renderer {
     }
 
     /**
+     * Dibuja las partículas como quads billboard (ejes derecho/arriba de la
+     * cámara), con su tinte RGBA y niebla. Se llama entre las entidades y
+     * las transparencias: con blend y sin escribir profundidad (no se ocultan
+     * entre sí ni tapan el agua). Las de textura `terrain` (destrucción de
+     * bloque) usan el atlas de bloques; el resto, el atlas de partículas.
+     * @param {object[]} parts — snapshots del ParticleSystem
+     */
+    drawParticles(parts, f) {
+        if (!parts || !parts.length) return;
+        const gl = this.gl;
+        // dos lotes por textura: partículas de bloque (terrain) y las demás
+        const lotes = [
+            { tex: this.particleTex, list: parts.filter((p) => !p.terrain) },
+            { tex: this.atlasTex, list: parts.filter((p) => p.terrain) },
+        ];
+        gl.useProgram(this.partProg);
+        gl.uniformMatrix4fv(this.pu.uPV, false, f.pv);
+        gl.uniform3fv(this.pu.uRight, f.camRight);
+        gl.uniform3fv(this.pu.uUp, f.camUp);
+        gl.uniform3fv(this.pu.uCamPos, f.camPos);
+        gl.uniform3fv(this.pu.uFogColor, f.sky);
+        gl.uniform1f(this.pu.uFogNear, f.fogNear);
+        gl.uniform1f(this.pu.uFogFar, f.fogFar);
+        gl.uniform1i(this.pu.uTex, 0);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.enable(gl.BLEND);
+        gl.depthMask(false);
+        gl.bindVertexArray(this.partVAO);
+
+        const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+        for (const lote of lotes) {
+            if (!lote.tex || !lote.list.length) continue;
+            const data = new Float32Array(lote.list.length * 6 * 12);
+            let o = 0;
+            for (const p of lote.list) {
+                // uv en px del atlas del efecto → normalizadas por su tamaño
+                const u0 = p.uv[0] / p.texW, v0 = p.uv[1] / p.texH;
+                const u1 = p.uv[2] / p.texW, v1 = p.uv[3] / p.texH;
+                const uvC = [[u0, v1], [u1, v1], [u1, v0], [u0, v1], [u1, v0], [u0, v0]];
+                for (let k = 0; k < 6; k++) {
+                    data[o++] = p.pos[0]; data[o++] = p.pos[1]; data[o++] = p.pos[2];
+                    data[o++] = CORNERS[k][0]; data[o++] = CORNERS[k][1];
+                    data[o++] = uvC[k][0]; data[o++] = uvC[k][1];
+                    data[o++] = p.size;
+                    data[o++] = p.color[0]; data[o++] = p.color[1]; data[o++] = p.color[2]; data[o++] = p.color[3];
+                }
+            }
+            gl.bindTexture(gl.TEXTURE_2D, lote.tex);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.partBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+            gl.drawArrays(gl.TRIANGLES, 0, lote.list.length * 6);
+        }
+
+        gl.depthMask(true);
+        gl.disable(gl.BLEND);
+        gl.bindVertexArray(null);
+        gl.useProgram(this.prog);
+    }
+
+    /**
      * Mantiene el plano de nubes centrado en el jugador (mundo infinito):
      * se reconstruye al alejarse >256 bloques del centro anterior. Las UVs
      * están ancladas a coordenadas de mundo, así el patrón no "salta" al
@@ -458,6 +580,11 @@ export class Renderer {
             gl.drawArrays(gl.LINES, 0, 24);
             gl.useProgram(this.prog);
         }
+
+        // 2b. partículas (billboards con tinte): tras las entidades, antes de
+        // nubes y agua, para que el humo se funda con la niebla y no se pinte
+        // sobre el HUD ni la mano
+        if (f.particles && f.particles.length) this.drawParticles(f.particles, f);
 
         // 3. transparencias: nubes y agua (sin escribir profundidad)
         gl.enable(gl.BLEND);

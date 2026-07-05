@@ -11,7 +11,9 @@
  */
 import { mat4Perspective, mat4View, mat4Multiply, lookDir, clamp } from './math.js';
 import { toSeed } from './noise.js';
-import { buildAtlas, buildCloudTexture } from './atlas.js';
+import { buildAtlas, buildCloudTexture, buildParticleAtlas, tileUV } from './atlas.js';
+import { ParticleSystem } from './particles.js';
+import { cargarEfectos } from './particlepack.js';
 import { sunDirection, skyColor, sunGlow, buildSunTexture, buildMoonTexture, MOON_PHASES } from './sky.js';
 import { B, DEFS } from './blocks.js';
 import { World, CHUNK, WORLD_HEIGHT, chunkKey } from './world.js';
@@ -50,7 +52,7 @@ function boot() {
     let renderer;
     const atlasCanvas = buildAtlas();
     try {
-        renderer = new Renderer(canvas, atlasCanvas, buildCloudTexture(), buildSunTexture(), buildMoonTexture());
+        renderer = new Renderer(canvas, atlasCanvas, buildCloudTexture(), buildSunTexture(), buildMoonTexture(), buildParticleAtlas());
     } catch (e) {
         $('menu').classList.add('hidden');
         $('unsupported').classList.remove('hidden');
@@ -67,6 +69,53 @@ function boot() {
     const hud = new HUD(atlasCanvas);
     const sound = new SoundEngine();
     const player = new Player();
+
+    // partículas: sistema de simulación + efectos parseados de particles/*.json
+    // (se cargan async al arrancar; hasta entonces `efectos` está vacío y no
+    // pinta nada). `disparar` lanza un evento en una posición del mundo.
+    const particles = new ParticleSystem();
+    let efectos = {};
+    cargarEfectos().then((e) => { efectos = e; });
+    const disparar = (evento, pos, vars = {}, count) => {
+        for (const desc of efectos[evento] || []) particles.emit(desc, pos, vars, count);
+    };
+
+    // color medio de una tésela del atlas de bloques (cacheado por índice):
+    // alimenta el tinte de las partículas de rotura
+    const atlasPixeles = atlasCanvas.getContext('2d').getImageData(0, 0, atlasCanvas.width, atlasCanvas.height);
+    const colorTesela = new Map();
+    const colorDeTesela = (tile) => {
+        if (colorTesela.has(tile)) return colorTesela.get(tile);
+        const T = 16, GRID = atlasCanvas.width / T; // téselas de 16 px
+        const sx = (tile % GRID) * T, sy = Math.floor(tile / GRID) * T;
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let y = 0; y < T; y++) {
+            for (let x = 0; x < T; x++) {
+                const i = ((sy + y) * atlasCanvas.width + sx + x) * 4;
+                if (atlasPixeles.data[i + 3] < 128) continue;
+                r += atlasPixeles.data[i]; g += atlasPixeles.data[i + 1]; b += atlasPixeles.data[i + 2]; n++;
+            }
+        }
+        const c = n ? { r: r / n / 255, g: g / n / 255, b: b / n / 255, a: 1 } : { r: 0.6, g: 0.6, b: 0.6, a: 1 };
+        colorTesela.set(tile, c);
+        return c;
+    };
+
+    /** Nube de fragmentos al romper un bloque, teñidos con su color. */
+    const particulasRotura = (id, x, y, z) => {
+        const def = DEFS[id];
+        if (!def || def.liquid) return;
+        const tile = def.side !== undefined ? def.side : def.top;
+        const [u0, v0, u1, v1] = tileUV(tile);
+        disparar('block_break', [x + 0.5, y + 0.5, z + 0.5], {
+            color: colorDeTesela(tile),
+            emitter_intensity: 3,        // num_particles = intensity³ ≈ 27
+            emitter_radius: 0.35,
+            velocity_scalar: 0.6,
+            emitter_texture_coordinate: { u: u0, v: v0 },
+            emitter_texture_size: { u: u1 - u0, v: v1 - v0 },
+        });
+    };
 
     const game = {
         world: null,
@@ -205,9 +254,18 @@ function boot() {
             if (kind === 'fuse') sound.fuse();
             else if (kind === 'shoot') sound.arrow();
             else sound.mobSay(m.def.voice[kind], gain, m.def.id, kind, m.def.sonidos && m.def.sonidos[kind]);
+            // partículas de combate: nube al morir, chispas al ser herido. El
+            // aabb del mob alimenta la forma del efecto (variable.aabb)
+            const centro = [m.pos[0], m.pos[1] + m.def.aabb.h * 0.5, m.pos[2]];
+            const aabb = { x: m.def.aabb.w * 0.5, y: m.def.aabb.h, z: m.def.aabb.w * 0.5 };
+            if (kind === 'death') disparar('mob_death', centro, { aabb });
+            else if (kind === 'hurt') disparar('mob_hurt', centro, { direction: { x: 0, y: 1, z: 0 } });
         },
         damagePlayer: (dmg, dir) => damagePlayer(dmg, dir),
-        explosion: () => sound.explosion(),
+        explosion: (pos) => {
+            sound.explosion();
+            if (pos) disparar('explosion', pos);
+        },
         // botín al morir un mob: solo en supervivencia (en creativo no hay)
         drop: (id, x, y, z) => {
             if (game.mode !== 'supervivencia') return;
@@ -400,6 +458,7 @@ function boot() {
         game.inventory = new Inventory();
         hud.setInventory(game.mode === 'supervivencia' ? game.inventory : null);
         game.drops = new DropSystem();
+        particles.list.length = 0; // las partículas no cruzan de mundo
         game.breaking = null;
         $('death').classList.add('hidden');
         game.requested.clear();
@@ -592,6 +651,7 @@ function boot() {
 
         if (button === 0 && def.breakable) {           // picar (dureza en golpes)
             if (game.mode === 'creativo') {            // creativo: rotura instantánea
+                particulasRotura(hit.id, hit.x, hit.y, hit.z);
                 // la puerta cae entera: cualquier hoja limpia el par (sin drop)
                 if (esPuerta(hit.id)) romperPuerta(game.world, hit.x, hit.y, hit.z);
                 else {
@@ -636,6 +696,7 @@ function boot() {
                         hud.refreshCounts();
                     }
                 }
+                particulasRotura(hit.id, hit.x, hit.y, hit.z);
                 game.world.set(hit.x, hit.y, hit.z, B.AIR);
                 camaras.onSet(hit.x, hit.y, hit.z, B.AIR); // baja si era cámara
                 game.breaking = null;
@@ -875,6 +936,9 @@ function boot() {
             sound.place('cloth');
         });
 
+        // partículas: avanza la simulación (humo, fuego, fragmentos…)
+        particles.update(dt);
+
         // cultivos: crecimiento por muestreo aleatorio en los chunks cargados
         tickCultivos(game.world, dt);
 
@@ -971,6 +1035,7 @@ function boot() {
                 game.breaking.y === hit.y && game.breaking.z === hit.z
                 ? Math.min(1, game.breaking.hits / game.breaking.need) : 0,
             drops: game.drops.list,
+            particles: particles.snapshot(),
             time: game.time,
             cloudOffset: game.time * 0.003,
             sunDir: sunDirection(game.timeOfDay),

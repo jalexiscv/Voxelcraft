@@ -38,6 +38,9 @@ Minecraft/ (raíz del proyecto)
     ├── mobrender.js         <-- Render WebGL de mobs (partes-caja animadas)
     ├── geo.js               <-- Parser puro de geometrías Bedrock (.geo.json → partes-caja)
     ├── modelpack.js         <-- Pack de modelos LOCAL opcional (models/ y textures/, gitignored; cae al modelo procedural)
+    ├── molang.js            <-- Evaluador de expresiones Molang para partículas (puro)
+    ├── particles.js         <-- Intérprete de efectos Bedrock + simulación (puro)
+    ├── particlepack.js      <-- Carga de efectos de particles/ por evento del juego
     ├── mobs/                <-- Contrato (model/skin/registry) + 68 definiciones
     ├── biomes/              <-- Contrato (model/map/registry) + 14 biomas
     └── villages/            <-- Aldeas: contrato, trazador, materializador + 8 planos
@@ -82,6 +85,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Templo del origen: pirámide escalonada monumental que corona siempre el punto de aparición, con torres gemelas, contrafuertes y cámara equipada (mesa, horno, cofre y cama) bajo una claraboya | ✅ |
 | Agricultura: labrar con azada, sembrar trigo/zanahoria/patata, crecimiento con riego, pan y patata asada | ✅ (ver [04-items.md](04-items.md)) |
 | Cámara de vigilancia: bloque dinámico dibujado como entidad animada (paneo ±70° cada 8 s y LED parpadeante), crafteable con hierro, cristal y palo | ✅ (ver [04-items.md](04-items.md)) |
+| Partículas: explosiones (bola de fuego, humo y chispas), nube al morir un mob, chispas al herirlo y fragmentos con el color del bloque al romperlo — intérprete de efectos Bedrock (`particles/*.json`) con Molang | ✅ (ver [08-particulas.md](08-particulas.md)) |
 | Depuración (F3), reaparición (R) | ✅ |
 | Mobs (68 criaturas con IA + dron guardián y antidron kamikaze propios de la casa), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
 | Multijugador | ❌ (ver «Futuro») |

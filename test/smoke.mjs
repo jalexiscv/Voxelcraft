@@ -1408,6 +1408,105 @@ console.log('== Modelos geo ==');
         ender.find((p) => p.name === 'head').origin[1] === 0);
 }
 
+/* ==== Molang: evaluador de expresiones de partículas ==== */
+console.log('== Molang ==');
+{
+    const { compileMolang, compileSafe } = await import(base + 'molang.js');
+    // ctx de prueba: randoms fijos y variables inventadas
+    const ctx = {
+        rand: (a = 0, b = 1) => a + (b - a) * 0.5, // siempre el punto medio
+        get(path) {
+            const p = path.toLowerCase();
+            if (p.endsWith('particle_random_1')) return 0.5;
+            if (p.endsWith('particle_random_2')) return 0.4;
+            if (p.endsWith('particle_age')) return 1;
+            if (p.endsWith('particle_lifetime')) return 2;
+            if (p === 'variable.color.r') return 0.8;
+            if (p === 'variable.emitter_intensity') return 3;
+            return 0;
+        },
+    };
+    const ev = (src) => compileMolang(src)(ctx);
+    check('aritmética y precedencia', Math.abs(ev('1 + 2 * 3') - 7) < 1e-9);
+    check('paréntesis y unario', Math.abs(ev('-(1 + 2) * 2') - (-6)) < 1e-9);
+    check('sufijo f y decimales', Math.abs(ev('0.2f / (0.5 * 0.9f + 0.1f)') - (0.2 / 0.55)) < 1e-6);
+    check('variable.particle_random_1', Math.abs(ev('variable.particle_random_1 * 0.3 + 0.7') - 0.85) < 1e-9);
+    check('acceso a campo (variable.color.r)', ev('variable.color.r') === 0.8);
+    check('Math.random usa el rand del ctx (punto medio)', ev('Math.random(0, 10)') === 5);
+    check('Math.Random (alias, insensible a mayúsculas)', Math.abs(ev('4 / Math.Random(1, 5) + 0.1') - (4 / 3 + 0.1)) < 1e-9);
+    check('funciones math (min/max/clamp)', ev('Math.max(2, 5)') === 5 && ev('Math.clamp(9, 0, 4)') === 4);
+    check('comparación y ternario', ev('variable.particle_age < variable.particle_lifetime ? 1 : 0') === 1);
+    check('intensity al cubo (num_particles del block_destruct)',
+        ev('variable.emitter_intensity * variable.emitter_intensity * (variable.emitter_intensity)') === 27);
+    check('compileSafe cae a un valor fijo ante sintaxis no soportada',
+        compileSafe('temp.x = 3; return foo', -1)(ctx) === -1);
+}
+
+/* ==== Partículas: intérprete de efectos Bedrock ==== */
+console.log('== Partículas ==');
+{
+    const { parseEffect, ParticleSystem } = await import(base + 'particles.js');
+    const { readFileSync } = await import('node:fs');
+    const url = (n) => new URL(`../particles/${n}.json`, import.meta.url);
+    const cargar = (n) => parseEffect(JSON.parse(readFileSync(url(n), 'utf8')));
+
+    // PRNG determinista para el sistema
+    let seed = 12345;
+    const rng = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+
+    const smoke = cargar('basic_smoke');
+    check('parseEffect reconoce un efecto y su textura', smoke !== null && smoke.terrain === false);
+
+    const sys = new ParticleSystem(rng, 200);
+    sys.emit(smoke, [0, 10, 0], {}, 12);
+    check('emit crea las partículas pedidas', sys.list.length === 12);
+
+    const p0 = sys.list[0];
+    check('cada partícula fija 4 randoms y una vida > 0', p0.rnd.length === 4 && p0.life > 0);
+
+    // snapshot recién nacidas (antes de que expiren): pos/size/uv/color
+    const snap = sys.snapshot();
+    check('snapshot da pos/size/uv/color por partícula viva',
+        snap.length === sys.list.length && snap[0].size > 0 &&
+        snap[0].uv.length === 4 && snap[0].color.length === 4);
+    check('el flipbook mapea la UV dentro del atlas (base_UV 56, size 8)',
+        snap[0].uv[0] >= 0 && snap[0].uv[2] <= 64);
+
+    // el humo asciende un poco antes de expirar (linear_acceleration +Y)
+    const y0 = sys.list.map((p) => p.pos[1]);
+    for (let t = 0; t < 0.3; t += 1 / 60) sys.update(1 / 60);
+    check('el humo asciende (linear_acceleration +Y)', sys.list.every((p, i) => p.pos[1] >= y0[i]));
+
+    // vida acotada: todas mueren pasado su max_lifetime (≤1.4 s del smoke)
+    for (let t = 0; t < 2; t += 1 / 60) sys.update(1 / 60);
+    check('las partículas expiran al agotar su vida', sys.list.length === 0);
+
+    // explosión: la gran bola (large_explosion) es un flipbook de 16 frames
+    const boom = cargar('large_explosion_level');
+    const sysB = new ParticleSystem(rng, 50);
+    sysB.emit(boom, [0, 20, 0]);
+    check('la explosión emite su ráfaga instantánea', sysB.list.length >= 1);
+    const snapB = sysB.snapshot();
+    check('la bola de explosión usa el flipbook grande (fila y=80)',
+        snapB[0].uv[1] >= 80 && snapB[0].uv[3] <= 96);
+
+    // destrucción de bloque: textura de terreno y color inyectado por vars
+    const destr = cargar('block_destruct');
+    check('block_destruct se marca como textura de terreno', destr.terrain === true);
+    const sysD = new ParticleSystem(rng, 200);
+    sysD.emit(destr, [5, 5, 5], {
+        color: { r: 0.6, g: 0.4, b: 0.2, a: 1 },
+        emitter_intensity: 3, emitter_radius: 0.3, velocity_scalar: 0.5,
+        emitter_texture_coordinate: { u: 0.1, v: 0.2 }, emitter_texture_size: { u: 0.0625, v: 0.0625 },
+    });
+    check('block_destruct emite intensity³ fragmentos (27)', sysD.list.length === 27);
+    const snapD = sysD.snapshot();
+    check('los fragmentos toman el color del bloque inyectado',
+        Math.abs(snapD[0].color[0] - 0.6) < 1e-9 && Math.abs(snapD[0].color[1] - 0.4) < 1e-9);
+    check('la UV del fragmento sale del sub-tésela del atlas de terreno',
+        snapD[0].uv[0] >= 0.1 && snapD[0].uv[0] < 0.1 + 0.0625);
+}
+
 /* ==== Cámara de vigilancia: bloque dinámico dibujado como entidad ==== */
 console.log('== Cámara de vigilancia ==');
 {
