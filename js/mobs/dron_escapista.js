@@ -71,10 +71,14 @@ export default {
     snapTurn: true,           // la velocidad salta al rumbo nuevo (giro «imposible»)
     // presa de práctica (quarry): drones y antidrones lo persiguen. Evita a
     // los cazadores con quiebres cada dartFast/dartSlow s dentro de alertRadius.
+    // Patrulla de largo alcance: se aleja hasta roamRadius (≈6× la órbita de
+    // un dron, 5) subiendo hasta roamCeil (≈6× más alto), y vuelve a probar
+    // el perímetro cercano (nearRadius) antes de alejarse de nuevo.
     behavior: {
         evasive: true, quarry: true,
         alertRadius: 26, evadeSpread: 1.7,
         dartFast: 0.26, dartSlow: 0.7, ceiling: 10,
+        roamRadius: 42, roamCeil: 30, nearRadius: 6, roamSpread: 1.0,
     },
     spawn: { summonOnly: true, cap: 1, group: 1 },
     drops: [{ id: ITEMS.LINGOTE_HIERRO, min: 0, max: 1 }],

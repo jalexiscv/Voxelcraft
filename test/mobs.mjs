@@ -717,6 +717,32 @@ console.log('== Dron escapista ==');
             vMin > escapista.flySpeed * 0.7);
     }
 
+    // PATRULLA de largo alcance: se aleja hasta ~6× la órbita de un dron (5)
+    // subiendo ~6× más alto, y regresa a probar el perímetro cercano antes
+    // de volver a alejarse — todo en ciclo. Sin cazadores cerca.
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const e = new Mob(escapista, 10.5, 14, 10.5);
+        s.mobs.push(e);
+        const cerca = { pos: [10, 11, 10], eye: [10, 12.62, 10], day: 1 };
+        let maxDist = 0, maxAlt = 0, minInDist = Infinity, salidas = 0, prev = 'out';
+        for (let t = 0; t < 60; t += DT) {
+            s.update(DT, cerca);
+            const d = Math.hypot(e.pos[0] - 10, e.pos[2] - 10);
+            maxDist = Math.max(maxDist, d);
+            maxAlt = Math.max(maxAlt, e.pos[1] - 11);
+            if (e.roamPhase === 'in') minInDist = Math.min(minInDist, d);
+            if (e.roamPhase === 'out' && prev === 'in') salidas++;
+            prev = e.roamPhase;
+        }
+        // la órbita del dron llega a ~7 bloques y ~3.8 de altura; el escapista
+        // debe superarlas holgadamente (varias veces)
+        check('se aleja mucho más que un dron (varias veces su órbita)', maxDist > 35);
+        check('sube mucho más alto que un dron (varias veces su altura)', maxAlt > 20);
+        check('regresa a probar el perímetro cercano al jugador', minInDist < 9);
+        check('repite el ciclo alejarse→volver→alejarse', salidas >= 3);
+    }
+
     // los DRONES lo persiguen de inmediato (presa de práctica), sin inspección
     {
         const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);

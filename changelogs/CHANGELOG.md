@@ -133,3 +133,4 @@
 | 129 | 2026-07-05 | [Antidron básico: interceptor kamikaze que reposa, despega y embiste a los drones](2026-07-05_antidron_kamikaze.md) |
 | 130 | 2026-07-05 | [Partículas: intérprete de efectos Bedrock y explosiones más realistas](2026-07-05_particulas_explosiones.md) |
 | 131 | 2026-07-05 | [Dron escapista: presa de práctica veloz con vuelo errático de mosquito](2026-07-05_dron_escapista.md) |
+| 132 | 2026-07-05 | [Dron escapista: patrulla de largo alcance (aleja ×6, sube ×6 y regresa)](2026-07-05_escapista_patrulla_larga.md) |

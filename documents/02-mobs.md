@@ -75,16 +75,21 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   de rumbo y altura cada `dartFast`/`dartSlow` s — cambios de dirección
   casi instantáneos («ángulos imposibles») que **no frenan la marcha**,
   porque con `snapTurn` la velocidad salta al rumbo nuevo en vez de
-  reorientarse poco a poco. Si un cazador (dron/antidron) entra en su
-  `alertRadius`, sesga la huida en la dirección opuesta y quiebra más a
-  menudo. Es una **presa de práctica** (`behavior.quarry`): **drones y
-  antidrones lo persiguen de inmediato** — el guardián lo caza sin
-  inspección (prioridad sobre todo lo demás) y el antidron lo detecta como
-  objetivo igual que a un dron. No ataca a nadie. Modelo elaborado según
-  la imagen de referencia: nave anular con un **anillo hueco central**
-  (corona de 10 segmentos), casco beige de manta raya que lo rodea (proa,
-  flancos, popa), dos alas en delta con el filo de fuga magenta, líneas de
-  energía magenta, góndolas/toberas y cuatro púas-antena.
+  reorientarse poco a poco. Sobre ese zigzag corre una **patrulla de largo
+  alcance**: se aleja del jugador hasta `roamRadius` (**≈6× lo que orbita
+  un dron**) subiendo hasta `roamCeil` (**≈6× más alto**), luego REGRESA a
+  probar el perímetro cercano (`nearRadius`) y vuelve a alejarse, así en
+  ciclo. Si un cazador (dron/antidron) entra en su `alertRadius`, la
+  evasión (huir en dirección opuesta, quebrando más a menudo) tiene
+  prioridad sobre la fase. Es una **presa de práctica**
+  (`behavior.quarry`): **drones y antidrones lo persiguen de inmediato** —
+  el guardián lo caza sin inspección (prioridad sobre todo lo demás) y el
+  antidron lo detecta como objetivo igual que a un dron. No ataca a nadie.
+  Modelo elaborado según la imagen de referencia: nave anular con un
+  **anillo hueco central** (corona de 10 segmentos), casco beige de manta
+  raya que lo rodea (proa, flancos, popa), dos alas en delta con el filo
+  de fuga magenta, líneas de energía magenta, góndolas/toberas y cuatro
+  púas-antena.
 
 ## Arquitectura
 

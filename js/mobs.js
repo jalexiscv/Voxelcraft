@@ -93,6 +93,13 @@ export class Mob {
         this.dartT = 0;
         this.dartYaw = yaw;
         this.dartY = y;
+        // patrulla de largo alcance del escapista: fase 'out' (alejándose
+        // hasta el radio/altura máximos) o 'in' (regresando a probar el
+        // perímetro cercano al jugador), con el radio y la altura objetivo
+        // sorteados por barrido.
+        this.roamPhase = 'out';
+        this.roamRadius = 0;
+        this.roamCeil = 0;
     }
 
     dying() { return this.dieT >= 0; }
@@ -245,9 +252,14 @@ export class MobSystem {
      * quiebres BRUSCOS de rumbo y altura — cambios de dirección casi
      * instantáneos («ángulos imposibles») que no frenan la marcha, porque
      * el rumbo se reescribe de golpe y la velocidad se mantiene en su tope.
-     * Si un perseguidor (dron/antidron) ronda cerca, sesga la huida en la
-     * dirección OPUESTA y quiebra más a menudo. Es una presa de práctica:
-     * no ataca a nadie.
+     *
+     * Sobre ese zigzag corre una PATRULLA de largo alcance en torno al
+     * jugador: se aleja hasta `roamRadius` (hasta 6× lo que orbita un dron)
+     * subiendo hasta `roamCeil` (hasta 6× más alto), y luego REGRESA a
+     * probar el perímetro cercano al jugador, para volver a alejarse — así
+     * en ciclo. Si un perseguidor (dron/antidron) ronda cerca, la evasión
+     * (huir en dirección opuesta) tiene prioridad sobre la fase. Es una
+     * presa de práctica: no ataca a nadie.
      */
     evasiveAI(m, dt, ctx, dist) {
         const b = m.def.behavior;
@@ -265,26 +277,46 @@ export class MobSystem {
             if (d < (b.alertRadius || 24) && d < mejor) { mejor = d; caza = otro; }
         }
 
-        // quiebre: cada intervalo (más corto si lo persiguen) reescribe el
-        // rumbo y la altura objetivo DE GOLPE — el giro es discontinuo, de
-        // ahí la trayectoria antinatural. Un choque de pared fuerza otro.
+        // patrulla de largo alcance: distancia horizontal al jugador y a qué
+        // fase pertenece. Al llegar al extremo de la fase, cambia de fase y
+        // sortea nuevos objetivos (radio/altura) para la siguiente.
+        const dxJ = m.pos[0] - ctx.pos[0], dzJ = m.pos[2] - ctx.pos[2];
+        const distJ = Math.hypot(dxJ, dzJ);
+        const maxRadius = b.roamRadius || 30;    // hasta ~6× la órbita del dron (5)
+        const maxCeil = b.roamCeil || 24;        // hasta ~6× más alto que el dron
+        if (m.roamRadius === 0) this.nuevoRoam(m, maxRadius, maxCeil); // primer objetivo
+        if (m.roamPhase === 'out' && distJ >= m.roamRadius) {
+            m.roamPhase = 'in';                  // llegó lejos: vuelve a probar cerca
+        } else if (m.roamPhase === 'in' && distJ <= (b.nearRadius || 6)) {
+            m.roamPhase = 'out';                 // ya cerca del jugador: aléjate otra vez
+            this.nuevoRoam(m, maxRadius, maxCeil);
+        }
+
+        // quiebre de mosquito: cada intervalo (más corto si lo persiguen)
+        // reescribe el rumbo y la altura objetivo DE GOLPE — el giro es
+        // discontinuo. Un choque de pared fuerza otro.
         const periodo = caza ? (b.dartFast || 0.28) : (b.dartSlow || 0.6);
         if (m.dartT <= 0 || m.hitWall) {
             m.dartT = periodo * (0.6 + this.rng.float() * 0.8);
             let base;
             if (caza) {
-                // huir del cazador: rumbo opuesto ± un abanico ancho (zigzag
-                // impredecible alrededor de la dirección de escape)
+                // PRIORIDAD: huir del cazador, rumbo opuesto ± abanico ancho
                 const away = Math.atan2(-(m.pos[0] - caza.pos[0]), -(m.pos[2] - caza.pos[2])) + Math.PI;
                 base = away + (this.rng.float() * 2 - 1) * (b.evadeSpread || 1.6);
             } else {
-                base = this.rng.float() * Math.PI * 2; // vagar en cualquier dirección
+                // sin cazador: el rumbo base sigue la FASE (alejarse del
+                // jugador u orientarse hacia él) con un abanico de zigzag
+                const haciaJ = Math.atan2(-(ctx.pos[0] - m.pos[0]), -(ctx.pos[2] - m.pos[2]));
+                const objetivo = m.roamPhase === 'out' ? haciaJ + Math.PI : haciaJ;
+                base = objetivo + (this.rng.float() * 2 - 1) * (b.roamSpread || 1.1);
             }
             m.dartYaw = base;
-            // altura errática: brincos y caídas dentro de una banda sobre el suelo
+            // altura: en 'out' sube hacia el techo de la ronda; en 'in' baja
+            // cerca de la altura del jugador; siempre con brincos aleatorios
             const suelo = this.world.hasChunk(Math.floor(m.pos[0]) >> 4, Math.floor(m.pos[2]) >> 4)
                 ? this.world.surfaceY(Math.floor(m.pos[0]), Math.floor(m.pos[2])) + 1 : m.pos[1];
-            m.dartY = suelo + 3 + this.rng.float() * (b.ceiling || 9);
+            const techo = m.roamPhase === 'out' ? m.roamCeil : (b.ceiling || 9) * 0.5;
+            m.dartY = suelo + 3 + this.rng.float() * techo;
         }
 
         // aplica el rumbo/altura de golpe (sin suavizar: el giro es «imposible»)
@@ -293,6 +325,14 @@ export class MobSystem {
         m.speed = m.def.flySpeed || m.def.speed;
         // mira hacia donde vuela (da sensación de reacción nerviosa)
         this.lookAt(m, [m.pos[0] - Math.sin(m.yaw) * 4, m.pos[1], m.pos[2] - Math.cos(m.yaw) * 4]);
+    }
+
+    /** Sortea el radio y el techo de la próxima salida de la patrulla. */
+    nuevoRoam(m, maxRadius, maxCeil) {
+        // radio de alejamiento entre el 55 % y el 100 % del máximo, y techo
+        // de subida entre el 40 % y el 100 % — así cada salida es distinta
+        m.roamRadius = maxRadius * (0.55 + this.rng.float() * 0.45);
+        m.roamCeil = maxCeil * (0.4 + this.rng.float() * 0.6);
     }
 
     /**
