@@ -118,6 +118,13 @@ export const POSE_MOB = {
         rightleg: { mov: [0, 4, 0] },  // −4..26 → 0..30: pies a ras
         leftleg: { mov: [0, 4, 0] },
     },
+    wolf: {
+        // el geo trae cuerpo y pecho como cajas VERTICALES (6×9×6 y 8×6×7):
+        // el renderer original los tumbaba 90° por código, sin declararlo
+        // ni como bind_pose (misma rotación final que el cuerpo de la vaca)
+        body: { rot: [-90, 0, 0] },
+        upperbody: { rot: [-90, 0, 0] },
+    },
 };
 
 /** Aplica la pose de la especie (si la hay) a las partes convertidas. */
@@ -458,6 +465,26 @@ function colorDeParte(parte, colores, colorGlobal) {
 }
 
 /**
+ * Primera parte PROPIA emparejada con la del geo (misma heurística de
+ * sinónimos que el color): es la fuente de la proyección cara a cara.
+ */
+function parteEmparejada(parte, def) {
+    const nombre = String(parte.name).toLowerCase();
+    const candidatas = [];
+    if ((parte.inflate || 0) >= 0.4) candidatas.push(['lana', 'caparazon']);
+    for (const [re, raices] of SINONIMOS) {
+        if (re.test(nombre)) { candidatas.push(raices); break; }
+    }
+    for (const raices of candidatas) {
+        for (const raiz of raices) {
+            const propia = def.parts.find((p) => String(p.name).toLowerCase().includes(raiz));
+            if (propia) return propia;
+        }
+    }
+    return null;
+}
+
+/**
  * Piel procedural para un modelo del pack: lienzo texW×texH del geo donde
  * cada parte pinta sus 6 rects UV con el color de la parte propia más
  * parecida (misma semilla por variante que mobrender.buildType, así cada
@@ -478,18 +505,36 @@ export function autoPiel(def, modelo, variante = 0) {
     const colorGlobal = mediaRects(propia, [{ x: 0, y: 0, w: propia.w, h: propia.h }])
         || [128, 128, 128];
 
-    // 2) proyectar la paleta al desplegado del geo, con el moteado de la casa
+    // 2) proyectar la piel propia al desplegado del geo. Donde hay parte
+    // propia emparejada, la proyección es CARA A CARA con reescalado
+    // (vecino más próximo): los rasgos pintados — ojos, cara, manchas —
+    // viajan al modelo del pack. Sin pareja: color medio con moteado.
     const lienzo = new Skin(modelo.texW, modelo.texH, toSeed(def.id) + variante * 131 + 977);
     for (const parte of modelo.partes) {
         const color = colorDeParte(parte, colores, colorGlobal);
         const mota = [(color[0] * 0.8) | 0, (color[1] * 0.8) | 0, (color[2] * 0.8) | 0];
-        for (const r of partUVRects(parte)) {
+        const pareja = parteEmparejada(parte, def);
+        const rectsPropios = pareja ? partUVRects(pareja) : null;
+        partUVRects(parte).forEach((r, cara) => {
             const x = Math.floor(r.x), y = Math.floor(r.y);
             const w = Math.ceil(r.x + r.w) - x, h = Math.ceil(r.y + r.h) - y;
-            if (w <= 0 || h <= 0) continue; // caras planas (sz o sx 0)
-            lienzo.fill(x, y, w, h, color, 9);
-            lienzo.speckle(x, y, w, h, Math.max(2, (w * h / 7) | 0), mota);
-        }
+            if (w <= 0 || h <= 0) return; // caras planas (sz o sx 0)
+            lienzo.fill(x, y, w, h, color, 9); // base: nunca quedan huecos
+            const rs = rectsPropios && rectsPropios[cara];
+            if (rs && rs.w >= 1 && rs.h >= 1) {
+                for (let py = 0; py < h; py++) {
+                    for (let px = 0; px < w; px++) {
+                        const sx = Math.min(propia.w - 1, Math.floor(rs.x + ((px + 0.5) / w) * rs.w));
+                        const sy = Math.min(propia.h - 1, Math.floor(rs.y + ((py + 0.5) / h) * rs.h));
+                        const i = (sy * propia.w + sx) * 4;
+                        if (!propia.data[i + 3]) continue; // texel vacío: queda la base
+                        lienzo.px(x + px, y + py, [propia.data[i], propia.data[i + 1], propia.data[i + 2]]);
+                    }
+                }
+            } else {
+                lienzo.speckle(x, y, w, h, Math.max(2, (w * h / 7) | 0), mota);
+            }
+        });
     }
     return lienzo;
 }

@@ -1169,6 +1169,38 @@ console.log('== Modelos geo ==');
         !!cuerpoLegacy.rot && !cabezaLegacy.rot &&
         cabezaLegacy.pivot[1] === 14 && cabezaLegacy.pivot[2] === -5);
 
+    // auto-piel: proyección CARA A CARA — un marcador pintado en la cara
+    // frontal de la parte propia debe viajar (reescalado) al rect frontal
+    // del geo, en vez de disolverse en el color medio
+    const defCara = {
+        id: 'prueba_cara', skin: { w: 16, h: 16 },
+        parts: [{ name: 'cabeza', size: [2, 2, 2], pivot: [0, 0, 0], origin: [0, 0, 0], uv: [0, 0] }],
+        paint(s) { s.fill(0, 0, 16, 16, [50, 60, 70], 0); s.px(3, 3, [255, 0, 255]); },
+    };
+    const modeloCara = { texW: 32, texH: 32,
+        partes: [{ name: 'head', size: [4, 4, 4], pivot: [0, 0, 0], origin: [0, 0, 0], uv: [0, 0] }] };
+    const pielCara = autoPiel(defCara, modeloCara, 0);
+    const esMagenta = (x, y) => pielCara.data[(y * 32 + x) * 4] === 255 &&
+        pielCara.data[(y * 32 + x) * 4 + 1] === 0 && pielCara.data[(y * 32 + x) * 4 + 2] === 255;
+    let marcaDentro = false, marcaFuera = false;
+    for (let yy = 0; yy < 32; yy++) {
+        for (let xx = 0; xx < 32; xx++) {
+            if (!esMagenta(xx, yy)) continue;
+            if (xx >= 4 && xx < 8 && yy >= 4 && yy < 8) marcaDentro = true;
+            else marcaFuera = true;
+        }
+    }
+    check('la auto-piel proyecta los rasgos cara a cara (ojos y caras viajan al geo)',
+        marcaDentro && !marcaFuera);
+
+    // pose del lobo: el geo trae cuerpo y pecho verticales (el renderer
+    // original los tumbaba por código); la pose por especie los acuesta
+    const { aplicarPose: poseM } = await import(base + 'modelpack.js');
+    const lobo = poseM([{ name: 'body' }, { name: 'upperBody' }, { name: 'leg0' }], 'wolf');
+    check('el lobo tumba cuerpo y pecho 90° (pose por especie)',
+        Math.abs(lobo[0].rot[0] + Math.PI / 2) < 1e-9 &&
+        Math.abs(lobo[1].rot[0] + Math.PI / 2) < 1e-9 && !lobo[2].rot);
+
     // filtro de atrezo por especie (modelpack): equipamiento fuera siempre;
     // el burro conserva las orejas de mula y descarta las de caballo
     const { filtrarAtrezo } = await import(base + 'modelpack.js');
