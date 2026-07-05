@@ -134,4 +134,11 @@ export default {
             { noise: true, f: 1000, q: 2, d: 0.11, v: 0.16, at: 0.37 },
         ],
     },
+
+    // Voces reales del pack: idle = traqueteo ambiente del stray (say)
+    sonidos: {
+        say: ['mob/stray/idle'],
+        hurt: ['mob/stray/hurt'],
+        death: ['mob/stray/death'],
+    },
 };

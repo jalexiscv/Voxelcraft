@@ -100,4 +100,11 @@ export default {
         hurt: [{ f: 125, b: 0.9, d: 0.16, w: 'sawtooth', v: 0.28 }],
         death: [{ f: 95, b: 0.35, d: 0.9, w: 'sawtooth', v: 0.28 }],
     },
+
+    /** Voces reales del pack local (mob/husk: idle1-3, hurt1-2, death1-2). */
+    sonidos: {
+        say: ['mob/husk/idle'],
+        hurt: ['mob/husk/hurt'],
+        death: ['mob/husk/death'],
+    },
 };

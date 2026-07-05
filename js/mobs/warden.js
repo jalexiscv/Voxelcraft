@@ -135,4 +135,11 @@ export default {
             { f: 60, b: 0.3, d: 1.1, w: 'sawtooth', v: 0.3, at: 0.05 },
         ],
     },
+
+    /** Voces del pack local: say = gruñido ambiente (idle_1..12). */
+    sonidos: {
+        say: ['mob/warden/idle'],
+        hurt: ['mob/warden/hurt'],
+        death: ['mob/warden/death'],
+    },
 };

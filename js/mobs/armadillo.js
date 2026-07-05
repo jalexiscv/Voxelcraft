@@ -3,7 +3,7 @@
  * caparazón (hideOnHurt, ver mobs.js). El caparazón es una caja aparte que
  * envuelve el cuerpo por arriba y los costados, con bandas transversales
  * oscuras pintadas (ver model.js para el formato de las partes y el
- * desplegado UV; cerdo.js es el ejemplo canónico del contrato).
+ * desplegado UV; pig.js es el ejemplo canónico del contrato).
  *
  * Distribución de la piel 64×64:
  *   (0,0)   cuerpo 7×6×10     → 34×16
@@ -92,5 +92,14 @@ export default {
         ],
         hurt: [{ f: 840, b: 0.7, d: 0.1, w: 'triangle', v: 0.26 }],
         death: [{ f: 560, b: 0.35, d: 0.4, w: 'triangle', v: 0.24 }],
+    },
+
+    /** Voces del pack local (ver soundpack.js). */
+    sonidos: {
+        say: ['mob/armadillo/ambient'],
+        // el prefijo también abarca hurt_reduced*: quejido amortiguado dentro
+        // del caparazón, coherente con hideOnHurt
+        hurt: ['mob/armadillo/hurt'],
+        death: ['mob/armadillo/death'],
     },
 };

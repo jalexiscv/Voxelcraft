@@ -39,7 +39,7 @@ js/
     ├── model.js         <-- Contrato de partes-caja + desplegado UV estándar (puro)
     ├── skin.js          <-- Pieles procedurales: búfer RGBA con PRNG (puro)
     ├── registry.js      <-- Registro de tipos (la fuente de verdad del elenco)
-    └── <mob>.js × 68    <-- Una definición por mob (cerdo.js es el ejemplo canónico)
+    └── <mob>.js × 68    <-- Una definición por mob (pig.js es el ejemplo canónico)
 ```
 
 Integración: `main.js` crea un `MobSystem` por mundo y le inyecta *hooks* (sonido, daño al jugador, explosión); cada fotograma llama a `mobs.update()` y el render principal invoca `drawEntities` entre la geometría sólida y las transparencias. El clic izquierdo golpea primero al mob apuntado (`raycastMob`) y solo si no hay mob rompe el bloque.
@@ -53,8 +53,9 @@ Cada mob es un archivo de **solo datos** (importable en Node) con: `aabb`, `hp`,
 *   **behavior** (obligatorio en hostiles, opcional en neutrales): `neutral`, `aggro`, `attackRange`, `damage`, `cooldown`, `projectile`, `fuse`+`radius` (creeper), `lunge`, `teleport` (enderman), `freezeWhenSeen` (creaking), `stingOnce` (abeja).
 *   **spawn**: `cap`, `group`, `block` (`GRASS`|`SAND`|`ANY`), `night`, `water`, `cave`.
 *   **drops** (opcional): botín al morir — `[{ id, min, max, chance }]` con ids de item o bloque (tabla completa en [04-items.md](04-items.md)); solo cae en supervivencia.
+*   **sonidos** (opcional, tras `voice`): voces del pack local — `{ say|hurt|death: [prefijos] }`. Cada prefijo es una ruta bajo `sounds/` **sin extensión ni número de variante** (p. ej. `mob/cat/meow`): la resolución elige al azar entre las rutas del manifest que empiecen por él, y varios prefijos se prueban en orden. Se **omite** una clave si su carpeta no trae un evento razonable (cae a la tabla genérica o a la síntesis), y puede apuntar a la carpeta de otra especie cuando es lo canónico del género (el mooshroom usa las voces de `cow`). Prioridad y detalles en [06-sonidos.md](06-sonidos.md).
 
-El formato completo está en el docblock de [model.js](../js/mobs/model.js). **Añadir un mob**: crear `js/mobs/<id>.js` imitando `cerdo.js`, validar con `node test/validate-mob.mjs <id>` e importarlo en `registry.js`.
+El formato completo está en el docblock de [model.js](../js/mobs/model.js). **Añadir un mob**: crear `js/mobs/<id>.js` imitando `pig.js`, validar con `node test/validate-mob.mjs <id>` e importarlo en `registry.js`.
 
 ## Hábitats de aparición
 
@@ -70,7 +71,7 @@ Sin sistema de objetos, domesticación, monturas, crías ni comercio, algunos mo
 
 ## Verificación
 
-*   `node test/mobs.mjs` — **122 comprobaciones** (geometría y UV, física por modos con mundos simulados, IA pasiva/neutral/hostil, mecha y explosión, flechas con daño por tirador que quedan clavadas al fallar, teletransporte, congelación al mirar, aparición por hábitats y biomas, y contrato de las 68 definiciones). Todas en verde el 2026-07-04.
+*   `node test/mobs.mjs` — **124 comprobaciones** (geometría y UV, física por modos con mundos simulados, IA pasiva/neutral/hostil, mecha y explosión, flechas con daño por tirador que quedan clavadas al fallar, teletransporte, congelación al mirar, aparición por hábitats y biomas, contrato de las 68 definiciones y formato del campo `sonidos` en las 68). Todas en verde el 2026-07-04.
 *   `node test/validate-mob.mjs <id>` — validador por definición (campos, UV sin solapes ni texels invisibles, pintado determinista, pies al suelo, orientación de partes frontales).
-*   `node test/smoke.mjs` — la suite del motor sigue en verde (103 OK).
+*   `node test/smoke.mjs` — la suite del motor sigue en verde (180 OK), incluida la prioridad `def.sonidos` → tabla genérica de las voces del árbol (manifest simulado).
 *   Los 68 mobs fueron construidos por **agentes en paralelo** contra el contrato validable y revisados de forma adversaria por agentes independientes (por mob en la primera hornada, por lotes de 5 en la segunda).

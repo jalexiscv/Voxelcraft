@@ -69,4 +69,11 @@ export default {
         hurt: [{ noise: true, f: 1800, q: 2, d: 0.1, v: 0.25 }],
         death: [{ noise: true, f: 420, q: 1, d: 0.28, v: 0.3 }],
     },
+
+    // Voces del pack local: la carpeta no trae hurt; en vanilla el daño reutiliza los siseos «say»
+    sonidos: {
+        say: ['mob/creeper/say'],
+        hurt: ['mob/creeper/say'],
+        death: ['mob/creeper/death'],
+    },
 };

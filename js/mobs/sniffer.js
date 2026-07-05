@@ -90,4 +90,11 @@ export default {
             { f: 110, b: 0.35, d: 0.8, w: 'sine', v: 0.3 },
         ],
     },
+
+    /** Voces reales del pack local (mob/sniffer): idle como ambiente, hurt/death directos. */
+    sonidos: {
+        say: ['mob/sniffer/idle'],
+        hurt: ['mob/sniffer/hurt'],
+        death: ['mob/sniffer/death'],
+    },
 };

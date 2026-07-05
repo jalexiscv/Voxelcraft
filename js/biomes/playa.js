@@ -33,8 +33,8 @@ export default {
 
     // --- Habitantes (fila «playa» de la tabla del plan) ---
     mobs: {
-        day: ['tortuga', 'conejo'],
-        night: ['zombi', 'esqueleto', 'ahogado', 'fantasma'],
-        water: ['bacalao', 'pez_tropical', 'delfin', 'pez_globo'],
+        day: ['turtle', 'rabbit'],
+        night: ['zombie', 'skeleton', 'drowned', 'ghast'],
+        water: ['cod', 'tropical_fish', 'dolphin', 'pufferfish'],
     },
 };

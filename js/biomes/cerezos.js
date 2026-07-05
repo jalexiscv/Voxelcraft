@@ -38,8 +38,8 @@ export default {
 
     // --- Habitantes (fila «cerezos» de la tabla del plan) ---
     mobs: {
-        day: ['abeja', 'oveja', 'cerdo', 'conejo', 'caballo'],
-        night: ['zombi', 'esqueleto', 'creeper', 'arana', 'fantasma'],
-        water: ['salmon', 'ajolote'],
+        day: ['bee', 'sheep', 'pig', 'rabbit', 'horse'],
+        night: ['zombie', 'skeleton', 'creeper', 'spider', 'ghast'],
+        water: ['salmon', 'axolotl'],
     },
 };

@@ -42,8 +42,8 @@ export default {
 
     // --- Habitantes (fila «taiga» de la tabla del plan) ---
     mobs: {
-        day: ['lobo', 'zorro', 'conejo', 'gallina', 'aldeano'],
-        night: ['zombi', 'esqueleto', 'creeper', 'arana', 'saqueador', 'fantasma'],
+        day: ['wolf', 'fox', 'rabbit', 'chicken', 'villager'],
+        night: ['zombie', 'skeleton', 'creeper', 'spider', 'pillager', 'ghast'],
         water: ['salmon'],
     },
 };

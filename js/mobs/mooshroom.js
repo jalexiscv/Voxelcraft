@@ -1,6 +1,6 @@
 /**
  * Mooshroom: vaca-seta pasiva de pradera. Comparte las proporciones de la
- * vaca (ver vaca.js) pero con pelaje rojo de grandes manchas blancas y tres
+ * vaca (ver cow.js) pero con pelaje rojo de grandes manchas blancas y tres
  * setas creciendo sobre el lomo (ver model.js para el formato de las partes
  * y el desplegado UV; mobs.js para el comportamiento).
  *
@@ -105,5 +105,14 @@ export default {
         say: [{ f: 140, b: 0.6, d: 0.75, w: 'sawtooth', v: 0.25 }],
         hurt: [{ f: 215, b: 0.8, d: 0.18, w: 'sawtooth', v: 0.28 }],
         death: [{ f: 112, b: 0.5, d: 1.0, w: 'sawtooth', v: 0.28 }],
+    },
+
+    // Voces reales del pack local: mob/mooshroom solo trae convert/eat/milk
+    // (interacciones), así que usa los mugidos canónicos de mob/cow (say1-4,
+    // hurt1-3); la vaca no tiene death propio y en el juego reutiliza hurt.
+    sonidos: {
+        say: ['mob/cow/say'],
+        hurt: ['mob/cow/hurt'],
+        death: ['mob/cow/hurt'],
     },
 };

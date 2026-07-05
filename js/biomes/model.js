@@ -47,8 +47,8 @@
  *
  *     // --- Habitantes (ids del registro de mobs) ---
  *     mobs: {
- *       day:   ['lobo', 'zorro', 'conejo'],  // hábitat land de día (no hostiles)
- *       night: ['zombi', 'esqueleto'],       // land de noche (hostiles o spawn.night)
+ *       day:   ['wolf', 'fox', 'rabbit'],  // hábitat land de día (no hostiles)
+ *       night: ['zombie', 'skeleton'],       // land de noche (hostiles o spawn.night)
  *       water: ['salmon'],                   // hábitat water (mobs con spawn.water)
  *     },
  *   };

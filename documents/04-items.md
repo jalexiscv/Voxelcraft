@@ -49,38 +49,38 @@ Formato en la definición del mob: `drops: [{ id, min, max, chance }]`
 (`chance` opcional, 1 por defecto; los ids de item van por nombre desde
 `ITEMS`, los de bloque desde `B`). Reparto del fan-out (8 lotes):
 
-**Lote 1** — cerdo: carne 1-2 · oveja: WOOL0 1 + carne 0-1 · vaca: carne 1-2
-+ cuero 0-1 · gallina: pluma 0-2 + carne 0-1 · armadillo: escama 0-1 ·
-camello: cuero 0-1 · camello_husk: cuero 0-1 + carne_podrida 0-1 ·
-gato: hilo 0-1 · ocelote: nada.
+**Lote 1** — pig: carne 1-2 · sheep: WOOL0 1 + carne 0-1 · cow: carne 1-2
++ cuero 0-1 · chicken: pluma 0-2 + carne 0-1 · armadillo: escama 0-1 ·
+camel: cuero 0-1 · camel_husk: cuero 0-1 + carne_podrida 0-1 ·
+cat: hilo 0-1 · ocelot: nada.
 
-**Lote 2** — zorro: nada · caballo: cuero 0-1 + carne 0-1 · burro: cuero
-0-1 · mooshroom: carne 1-2 + MUSHROOM_RED 1 · conejo: carne 0-1 + cuero 0-1
-· sniffer: nada · golem_cobre: nada · golem_nieve: SNOW 1-2 ·
-tortuga: escama 0-1.
+**Lote 2** — fox: nada · horse: cuero 0-1 + carne 0-1 · donkey: cuero
+0-1 · mooshroom: carne 1-2 + MUSHROOM_RED 1 · rabbit: carne 0-1 + cuero 0-1
+· sniffer: nada · copper_golem: nada · snow_golem: SNOW 1-2 ·
+turtle: escama 0-1.
 
-**Lote 3** — aldeano: nada · comerciante: nada · rana: bola_slime 0-1 ·
-cubo_azufre: pólvora 0-2 · allay: nada · murcielago: nada · loro: pluma 1-2
-· abeja: nada · fantasma_feliz: membrana 0-1.
+**Lote 3** — villager: nada · wandering_trader: nada · frog: bola_slime 0-1 ·
+sulfur_cube: pólvora 0-2 · allay: nada · bat: nada · parrot: pluma 1-2
+· bee: nada · happy_ghast: membrana 0-1.
 
-**Lote 4** — bacalao: pez 1 · salmon: pez 1 · pez_tropical: pez 1 ·
-pez_globo: escama 0-1 · calamar: tinta 1-2 · calamar_brillante: tinta 1-2 ·
-ajolote: nada · delfin: pez 0-1 · nautilus: escama 1.
+**Lote 4** — cod: pez 1 · salmon: pez 1 · tropical_fish: pez 1 ·
+pufferfish: escama 0-1 · squid: tinta 1-2 · glow_squid: tinta 1-2 ·
+axolotl: nada · dolphin: pez 0-1 · nautilus: escama 1.
 
-**Lote 5** — nautilus_zombi: escama 0-1 + carne_podrida 0-1 · lobo: nada ·
-cabra: cuero 0-1 · panda: nada · oso_polar: pez 0-1 + carne 0-1 ·
-golem_hierro: lingote_hierro 1-2 · llama: cuero 0-1 · enderman: perla 0-1
-(50 %) · zombi: carne_podrida 0-2 + zanahoria 1 (5 %) + patata 1 (5 %).
+**Lote 5** — zombie_nautilus: escama 0-1 + carne_podrida 0-1 · wolf: nada ·
+goat: cuero 0-1 · panda: nada · polar_bear: pez 0-1 + carne 0-1 ·
+iron_golem: lingote_hierro 1-2 · llama: cuero 0-1 · enderman: perla 0-1
+(50 %) · zombie: carne_podrida 0-2 + zanahoria 1 (5 %) + patata 1 (5 %).
 
-**Lote 6** — esqueleto: hueso 0-2 · creeper: pólvora 0-2 · arana: hilo 0-2
-· arana_cueva: hilo 0-2 · ahogado: carne_podrida 0-2 + zanahoria 1 (5 %) +
+**Lote 6** — skeleton: hueso 0-2 · creeper: pólvora 0-2 · spider: hilo 0-2
+· cave_spider: hilo 0-2 · drowned: carne_podrida 0-2 + zanahoria 1 (5 %) +
 patata 1 (5 %) · husk: carne_podrida 0-2 + zanahoria 1 (5 %) + patata 1
 (5 %) · stray: hueso 0-2 · parched: hueso 0-2 · bogged: hueso 0-2.
 
-**Lote 7** — zombi_aldeano: carne_podrida 0-2 · bruja: pólvora 0-2 + PALO
-0-2 · saqueador: nada · vindicador: nada · evocador: perla 0-1 (25 %) ·
-ravager: cuero 1-2 · slime: bola_slime 0-2 · lepisma: nada ·
-fantasma: membrana 0-1.
+**Lote 7** — zombie_villager: carne_podrida 0-2 · witch: pólvora 0-2 + PALO
+0-2 · pillager: nada · vindicator: nada · evoker: perla 0-1 (25 %) ·
+ravager: cuero 1-2 · slime: bola_slime 0-2 · silverfish: nada ·
+ghast: membrana 0-1.
 
 **Lote 8** — vex: membrana 0-1 · creaking: PALE_LOG 0-1 · breeze: pólvora
 0-2 · warden: perla 0-1 · guardian: escama 0-2 + pez 0-1.
@@ -167,7 +167,7 @@ fases (bloques/atlas → items/recetas → mecánica + botín → verificación)
     zanahorias 2-3 · patatas 1-3); inmaduro → solo la unidad replantable.
     Romper tierra labrada suelta tierra.
 *   **Fuentes iniciales**: la hierba alta suelta semillas de trigo (40 %);
-    zanahoria y patata salen del botín raro de zombi/husk/ahogado (5 %) y
+    zanahoria y patata salen del botín raro de zombie/husk/drowned (5 %) y
     de las granjas de las aldeas (ver [05-aldeas.md](05-aldeas.md)).
 
 ## Pendientes del análisis — estado

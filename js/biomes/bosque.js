@@ -40,11 +40,11 @@ export default {
 
     // --- Habitantes (fila «bosque» de la tabla del plan) ---
     mobs: {
-        day: ['gallina', 'conejo', 'zorro', 'abeja', 'allay'],
+        day: ['chicken', 'rabbit', 'fox', 'bee', 'allay'],
         night: [
-            'zombi', 'esqueleto', 'creeper', 'arana', 'vindicador', 'evocador',
-            'vex', 'zombi_aldeano', 'fantasma',
+            'zombie', 'skeleton', 'creeper', 'spider', 'vindicator', 'evoker',
+            'vex', 'zombie_villager', 'ghast',
         ],
-        water: ['salmon', 'calamar'],
+        water: ['salmon', 'squid'],
     },
 };

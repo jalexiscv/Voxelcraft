@@ -3,8 +3,8 @@
  * (glow). Sin piernas: cabeza grande sobre un cuerpecito que se afina hacia
  * abajo (el afinado se pinta como sombreado en las filas inferiores) y dos
  * alas traseras en aleteo continuo flapL/flapR (ver model.js para el formato
- * de las partes y el desplegado UV; cerdo.js es el ejemplo canónico del
- * contrato; gallina.js, la referencia de alas).
+ * de las partes y el desplegado UV; pig.js es el ejemplo canónico del
+ * contrato; chicken.js, la referencia de alas).
  *
  * Distribución de la piel 64×64:
  *   (0,0)   cabeza 5×5×5 → 20×10
@@ -77,5 +77,14 @@ export default {
         ],
         hurt: [{ f: 1150, b: 0.75, d: 0.12, w: 'sine', v: 0.3 }],
         death: [{ f: 880, b: 0.35, d: 0.5, w: 'sine', v: 0.26 }],
+    },
+
+    /** Voces del árbol de sonidos (prefijos bajo sounds/, ver soundpack.js). */
+    sonidos: {
+        // idle casa las 8 variantes idle_with_item/idle_without_item a la vez
+        // (dos prefijos separados harían que el segundo nunca sonara).
+        say: ['mob/allay/idle'],
+        hurt: ['mob/allay/hurt'],
+        death: ['mob/allay/death'],
     },
 };

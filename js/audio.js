@@ -4,9 +4,11 @@
  * - Música: acordes generativos suaves sobre una escala pentatónica.
  * - Eventos: catálogo declarativo EVENTOS (id -> receta sintetizada) con
  *   `evento(nombre)` como punto de entrada único.
- * - Pack local opcional (js/soundpack.js): si el usuario coloca sus propios
- *   mp3 en sounds/ siguiendo la convención de nombres, se reproducen en
- *   lugar de la síntesis; si faltan, todo suena sintetizado como siempre.
+ * - Pack local opcional (js/soundpack.js): prioridad de resolución en cada
+ *   punto con sonido: árbol del pack (sounds/manifest.json, rutas estilo
+ *   Bedrock como step/grass3.mp3 o random/explode2.mp3) -> convención plana
+ *   (grass1.mp3, evento.<nombre>.mp3) -> síntesis. La síntesis es el
+ *   respaldo permanente: sin pack todo suena como siempre.
  *
  * El AudioContext se crea perezosamente en el primer gesto del usuario
  * (requisito de los navegadores).
@@ -121,7 +123,71 @@ export const EVENTOS = {
         s.tone(1346, 1.6, 0.08, 'sine');
         s.tone(1960, 1.1, 0.05, 'sine');
     },
+    /** Cristal que se hace añicos (romper GLASS o WINDOW). */
+    cristal: (s) => {
+        s.burst(3400, 0.7, 0.18, 0.16);
+        s.burst(5200, 0.9, 0.12, 0.12, 0.03);
+        s.burst(2300, 1.3, 0.09, 0.20, 0.06);
+    },
+    /** Flecha que se clava en un bloque: golpe seco de la punta. */
+    flecha_clavada: (s) => {
+        s.burst(2600, 1.8, 0.14, 0.05);
+        s.tone(320, 0.08, 0.09, 'triangle', 0.01);
+    },
 };
+
+/**
+ * Evento del catálogo -> prefijo del árbol del pack (sounds/manifest.json).
+ * variantesArbol(prefijo) elige entre las rutas que empiezan por él, así que
+ * cada prefijo se eligió contra el manifest real para casar EXACTAMENTE la
+ * familia deseada (p. ej. `random/bow.` con punto: sin él arrastraría
+ * bowhit1..4). Los eventos sin entrada aquí (fundir, labrar, sembrar,
+ * campana) no tienen archivo en el árbol y siguen 100 % sintetizados.
+ * Se exporta para que la verificación contraste las rutas con el manifest.
+ */
+export const EVENTO_ARBOL = {
+    click: 'random/click',               // random/click.mp3
+    fuse: 'random/fuse',                 // random/fuse.mp3
+    explosion: 'random/explode',         // random/explode1..4.mp3
+    arrow: 'random/bow.',                // random/bow.mp3 (el punto excluye bowhit)
+    splash: 'random/splash',             // random/splash.mp3
+    comer: 'random/eat',                 // random/eat1..3.mp3
+    puerta_abrir: 'random/door_open',    // random/door_open.mp3
+    puerta_cerrar: 'random/door_close',  // random/door_close.mp3
+    cofre_abrir: 'random/chestopen',     // random/chestopen.mp3
+    cofre_cerrar: 'random/chestclosed',  // random/chestclosed.mp3
+    // damage/hit1..3 gana a random/hurt: 3 variantes contra 1 y es la familia
+    // que el propio pack Bedrock asigna al daño del jugador
+    player_hurt: 'damage/hit',
+    cosechar: 'random/pop',              // random/pop.mp3 y pop2.mp3
+    cristal: 'random/glass',             // random/glass1..3.mp3
+    flecha_clavada: 'random/bowhit',     // random/bowhit1..4.mp3
+};
+
+/**
+ * Voz de mob desde el árbol SIN await (ruta caliente): mismo criterio que
+ * pack.resolverVozMob — primero los `prefijos` del campo `sonidos` de la def
+ * (en orden, se planta en el PRIMERO con rutas en el manifest), después
+ * carpeta = alias de CARPETA_MOB o el propio id plantándose en el PRIMER
+ * candidato de VOCES[kind] con rutas — pero síncrono: si ninguna variante
+ * está cargada aún devuelve null (el sondeo queda lanzado) y el llamador cae
+ * a la convención plana o sintetiza.
+ */
+function vozArbol(mobId, kind, prefijos = null) {
+    // 1) prefijos propios del mob (def.sonidos), probados en orden
+    if (Array.isArray(prefijos)) {
+        for (const prefijo of prefijos) {
+            if (pack.rutasArbol(prefijo).length) return pack.variantesArbol(prefijo);
+        }
+    }
+    // 2) candidatos genéricos de la tabla VOCES bajo la carpeta del mob
+    const carpeta = pack.CARPETA_MOB[mobId] || mobId;
+    for (const candidato of pack.VOCES[kind] || [kind]) {
+        const prefijo = `mob/${carpeta}/${candidato}`;
+        if (pack.rutasArbol(prefijo).length) return pack.variantesArbol(prefijo);
+    }
+    return null;
+}
 
 export class SoundEngine {
     constructor() {
@@ -218,6 +284,10 @@ export class SoundEngine {
     step(material) {
         const m = MATERIALS[material];
         if (!m) return;
+        // 1) árbol del pack: step/<material>1..n del manifest
+        const arbol = pack.variantesArbol('step/' + material);
+        if (arbol) { this.playBuffer(arbol, 0.45, 0.95 + Math.random() * 0.1); return; }
+        // 2) convención plana: <material>1..4
         const buf = this.packMaterial(material);
         if (buf) { this.playBuffer(buf, 0.45, 0.95 + Math.random() * 0.1); return; }
         this.burst(m.freq * (0.9 + Math.random() * 0.2), m.q, m.vol * 0.7, m.dur);
@@ -226,6 +296,10 @@ export class SoundEngine {
     dig(material) {
         const m = MATERIALS[material];
         if (!m) return;
+        // 1) árbol del pack: dig/<material>1..n del manifest
+        const arbol = pack.variantesArbol('dig/' + material);
+        if (arbol) { this.playBuffer(arbol, 0.9, 0.9 + Math.random() * 0.2); return; }
+        // 2) convención plana: <material>1..4
         const buf = this.packMaterial(material);
         if (buf) { this.playBuffer(buf, 0.9, 0.9 + Math.random() * 0.2); return; }
         this.burst(m.freq * 0.7, m.q, m.vol, m.dur * 1.6);
@@ -234,6 +308,10 @@ export class SoundEngine {
 
     place(material) {
         const fam = MATERIALS[material] ? material : 'stone';
+        // 1) árbol del pack: colocar comparte la familia dig/<material>
+        const arbol = pack.variantesArbol('dig/' + fam);
+        if (arbol) { this.playBuffer(arbol, 0.75); return; }
+        // 2) convención plana: <material>1..4
         const buf = this.packMaterial(fam);
         if (buf) { this.playBuffer(buf, 0.75); return; }
         const m = MATERIALS[fam];
@@ -264,13 +342,20 @@ export class SoundEngine {
     /**
      * Voz de un mob: lista de entradas de tono {f, b, d, v, w, at} o de ruido
      * {noise:true, f, q, d, v, at}. `gain` atenúa por distancia (0..1).
-     * `mobId` y `kind` son opcionales: si llegan y el pack local tiene
-     * mob.<id>.<kind> (el kind `say` del contrato equivale a `idle` en el
-     * pack), se reproduce ese archivo; si no, se sintetizan las entradas.
+     * `mobId` y `kind` son opcionales: si llegan se intenta primero el árbol
+     * del pack (mob/<carpeta>/<candidato>*, ver vozArbol), después la
+     * convención plana mob.<id>.<kind> (el kind `say` del contrato equivale
+     * a `idle` en el pack) y, si nada está disponible, se sintetizan las
+     * entradas. `prefijos` (opcional, del campo `sonidos` de la def) se
+     * propaga a la resolución del árbol y gana a los candidatos genéricos.
      */
-    mobSay(entries, gain = 1, mobId = null, kind = null) {
+    mobSay(entries, gain = 1, mobId = null, kind = null, prefijos = null) {
         if (!this.ctx) return;
         if (mobId && kind && gain > 0.002) {
+            // 1) árbol del pack (manifest), con los prefijos del mob primero
+            const arbol = vozArbol(mobId, kind, prefijos);
+            if (arbol) { this.playBuffer(arbol, gain); return; }
+            // 2) convención plana
             const k = kind === 'say' ? 'idle' : kind;
             const base = `mob.${mobId}.${k}`;
             const buf = pack.obtener(base) || pack.variantes(base, 4);
@@ -286,17 +371,48 @@ export class SoundEngine {
     }
 
     /**
-     * Punto de entrada único de los eventos del catálogo: intenta primero
-     * sounds/evento.<nombre>.mp3 del pack local y, si no está disponible
-     * (no existe o aún se está sondeando), sintetiza la receta de EVENTOS.
-     * Nunca hay await en esta ruta: ni silencio ni latencia.
+     * Punto de entrada único de los eventos del catálogo, por prioridad:
+     * 1) árbol del pack (EVENTO_ARBOL[nombre] contra el manifest),
+     * 2) convención plana sounds/evento.<nombre>.mp3,
+     * 3) receta sintetizada de EVENTOS (respaldo permanente).
+     * `vol` atenúa la reproducción del pack (p. ej. por distancia); la
+     * síntesis conserva sus volúmenes de receta. Nunca hay await en esta
+     * ruta: ni silencio ni latencia.
      */
-    evento(nombre) {
+    evento(nombre, vol = 1) {
         if (!this.ctx) return;
+        const prefijo = EVENTO_ARBOL[nombre];
+        if (prefijo) {
+            const arbol = pack.variantesArbol(prefijo);
+            if (arbol) { this.playBuffer(arbol, vol); return; }
+        }
         const buf = pack.obtener('evento.' + nombre);
-        if (buf) { this.playBuffer(buf); return; }
+        if (buf) { this.playBuffer(buf, vol); return; }
         const receta = EVENTOS[nombre];
         if (receta) receta(this);
+    }
+
+    /* ---- Ambientales del pack (sin síntesis: sutiles y opcionales) ---- */
+
+    /**
+     * Susurro lejano de cueva (cave/cave1..23 del árbol). Solo suena si el
+     * pack local lo trae: un ambiente que falta no se sintetiza (silencio).
+     */
+    ambienteCueva() {
+        if (!this.ctx) return;
+        const buf = pack.variantesArbol('cave/');
+        if (buf) this.playBuffer(buf, 0.25);
+    }
+
+    /**
+     * La cámara entra (o sale) del agua: ambient/underwater/enter1..3 y
+     * exit1..3 del árbol, a volumen bajo (se suma al splash del chapuzón).
+     */
+    ambienteAgua(entra) {
+        if (!this.ctx) return;
+        const buf = pack.variantesArbol(entra
+            ? 'ambient/underwater/enter' : 'ambient/underwater/exit');
+        if (buf) this.playBuffer(buf, 0.3);
     }
 
     /** Siseo de la mecha del creeper. */

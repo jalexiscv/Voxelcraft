@@ -85,4 +85,11 @@ export default {
             { noise: true, f: 200, q: 1, d: 0.4, v: 0.12, at: 0.35 },
         ],
     },
+
+    /** Voces reales del pack local (mob/endermen): idle=ambiente, hit=daño. */
+    sonidos: {
+        say: ['mob/endermen/idle'],
+        hurt: ['mob/endermen/hit'],
+        death: ['mob/endermen/death'],
+    },
 };

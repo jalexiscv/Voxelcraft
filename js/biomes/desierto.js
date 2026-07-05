@@ -36,10 +36,10 @@ export default {
 
     // --- Habitantes (fila «desierto» de la tabla del plan) ---
     mobs: {
-        day: ['camello', 'armadillo', 'conejo', 'comerciante', 'aldeano'],
+        day: ['camel', 'armadillo', 'rabbit', 'wandering_trader', 'villager'],
         night: [
-            'husk', 'parched', 'esqueleto', 'arana', 'camello_husk',
-            'enderman', 'fantasma', 'zombi_aldeano',
+            'husk', 'parched', 'skeleton', 'spider', 'camel_husk',
+            'enderman', 'ghast', 'zombie_villager',
         ],
         water: [],
     },

@@ -143,4 +143,11 @@ export default {
             { noise: true, f: 300, q: 0.8, d: 0.25, v: 0.08, at: 0.36 },
         ],
     },
+
+    // Voces del pack: cada prefijo abarca también las tomas *_land (misma vocalización en seco).
+    sonidos: {
+        say: ['mob/nautilus/ambient'],
+        hurt: ['mob/nautilus/hurt'],
+        death: ['mob/nautilus/death'],
+    },
 };

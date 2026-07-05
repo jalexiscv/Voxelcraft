@@ -1,8 +1,8 @@
 /**
  * Salmón: pez pasivo de ríos y aguas frías (aquatic: nada en el agua y aletea
  * varado, ver mobs.js). Sigue el contrato de definición de mobs (ver model.js
- * para el formato de las partes y el desplegado UV; cerdo.js es el ejemplo
- * canónico del contrato y bacalao.js el pez de referencia).
+ * para el formato de las partes y el desplegado UV; pig.js es el ejemplo
+ * canónico del contrato y cod.js el pez de referencia).
  *
  * Distribución de la piel 64×64:
  *   (0,0)   cuerpo 2×4×9         → 22×13
@@ -98,5 +98,13 @@ export default {
             { noise: true, f: 600, q: 0.55, d: 0.14, v: 0.08, at: 0.12 },
             { noise: true, f: 420, q: 0.5, d: 0.2, v: 0.06, at: 0.26 },
         ],
+    },
+
+    /** Voces del pack local (mob/fish: flop1-4, hurt1-4, swim1-7), igual que cod. */
+    sonidos: {
+        // sin say: los peces no vocalizan (flop/swim son movimiento, no ambiente)
+        hurt: ['mob/fish/hurt'],
+        // muerte canónica de los peces: reutiliza los hurt (no hay death propio)
+        death: ['mob/fish/hurt'],
     },
 };

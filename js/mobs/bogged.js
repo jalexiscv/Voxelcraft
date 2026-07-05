@@ -125,4 +125,11 @@ export default {
             { noise: true, f: 460, q: 1, d: 0.14, v: 0.14, at: 0.42 },
         ],
     },
+
+    /** Voces reales del pack: say = ambient (traqueteo de hueso musgoso). */
+    sonidos: {
+        say: ['mob/bogged/ambient'],
+        hurt: ['mob/bogged/hurt'],
+        death: ['mob/bogged/death'],
+    },
 };

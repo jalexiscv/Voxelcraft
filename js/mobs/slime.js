@@ -73,4 +73,13 @@ export default {
             { f: 150, b: 0.35, d: 0.28, w: 'triangle', v: 0.22, at: 0.03 },
         ],
     },
+
+    // Sonidos del pack local (prefijos bajo sounds/ sin extensión ni variante).
+    // say/death usan «big» (chapoteo grande: salto ambiente y splat al reventar);
+    // hurt usa «small» (squish corto al recibir daño); «attack» no tiene evento en el contrato.
+    sonidos: {
+        say: ['mob/slime/big'],
+        hurt: ['mob/slime/small'],
+        death: ['mob/slime/big'],
+    },
 };

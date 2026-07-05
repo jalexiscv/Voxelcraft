@@ -135,4 +135,11 @@ export default {
             { noise: true, f: 180, q: 0.7, d: 0.7, v: 0.18, at: 0.2 },
         ],
     },
+
+    /** Voces reales del pack: idle como vocalización ambiente (roar/bite/stun son eventos de combate, no ambiente). */
+    sonidos: {
+        say: ['mob/ravager/idle'],
+        hurt: ['mob/ravager/hurt'],
+        death: ['mob/ravager/death'],
+    },
 };

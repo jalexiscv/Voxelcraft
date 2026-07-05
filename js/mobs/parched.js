@@ -135,4 +135,11 @@ export default {
             { noise: true, f: 700, q: 0.9, d: 0.16, v: 0.14, at: 0.34 },
         ],
     },
+
+    // Voces reales del pack: ambient1-4 como say, hurt1-4 y death únicos de la carpeta
+    sonidos: {
+        say: ['mob/parched/ambient'],
+        hurt: ['mob/parched/hurt'],
+        death: ['mob/parched/death'],
+    },
 };

@@ -786,7 +786,7 @@ console.log('== Cultivos ==');
 
     // botín de no-muertos: la hortaliza rara que arranca la agricultura
     const { validate } = await import(new URL('./validate-mob.mjs', import.meta.url).href);
-    for (const id of ['zombi', 'husk', 'ahogado']) {
+    for (const id of ['zombie', 'husk', 'drowned']) {
         const def = (await import(base + `mobs/${id}.js`)).default;
         const { errors } = validate(def, id);
         check(`contrato válido tras el botín nuevo: ${id}${errors.length ? ` → ${errors[0]}` : ''}`,
@@ -828,20 +828,59 @@ console.log('== Sonidos ==');
     pack.init({});
     await pack.resolver('evento.campana');
     await Promise.all([1, 2, 3, 4].map((i) => pack.resolver('stone' + i)));
-    pack.variantes('mob.zombi.idle', 2);
+    pack.variantes('mob.zombie.idle', 2);
     globalThis.fetch = fetchReal;
+    // init lanza además el sondeo único de sounds/manifest.json (árbol
+    // Bedrock opcional); todo lo demás debe ser audio con extensión aceptada
     check('toda ruta del pack cae bajo sounds/ con extensión aceptada',
         urls.length >= 7 && urls.every((u) => u.startsWith('sounds/') &&
-            (u.endsWith('.mp3') || u.endsWith('.fsb'))));
+            (u.endsWith('.mp3') || u.endsWith('.fsb') || u === 'sounds/manifest.json')));
+    check('init sondea el manifest del árbol UNA sola vez',
+        urls.filter((u) => u === 'sounds/manifest.json').length === 1);
     check('cada id sondea .mp3 primero y .fsb después',
         JSON.stringify(pack.rutasDe('stone1')) ===
             JSON.stringify(['sounds/stone1.mp3', 'sounds/stone1.fsb']) &&
         urls.indexOf('sounds/evento.campana.mp3') < urls.indexOf('sounds/evento.campana.fsb'));
     check('la convención cubre evento.<nombre>, familias y voces de mob',
         urls.includes('sounds/evento.campana.mp3') && urls.includes('sounds/stone3.fsb') &&
-        urls.includes('sounds/mob.zombi.idle1.mp3'));
+        urls.includes('sounds/mob.zombie.idle1.mp3'));
     check('el sondeo fallido queda cacheado como null (sin repetir el fetch)',
         pack.obtener('evento.campana') === null && (await pack.resolver('evento.campana')) === null);
+}
+
+/* ==== Voces del árbol: prioridad def.sonidos → tabla genérica VOCES ==== */
+{
+    // instancia FRESCA del módulo (la de arriba ya cacheó «sin manifest»);
+    // el query string fuerza otra entrada en la caché de módulos de Node
+    const pack = await import(base + 'soundpack.js?arbol=prioridad');
+    const MANIFIESTO = ['mob/cow/say1.mp3', 'mob/cow/say2.mp3', 'mob/cow/hurt1.mp3',
+        'mob/gato/meow1.mp3'];
+    const fetchReal = globalThis.fetch;
+    globalThis.fetch = (url) => {
+        const u = String(url);
+        if (u === 'sounds/manifest.json') {
+            return Promise.resolve({ ok: true, json: () => Promise.resolve(MANIFIESTO) });
+        }
+        const ruta = u.slice('sounds/'.length);
+        if (!MANIFIESTO.includes(ruta)) return Promise.resolve({ ok: false });
+        // la ruta viaja en los bytes para saber qué archivo se «decodificó»
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new TextEncoder().encode(ruta).buffer) });
+    };
+    // AudioContext simulado: devuelve la ruta como etiqueta del «buffer»
+    pack.init({ decodeAudioData: async (datos) => ({ ruta: new TextDecoder().decode(datos) }) });
+
+    const propio = await pack.resolverVozMob('cow', 'say', ['mob/gato/meow']);
+    check('def.sonidos gana a la tabla genérica (su prefijo se resuelve primero)',
+        propio !== null && propio.ruta === 'mob/gato/meow1.mp3');
+    const generico = await pack.resolverVozMob('cow', 'say');
+    check('sin def.sonidos la tabla VOCES resuelve bajo mob/<carpeta>/',
+        generico !== null && /^mob\/cow\/say[12]\.mp3$/.test(generico.ruta));
+    const caido = await pack.resolverVozMob('cow', 'hurt', ['mob/no_existe/nada']);
+    check('un prefijo sin rutas en el manifest cae a la tabla genérica',
+        caido !== null && caido.ruta === 'mob/cow/hurt1.mp3');
+    check('sin voz en el árbol devuelve null (cae a convención plana o síntesis)',
+        (await pack.resolverVozMob('cow', 'death')) === null);
+    globalThis.fetch = fetchReal;
 }
 
 /* ==== FSB5: parser puro de bancos FMOD para el pack local ==== */

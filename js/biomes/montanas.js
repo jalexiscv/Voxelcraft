@@ -36,8 +36,8 @@ export default {
 
     // --- Habitantes (fila «montanas» de la tabla del plan) ---
     mobs: {
-        day: ['cabra', 'llama', 'oveja', 'fantasma_feliz'],
-        night: ['stray', 'esqueleto', 'zombi', 'creeper', 'arana', 'fantasma'],
+        day: ['goat', 'llama', 'sheep', 'happy_ghast'],
+        night: ['stray', 'skeleton', 'zombie', 'creeper', 'spider', 'ghast'],
         water: [],
     },
 };

@@ -36,8 +36,8 @@ export default {
 
     // --- Habitantes (fila «nevado» de la tabla del plan) ---
     mobs: {
-        day: ['oso_polar', 'zorro', 'conejo', 'golem_nieve', 'aldeano'],
-        night: ['stray', 'zombi', 'creeper', 'arana', 'fantasma'],
+        day: ['polar_bear', 'fox', 'rabbit', 'snow_golem', 'villager'],
+        night: ['stray', 'zombie', 'creeper', 'spider', 'ghast'],
         water: ['salmon'],
     },
 };

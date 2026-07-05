@@ -3,7 +3,7 @@
  * hiere responde con escupitajos (behavior.neutral + projectile, ver mobs.js).
  * Cuerpo lanudo con manta decorativa a rayas, cuello vertical con cabeza
  * alargada y orejas "plátano" (ver model.js para el formato de las partes y
- * el desplegado UV; cerdo.js es el ejemplo canónico del contrato).
+ * el desplegado UV; pig.js es el ejemplo canónico del contrato).
  *
  * Distribución de la piel 64×64:
  *   (0,0)   cuerpo 10×10×16 → 52×26
@@ -101,5 +101,12 @@ export default {
         say: [{ f: 300, b: 0.75, d: 0.4, w: 'sawtooth', v: 0.22 }],
         hurt: [{ f: 430, b: 0.8, d: 0.22, w: 'sawtooth', v: 0.28 }],
         death: [{ f: 330, b: 0.4, d: 0.6, w: 'sawtooth', v: 0.28 }],
+    },
+
+    // Voces reales del pack local (idle1-5, hurt1-3, death1-2 en mob/llama/)
+    sonidos: {
+        say: ['mob/llama/idle'],
+        hurt: ['mob/llama/hurt'],
+        death: ['mob/llama/death'],
     },
 };

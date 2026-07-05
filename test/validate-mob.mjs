@@ -1,6 +1,6 @@
 /**
  * Validador del contrato de definición de mobs (ver js/mobs/model.js).
- * Uso: node test/validate-mob.mjs <id> [<id>...]   (p. ej. cerdo)
+ * Uso: node test/validate-mob.mjs <id> [<id>...]   (p. ej. pig)
  *
  * Comprueba campos obligatorios, partes bien formadas, desplegados UV dentro
  * de la piel y sin solapes, y que paint() sea determinista y cubra de color
@@ -46,6 +46,25 @@ export function validate(def, expectedId) {
         if (!Array.isArray(entries) || entries.length === 0) { err(`voice.${kind} debe ser un array no vacío`); continue; }
         for (const e of entries) {
             if (!(e.f > 0) || !(e.d > 0)) err(`voice.${kind}: cada entrada requiere f>0 y d>0`);
+        }
+    }
+
+    /* ---- Sonidos del pack (opcional): prefijos del árbol bajo sounds/ ---- */
+    if (def.sonidos !== undefined) {
+        if (!def.sonidos || typeof def.sonidos !== 'object' || Array.isArray(def.sonidos)) {
+            err('sonidos debe ser un objeto {say|hurt|death: [prefijos]}');
+        } else {
+            for (const [kind, prefijos] of Object.entries(def.sonidos)) {
+                if (!SOUND_KINDS.includes(kind)) { err(`sonidos.${kind}: clave desconocida (${SOUND_KINDS.join('|')})`); continue; }
+                if (!Array.isArray(prefijos) || prefijos.length === 0) { err(`sonidos.${kind} debe ser un array no vacío de prefijos`); continue; }
+                for (const p of prefijos) {
+                    // ruta relativa en minúsculas, sin barra inicial y sin extensión
+                    if (typeof p !== 'string' || !/^[a-z0-9_/.]+$/.test(p)
+                        || p.startsWith('/') || /\.(mp3|ogg|wav|fsb)$/.test(p)) {
+                        err(`sonidos.${kind}: prefijo "${p}" inválido (ruta relativa en minúsculas, sin extensión ni barra inicial)`);
+                    }
+                }
+            }
         }
     }
     if (errors.length) return { errors, warnings }; // sin base válida no seguimos

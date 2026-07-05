@@ -35,13 +35,13 @@ export default {
     // --- Habitantes (fila «sabana» de la tabla del plan) ---
     mobs: {
         day: [
-            'caballo', 'burro', 'vaca', 'gallina', 'armadillo', 'llama',
-            'aldeano',
+            'horse', 'donkey', 'cow', 'chicken', 'armadillo', 'llama',
+            'villager',
         ],
         night: [
-            'zombi', 'esqueleto', 'creeper', 'arana', 'saqueador', 'ravager',
-            'enderman', 'fantasma',
+            'zombie', 'skeleton', 'creeper', 'spider', 'pillager', 'ravager',
+            'enderman', 'ghast',
         ],
-        water: ['bacalao'],
+        water: ['cod'],
     },
 };

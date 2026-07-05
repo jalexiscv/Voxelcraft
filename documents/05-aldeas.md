@@ -55,8 +55,8 @@ decide **por celda**, no por chunk de origen.
 5.  **Aplanado por parcela**: cada edificio nivela su parcela a la altura de
     su ancla (relleno de tierra por debajo, corte por encima) antes de
     estampar el plano.
-6.  **Habitantes**: los biomas de aldea ya listan `aldeano` y
-    `golem_hierro` en sus tablas diurnas; fase 2: sesgo de aparición hacia
+6.  **Habitantes**: los biomas de aldea ya listan `villager` e
+    `iron_golem` en sus tablas diurnas; fase 2: sesgo de aparición hacia
     el pozo más cercano y variante abandonada (2 %: zombis aldeanos, sin
     antorchas).
 

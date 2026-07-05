@@ -2,8 +2,8 @@
  * Vex: espectro diminuto hostil. Vuela (flying, sin gravedad) batiendo las
  * alas en flapL/flapR y embiste con una espadita en el brazo derecho, que va
  * extendido al frente en pose estática (en este motor el frente es −Z y
- * exige rot X POSITIVA, ver model.js; cerdo.js es el ejemplo canónico del
- * contrato y esqueleto.js el del arma delante del brazo).
+ * exige rot X POSITIVA, ver model.js; pig.js es el ejemplo canónico del
+ * contrato y skeleton.js el del arma delante del brazo).
  *
  * Distribución de la piel 64×64:
  *   (0,0)   cabeza 5×5×5  → 20×10
@@ -108,5 +108,12 @@ export default {
             { f: 1100, b: 0.45, d: 0.2, w: 'square', v: 0.24 },
             { f: 750, b: 0.3, d: 0.3, w: 'square', v: 0.2, at: 0.16 },
         ],
+    },
+
+    // Voces reales del pack; charge (embestida) no tiene evento en el contrato
+    sonidos: {
+        say: ['mob/vex/idle'],
+        hurt: ['mob/vex/hurt'],
+        death: ['mob/vex/death'],
     },
 };

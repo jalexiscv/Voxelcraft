@@ -95,4 +95,11 @@ export default {
             { f: 200, b: 0.35, d: 0.6, w: 'sine', v: 0.2, at: 0.08 },
         ],
     },
+
+    /** Voces del pack local: resoplidos de ambiente, quejido y muerte. */
+    sonidos: {
+        say: ['mob/panda/idle'],
+        hurt: ['mob/panda/hurt'],
+        death: ['mob/panda/death'],
+    },
 };

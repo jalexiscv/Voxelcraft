@@ -11,8 +11,8 @@ import { Skin } from '../js/mobs/skin.js';
 import { MobSystem, Mob } from '../js/mobs.js';
 import { mat4RotateZ } from '../js/math.js';
 import { validate } from './validate-mob.mjs';
-import cerdo from '../js/mobs/cerdo.js';
-import conejo from '../js/mobs/conejo.js';
+import pig from '../js/mobs/pig.js';
+import rabbit from '../js/mobs/rabbit.js';
 
 let ok = 0, fail = 0;
 const check = (name, cond) => {
@@ -63,7 +63,7 @@ const farCtx = (day = 1) => ({ pos: [30, 11, 30], eye: [30, 12.6, 30], day });
 /* ==== Geometría y matemáticas ==== */
 console.log('== Geometría de partes ==');
 {
-    const part = cerdo.parts[0];
+    const part = pig.parts[0];
     const mesh = buildPartMesh(part, 64, 64);
     check('malla de 36 vértices × 6 floats', mesh.length === 216);
     let uvOk = true, shadeOk = true;
@@ -91,7 +91,7 @@ console.log('== Física de mobs ==');
     const world = new MockWorld();
     const hooks = silentHooks();
     const sys = new MobSystem({}, world, hooks, 7);
-    const m = new Mob(cerdo, 0.5, 15, 0.5);
+    const m = new Mob(pig, 0.5, 15, 0.5);
     sys.mobs.push(m);
     simulate(sys, 2, farCtx());
     check('cae y aterriza sobre la superficie', m.onGround && Math.abs(m.pos[1] - 11) < 0.01);
@@ -111,7 +111,7 @@ console.log('== IA pasiva y daño ==');
     const world = new MockWorld();
     const hooks = silentHooks();
     const sys = new MobSystem({}, world, hooks, 7);
-    const m = new Mob(cerdo, 0.5, 11, 0.5);
+    const m = new Mob(pig, 0.5, 11, 0.5);
     sys.mobs.push(m);
     simulate(sys, 8, farCtx());
     check('alterna idle/deambular sin morirse', !m.dying() && ['idle', 'wander'].includes(m.state));
@@ -217,7 +217,7 @@ console.log('== Puntería y aparición ==');
 {
     const world = new MockWorld();
     const sys = new MobSystem({}, world, silentHooks(), 7);
-    const m = new Mob(cerdo, 5.5, 11, 0.5);
+    const m = new Mob(pig, 5.5, 11, 0.5);
     sys.mobs.push(m);
     const hit = sys.raycastMob([0.5, 11.5, 0.5], [1, 0, 0], 8);
     check('raycastMob alcanza al mob apuntado', hit !== null && hit.mob === m);
@@ -229,14 +229,14 @@ console.log('== Puntería y aparición ==');
     // suelo en y=40 (> nivel del mar): las columnas caen en 'tierra' y el
     // bioma es la llanura, cuyas listas day/night gobiernan la aparición
     const world = new MockWorld(40);
-    const zombi = { ...zombiTest, id: 'zombi' };       // está en llanura.mobs.night
-    const osoPolar = { ...cerdo, id: 'oso_polar' };    // NO está en las listas de llanura
-    const defs = { cerdo, zombi, oso_polar: osoPolar };
+    const zombie = { ...zombiTest, id: 'zombie' };     // está en llanura.mobs.night
+    const osoPolar = { ...pig, id: 'polar_bear' };     // NO está en las listas de llanura
+    const defs = { pig, zombie, polar_bear: osoPolar };
     const dia = new MobSystem(defs, world, silentHooks(), 11);
     simulate(dia, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('de día aparecen mobs y son pasivos', dia.count() > 0 && dia.mobs.every((m) => !m.def.hostile));
-    check('un id fuera de las listas del bioma no aparece (oso_polar)',
-        dia.mobs.every((m) => m.def.id !== 'oso_polar'));
+    check('un id fuera de las listas del bioma no aparece (polar_bear)',
+        dia.mobs.every((m) => m.def.id !== 'polar_bear'));
 
     // la distancia mínima se mide recién aparecidos (antes de que persigan)
     const noche = new MobSystem(defs, world, silentHooks(), 11);
@@ -252,10 +252,10 @@ console.log('== Puntería y aparición ==');
         pacifica.mobs.every((m) => !m.def.hostile));
 
     // las tonalidades (variants) se asignan al aparecer
-    const tonos = new MobSystem({ conejo }, world, silentHooks(), 3);
+    const tonos = new MobSystem({ rabbit }, world, silentHooks(), 3);
     simulate(tonos, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('los conejos aparecen con tonalidad válida (variants)',
-        tonos.count() > 0 && tonos.mobs.every((m) => m.variant >= 0 && m.variant < conejo.variants));
+        tonos.count() > 0 && tonos.mobs.every((m) => m.variant >= 0 && m.variant < rabbit.variants));
 }
 
 /* ==== Comportamientos ampliados ==== */
@@ -293,7 +293,7 @@ class LakeWorld extends MockWorld {
     // volador: se sostiene en el aire sin caer
     const world = new MockWorld();
     const sys = new MobSystem({}, world, silentHooks(), 7);
-    const ave = new Mob({ ...cerdo, id: 'ave_test', flying: true, speed: 2 }, 0.5, 12, 0.5);
+    const ave = new Mob({ ...pig, id: 'ave_test', flying: true, speed: 2 }, 0.5, 12, 0.5);
     sys.mobs.push(ave);
     simulate(sys, 6, farCtx());
     check('el volador no cae al suelo', ave.pos[1] > 11.5 && !ave.onGround);
@@ -302,14 +302,14 @@ class LakeWorld extends MockWorld {
     // acuático: nada dentro del lago sin salir del agua
     const world = new LakeWorld();
     const sys = new MobSystem({}, world, silentHooks(), 7);
-    const pez = new Mob({ ...cerdo, id: 'pez_test', aquatic: true, speed: 1.6, aabb: { w: 0.5, h: 0.4 } }, 0.5, 8, 0.5);
+    const pez = new Mob({ ...pig, id: 'pez_test', aquatic: true, speed: 1.6, aabb: { w: 0.5, h: 0.4 } }, 0.5, 8, 0.5);
     sys.mobs.push(pez);
     simulate(sys, 6, { pos: [30, 11, 30], eye: [30, 12.6, 30], day: 1 });
     check('el pez se mantiene en el agua', pez.pos[1] > 5.5 && pez.pos[1] < 11.5 && !pez.dying());
 
     // varado en tierra firme: aletea sin caminar
     const seco = new MobSystem({}, new MockWorld(), silentHooks(), 7);
-    const varado = new Mob({ ...cerdo, id: 'pez_test', aquatic: true, speed: 1.6, aabb: { w: 0.5, h: 0.4 } }, 0.5, 11, 0.5);
+    const varado = new Mob({ ...pig, id: 'pez_test', aquatic: true, speed: 1.6, aabb: { w: 0.5, h: 0.4 } }, 0.5, 11, 0.5);
     seco.mobs.push(varado);
     simulate(seco, 3, farCtx());
     check('varado no camina (solo aletea)', Math.hypot(varado.pos[0] - 0.5, varado.pos[2] - 0.5) < 3);
@@ -325,7 +325,7 @@ class LakeWorld extends MockWorld {
         sunlit(x, y, z) { return y > 10; }
     }
     const sys = new MobSystem({}, new ShoreWorld(), silentHooks(), 7);
-    const vaquita = new Mob(cerdo, 0.5, 7, -3.5);
+    const vaquita = new Mob(pig, 0.5, 7, -3.5);
     sys.mobs.push(vaquita);
     vaquita.yaw = Math.PI; // camina hacia +Z: la orilla
     for (let t = 0; t < 5; t += DT) {
@@ -339,7 +339,7 @@ class LakeWorld extends MockWorld {
     // locomoción a saltos (conejo/rana/slime)
     const world = new MockWorld();
     const sys = new MobSystem({}, world, silentHooks(), 7);
-    const conejo = new Mob({ ...cerdo, id: 'conejo_test', hop: true, speed: 1.4 }, 0.5, 11, 0.5);
+    const conejo = new Mob({ ...pig, id: 'conejo_test', hop: true, speed: 1.4 }, 0.5, 11, 0.5);
     sys.mobs.push(conejo);
     conejo.yaw = 0; // hacia −Z
     let despegó = false;
@@ -394,13 +394,13 @@ class LakeWorld extends MockWorld {
     // esté en la lista mobs.water del bioma (el bacalao está en llanura)
     const world = new LakeWorld();
     const defs = {
-        bacalao: { ...cerdo, id: 'bacalao', aquatic: true, aabb: { w: 0.5, h: 0.4 }, spawn: { water: true, cap: 6, group: 2 } },
-        cerdo: { ...cerdo, spawn: { cap: 6, group: 2 } },
+        cod: { ...pig, id: 'cod', aquatic: true, aabb: { w: 0.5, h: 0.4 }, spawn: { water: true, cap: 6, group: 2 } },
+        pig: { ...pig, spawn: { cap: 6, group: 2 } },
     };
     const sys = new MobSystem(defs, world, silentHooks(), 13);
     simulate(sys, 40, { pos: [0.5, 11, 0.5], eye: [0.5, 12.62, 0.5], day: 1 });
     check('en el lago aparecen peces (y solo peces)',
-        sys.count() > 0 && sys.mobs.every((m) => m.def.id === 'bacalao'));
+        sys.count() > 0 && sys.mobs.every((m) => m.def.id === 'cod'));
     check('los peces aparecen dentro del agua', sys.mobs.every((m) => m.pos[1] > 5.5 && m.pos[1] < 11.5));
 }
 {
@@ -422,21 +422,21 @@ console.log('== Definiciones de mobs ==');
 {
     const IDS = [
         // pasivos — terrestres
-        'cerdo', 'oveja', 'vaca', 'gallina', 'armadillo', 'camello', 'camello_husk', 'gato',
-        'ocelote', 'zorro', 'caballo', 'burro', 'mooshroom', 'conejo', 'sniffer', 'golem_cobre',
-        'golem_nieve', 'tortuga', 'aldeano', 'comerciante', 'rana', 'cubo_azufre',
+        'pig', 'sheep', 'cow', 'chicken', 'armadillo', 'camel', 'camel_husk', 'cat',
+        'ocelot', 'fox', 'horse', 'donkey', 'mooshroom', 'rabbit', 'sniffer', 'copper_golem',
+        'snow_golem', 'turtle', 'villager', 'wandering_trader', 'frog', 'sulfur_cube',
         // pasivos — voladores
-        'allay', 'murcielago', 'loro', 'fantasma_feliz',
+        'allay', 'bat', 'parrot', 'happy_ghast',
         // pasivos — acuáticos
-        'bacalao', 'salmon', 'pez_tropical', 'calamar', 'calamar_brillante', 'ajolote',
+        'cod', 'salmon', 'tropical_fish', 'squid', 'glow_squid', 'axolotl',
         // neutrales — terrestres
-        'lobo', 'cabra', 'panda', 'oso_polar', 'golem_hierro', 'llama', 'enderman',
+        'wolf', 'goat', 'panda', 'polar_bear', 'iron_golem', 'llama', 'enderman',
         // neutrales — voladores y acuáticos
-        'abeja', 'pez_globo', 'delfin', 'nautilus',
+        'bee', 'pufferfish', 'dolphin', 'nautilus',
         // hostiles
-        'zombi', 'esqueleto', 'creeper', 'arana', 'arana_cueva', 'ahogado', 'nautilus_zombi',
-        'husk', 'stray', 'parched', 'bogged', 'zombi_aldeano', 'bruja', 'saqueador', 'vindicador',
-        'evocador', 'ravager', 'slime', 'lepisma', 'fantasma', 'vex', 'creaking', 'breeze',
+        'zombie', 'skeleton', 'creeper', 'spider', 'cave_spider', 'drowned', 'zombie_nautilus',
+        'husk', 'stray', 'parched', 'bogged', 'zombie_villager', 'witch', 'pillager', 'vindicator',
+        'evoker', 'ravager', 'slime', 'silverfish', 'ghast', 'vex', 'creaking', 'breeze',
         'warden', 'guardian',
     ];
     const presentes = IDS.filter((id) => existsSync(new URL(`../js/mobs/${id}.js`, import.meta.url)));
@@ -453,6 +453,36 @@ console.log('== Definiciones de mobs ==');
             def.parts.forEach((p) => anims.add(p.anim || 'none'));
         }
         check('el elenco usa animaciones variadas (≥5 tipos)', anims.size >= 5 && [...anims].every((a) => ANIMS.includes(a)));
+    }
+
+    // Campo `sonidos` (pack local opcional, contrato en documents/02-mobs.md):
+    // todo prefijo es ruta bajo mob/ en minúsculas, sin extensión, sin barra
+    // inicial y sin número de variante (la variante la elige el manifest).
+    {
+        const KINDS = ['say', 'hurt', 'death'];
+        let defsCon = 0, prefijosTotal = 0;
+        const malos = [];
+        for (const id of presentes) {
+            const def = (await import(`../js/mobs/${id}.js`)).default;
+            if (def.sonidos === undefined) continue;
+            defsCon++;
+            for (const [kind, prefijos] of Object.entries(def.sonidos)) {
+                if (!KINDS.includes(kind) || !Array.isArray(prefijos) || prefijos.length === 0) {
+                    malos.push(`${id}.${kind}`);
+                    continue;
+                }
+                for (const p of prefijos) {
+                    prefijosTotal++;
+                    if (typeof p !== 'string' || !/^mob\/[a-z0-9_/.]+$/.test(p)
+                        || /\.(mp3|ogg|wav|fsb)$/.test(p) || /[0-9]$/.test(p)) {
+                        malos.push(`${id}.${kind}: "${p}"`);
+                    }
+                }
+            }
+        }
+        check(`las 68 defs traen campo sonidos (${defsCon}/68)`, defsCon === 68);
+        check(`todo prefijo de sonidos tiene formato válido (${prefijosTotal} prefijos)${malos.length ? ` → ${malos[0]}` : ''}`,
+            prefijosTotal > 0 && malos.length === 0);
     }
 }
 

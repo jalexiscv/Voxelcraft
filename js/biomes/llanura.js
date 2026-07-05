@@ -35,14 +35,14 @@ export default {
     // --- Habitantes (fila «llanura» de la tabla del plan) ---
     mobs: {
         day: [
-            'cerdo', 'oveja', 'vaca', 'gallina', 'caballo', 'burro', 'conejo',
-            'aldeano', 'comerciante', 'abeja', 'gato', 'golem_hierro',
-            'golem_cobre', 'fantasma_feliz', 'sniffer',
+            'pig', 'sheep', 'cow', 'chicken', 'horse', 'donkey', 'rabbit',
+            'villager', 'wandering_trader', 'bee', 'cat', 'iron_golem',
+            'copper_golem', 'happy_ghast', 'sniffer',
         ],
         night: [
-            'zombi', 'esqueleto', 'creeper', 'arana', 'bruja', 'zombi_aldeano',
-            'saqueador', 'ravager', 'enderman', 'fantasma',
+            'zombie', 'skeleton', 'creeper', 'spider', 'witch', 'zombie_villager',
+            'pillager', 'ravager', 'enderman', 'ghast',
         ],
-        water: ['bacalao', 'salmon', 'calamar', 'ajolote'],
+        water: ['cod', 'salmon', 'squid', 'axolotl'],
     },
 };

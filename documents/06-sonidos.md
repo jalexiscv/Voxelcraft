@@ -72,27 +72,120 @@ contrato `voice`), `hurt` (al recibir daño) y `death` (al morir) — con
 variante única o numerada 1..4:
 
 ```
-mob.zombi.idle.mp3            (o mob.zombi.idle1.mp3 .. mob.zombi.idle4.mp3)
-mob.zombi.hurt.mp3
-mob.zombi.death.mp3
+mob.zombie.idle.mp3            (o mob.zombie.idle1.mp3 .. mob.zombie.idle4.mp3)
+mob.zombie.hurt.mp3
+mob.zombie.death.mp3
 ```
 
 Los 68 ids válidos (los de `js/mobs/registry.js`):
 
-**Pasivos**: cerdo · oveja · vaca · gallina · armadillo · camello ·
-camello_husk · gato · ocelote · zorro · caballo · burro · mooshroom ·
-conejo · sniffer · golem_cobre · golem_nieve · tortuga · aldeano ·
-comerciante · rana · cubo_azufre · allay · murcielago · loro ·
-fantasma_feliz · bacalao · salmon · pez_tropical · calamar ·
-calamar_brillante · ajolote
+**Pasivos**: pig · sheep · cow · chicken · armadillo · camel ·
+camel_husk · cat · ocelot · fox · horse · donkey · mooshroom ·
+rabbit · sniffer · copper_golem · snow_golem · turtle · villager ·
+wandering_trader · frog · sulfur_cube · allay · bat · parrot ·
+happy_ghast · cod · salmon · tropical_fish · squid ·
+glow_squid · axolotl
 
-**Neutrales**: lobo · cabra · panda · oso_polar · golem_hierro · llama ·
-enderman · abeja · pez_globo · delfin · nautilus
+**Neutrales**: wolf · goat · panda · polar_bear · iron_golem · llama ·
+enderman · bee · pufferfish · dolphin · nautilus
 
-**Hostiles**: zombi · esqueleto · creeper · arana · arana_cueva · ahogado ·
-nautilus_zombi · husk · stray · parched · bogged · zombi_aldeano · bruja ·
-saqueador · vindicador · evocador · ravager · slime · lepisma · fantasma ·
+**Hostiles**: zombie · skeleton · creeper · spider · cave_spider · drowned ·
+zombie_nautilus · husk · stray · parched · bogged · zombie_villager · witch ·
+pillager · vindicator · evoker · ravager · slime · silverfish · ghast ·
 vex · creaking · breeze · warden · guardian
+
+## Árbol Bedrock y manifest
+
+Además de la convención plana de arriba, el motor entiende un pack con
+**árbol de carpetas estilo Bedrock** (`mob/zombie/say1.mp3`,
+`step/grass2.mp3`, `dig/stone3.mp3`…). Como el navegador no puede listar
+directorios, el árbol se describe en `sounds/manifest.json`: un array JSON
+de rutas relativas a `sounds/` (separador `/`, con extensión). Se genera
+con la herramienta local:
+
+```
+node .hermes/tools/generar-manifest.mjs
+```
+
+Ejecútala cada vez que añadas o quites archivos del pack (el manifest,
+como todo `sounds/`, es local y jamás entra al repo). Si el manifest no
+existe (404), el motor sigue en modo clásico sin árbol.
+
+**Orden de resolución** de un sonido: manifest → árbol Bedrock →
+convención plana → sintetizador procedural. Nunca hay silencio: cada
+eslabón que falta cae al siguiente.
+
+API del árbol en `js/soundpack.js` (la API plana sigue intacta):
+
+*   `resolverArbol(ruta)` — ruta exacta del manifest a `AudioBuffer`
+    (mp3 y **ogg** con `decodeAudioData` nativo, fsb con el parser propio).
+*   `variantesArbol(prefijo)` — elige al azar entre las rutas que empiezan
+    por el prefijo (`mob/zombie/say`, `step/grass`); absorbe numeraciones
+    con y sin guion bajo (`say1`, `idle_1`). Sondeo perezoso con la misma
+    caché que la convención plana.
+*   `resolverVozMob(id, kind, prefijos?)` — voz de mob del árbol con esta
+    **prioridad**: primero los `prefijos` del campo `sonidos` de la def
+    (en orden estricto, variante al azar dentro de cada prefijo) y después
+    la tabla genérica de candidatos `VOCES` bajo `mob/<carpeta>/`, por
+    tipo y en orden: `say` → say, idle, ambient, meow, bark, haggle,
+    agitated · `hurt` → hurt, hit, hitt · `death` → death. Devuelve el
+    primer buffer disponible o `null` (y el llamante cae a la convención
+    plana o al sintetizador).
+
+**Alias de carpeta** (`CARPETA_MOB`): cuando el id del mob no coincide con
+la carpeta del árbol (verificados contra el manifest real):
+
+| id | carpeta del árbol |
+|---|---|
+| `enderman` | `mob/endermen` |
+| `iron_golem` | `mob/irongolem` |
+| `snow_golem` | `mob/snowgolem` |
+| `polar_bear` | `mob/polarbear` |
+| `vindicator` | `mob/vindication_illager` |
+| `evoker` | `mob/evocation_illager` |
+| `ocelot` | `mob/cat/ocelot` |
+| `donkey` | `mob/horse/donkey` |
+| `cod` · `salmon` · `tropical_fish` · `pufferfish` | `mob/fish` (genérica) |
+| `cave_spider` | `mob/spider` (reutilizada) |
+
+`ghast` y `wandering_trader` se comprobaron y su carpeta coincide con el
+id: no necesitan alias. Los 68 ids del registro tienen carpeta en el árbol
+(con estos alias), aunque no todas traen los tres tipos de voz; lo que
+falte lo cubre el siguiente eslabón de la cadena.
+
+## El campo `sonidos` de cada def
+
+Las 68 definiciones de `js/mobs/` traen un campo opcional `sonidos` (tras
+`voice`, contrato en [02-mobs.md](02-mobs.md)) que fija sus voces del
+árbol sin depender de la tabla genérica:
+
+```js
+sonidos: { say: ['mob/cat/meow', 'mob/cat/purr'], hurt: ['mob/cat/hitt'] }
+```
+
+*   Cada prefijo es una ruta bajo `sounds/` **sin extensión ni número de
+    variante**; la resolución elige al azar entre las rutas del manifest
+    que empiezan por él. Varios prefijos se prueban **en orden**.
+*   Una clave se **omite** si la carpeta no trae un evento razonable —
+    en el elenco actual: `chicken` y `cat` sin `death`; `snow_golem`,
+    `iron_golem`, `salmon` y `tropical_fish` sin `say` — mejor caer al
+    siguiente eslabón que mapear algo que suene mal.
+*   Puede apuntar a la carpeta de **otra especie** cuando es lo canónico
+    del género (el mooshroom usa las voces de `cow`; los cuatro peces,
+    la genérica `mob/fish`).
+
+**Prioridad de una voz de mob** (cada eslabón que falta cae al
+siguiente, nunca hay silencio):
+
+1.  `def.sonidos` — prefijos propios del mob, en orden.
+2.  Tabla genérica `VOCES` bajo `mob/<carpeta>/` (alias de arriba).
+3.  Convención plana `mob.<id>.<tipo>.mp3`.
+4.  Sintetizador procedural (`def.voice`).
+
+La suite lo verifica: `node test/mobs.mjs` valida el formato de los 203
+prefijos y `node test/smoke.mjs` comprueba con un manifest simulado que
+`def.sonidos` gana a la tabla genérica y que un prefijo sin rutas cae a
+ella.
 
 ## Notas
 

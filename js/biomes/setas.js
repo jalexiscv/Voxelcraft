@@ -38,6 +38,6 @@ export default {
     mobs: {
         day: ['mooshroom'],
         night: [], // sin hostiles: la seña de identidad del bioma
-        water: ['calamar', 'calamar_brillante'],
+        water: ['squid', 'glow_squid'],
     },
 };

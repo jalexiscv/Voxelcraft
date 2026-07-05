@@ -30,20 +30,20 @@ registro (el primero que casa gana; llanura es el comodín final).
 
 | # | Bioma (id) | Selección | Superficie | Árboles/vegetación | Mobs día | Mobs noche | Mobs agua |
 |---|---|---|---|---|---|---|---|
-| 1 | `setas` | tierra, w>0.45 | MYCELIUM/DIRT | setas gigantes no; setas y hierba alta | mooshroom | — (sin hostiles) | calamar, calamar_brillante |
+| 1 | `setas` | tierra, w>0.45 | MYCELIUM/DIRT | setas gigantes no; setas y hierba alta | mooshroom | — (sin hostiles) | squid, glow_squid |
 | 2 | `palido` | tierra, w<−0.45 | GRASS/DIRT | roble pálido (PALE_LOG/PALE_LEAVES) denso; sin flores | — | creaking (solo aquí) | — |
-| 3 | `oceano` | sumergido (h+1≤SEA) | lecho por ruidos (global) | — | — | — | bacalao, salmon, pez_tropical, pez_globo, calamar, calamar_brillante, delfin, nautilus, ahogado, nautilus_zombi, guardian |
-| 4 | `playa` | h≤SEA+1, agua en el anillo | SAND/SAND | — | tortuga, conejo | zombi, esqueleto, ahogado, fantasma | bacalao, pez_tropical, delfin, pez_globo |
-| 5 | `montanas` | h≥42 | GRASS; SNOWY_GRASS si t<−0.3 | conífera rala | cabra, llama, oveja, fantasma_feliz | stray, esqueleto, zombi, creeper, arana, fantasma | — |
-| 6 | `desierto` | t∈[0.15,1], h∈[−1,−0.05] | SAND/SAND | cactus, arbusto seco; sin árboles | camello, armadillo, conejo, comerciante, aldeano | husk, parched, esqueleto, arana, camello_husk, enderman, fantasma, zombi_aldeano | — |
-| 7 | `sabana` | t∈[0.15,1], h∈[−0.05,0.10] | GRASS/DIRT | acacia rala + hierba alta | caballo, burro, vaca, gallina, armadillo, llama, aldeano | zombi, esqueleto, creeper, arana, saqueador, ravager, enderman, fantasma | bacalao |
-| 8 | `jungla` | t∈[0.15,1], h∈[0.10,1] | GRASS/DIRT | jungla alta densa + setas | loro, ocelote, panda, gallina, rana, sniffer, abeja | zombi, esqueleto, creeper, arana, bruja, fantasma | pez_tropical, ajolote, calamar |
-| 9 | `nevado` | t∈[−1,−0.30] | SNOWY_GRASS/DIRT, hielo | conífera muy rala | oso_polar, zorro, conejo, golem_nieve, aldeano | stray, zombi, creeper, arana, fantasma | salmon |
-| 10 | `taiga` | t∈[−0.30,−0.10], h∈[0,1] | PODZOL⇄GRASS/DIRT | conífera densa + setas | lobo, zorro, conejo, gallina, aldeano | zombi, esqueleto, creeper, arana, saqueador, fantasma | salmon |
-| 11 | `cerezos` | t∈[−0.30,−0.10], h∈[−1,0] | GRASS/DIRT | cerezos (copa rosa) + flores | abeja, oveja, cerdo, conejo, caballo | zombi, esqueleto, creeper, arana, fantasma | salmon, ajolote |
-| 12 | `pantano` | t∈[0,0.15], h∈[0.20,1] | GRASS/DIRT | roble bajo + setas; sin flores amarillas | rana, conejo, gallina, gato | slime, bruja, bogged, zombi, ahogado, enderman, fantasma | calamar, pez_globo, ahogado |
-| 13 | `bosque` | t∈[−0.10,0.15], h∈[0.02,1] | GRASS/DIRT | roble denso + flores | gallina, conejo, zorro, abeja, allay | zombi, esqueleto, creeper, arana, vindicador, evocador, vex, zombi_aldeano, fantasma | salmon, calamar |
-| 14 | `llanura` | comodín (tierra) | GRASS/DIRT | roble ralo + flores + hierba alta | cerdo, oveja, vaca, gallina, caballo, burro, conejo, aldeano, comerciante, abeja, gato, golem_hierro, golem_cobre, fantasma_feliz, sniffer | zombi, esqueleto, creeper, arana, bruja, zombi_aldeano, saqueador, ravager, enderman, fantasma | bacalao, salmon, calamar, ajolote |
+| 3 | `oceano` | sumergido (h+1≤SEA) | lecho por ruidos (global) | — | — | — | cod, salmon, tropical_fish, pufferfish, squid, glow_squid, dolphin, nautilus, drowned, zombie_nautilus, guardian |
+| 4 | `playa` | h≤SEA+1, agua en el anillo | SAND/SAND | — | turtle, rabbit | zombie, skeleton, drowned, ghast | cod, tropical_fish, dolphin, pufferfish |
+| 5 | `montanas` | h≥42 | GRASS; SNOWY_GRASS si t<−0.3 | conífera rala | goat, llama, sheep, happy_ghast | stray, skeleton, zombie, creeper, spider, ghast | — |
+| 6 | `desierto` | t∈[0.15,1], h∈[−1,−0.05] | SAND/SAND | cactus, arbusto seco; sin árboles | camel, armadillo, rabbit, wandering_trader, villager | husk, parched, skeleton, spider, camel_husk, enderman, ghast, zombie_villager | — |
+| 7 | `sabana` | t∈[0.15,1], h∈[−0.05,0.10] | GRASS/DIRT | acacia rala + hierba alta | horse, donkey, cow, chicken, armadillo, llama, villager | zombie, skeleton, creeper, spider, pillager, ravager, enderman, ghast | cod |
+| 8 | `jungla` | t∈[0.15,1], h∈[0.10,1] | GRASS/DIRT | jungla alta densa + setas | parrot, ocelot, panda, chicken, frog, sniffer, bee | zombie, skeleton, creeper, spider, witch, ghast | tropical_fish, axolotl, squid |
+| 9 | `nevado` | t∈[−1,−0.30] | SNOWY_GRASS/DIRT, hielo | conífera muy rala | polar_bear, fox, rabbit, snow_golem, villager | stray, zombie, creeper, spider, ghast | salmon |
+| 10 | `taiga` | t∈[−0.30,−0.10], h∈[0,1] | PODZOL⇄GRASS/DIRT | conífera densa + setas | wolf, fox, rabbit, chicken, villager | zombie, skeleton, creeper, spider, pillager, ghast | salmon |
+| 11 | `cerezos` | t∈[−0.30,−0.10], h∈[−1,0] | GRASS/DIRT | cerezos (copa rosa) + flores | bee, sheep, pig, rabbit, horse | zombie, skeleton, creeper, spider, ghast | salmon, axolotl |
+| 12 | `pantano` | t∈[0,0.15], h∈[0.20,1] | GRASS/DIRT | roble bajo + setas; sin flores amarillas | frog, rabbit, chicken, cat | slime, witch, bogged, zombie, drowned, enderman, ghast | squid, pufferfish, drowned |
+| 13 | `bosque` | t∈[−0.10,0.15], h∈[0.02,1] | GRASS/DIRT | roble denso + flores | chicken, rabbit, fox, bee, allay | zombie, skeleton, creeper, spider, vindicator, evoker, vex, zombie_villager, ghast | salmon, squid |
+| 14 | `llanura` | comodín (tierra) | GRASS/DIRT | roble ralo + flores + hierba alta | pig, sheep, cow, chicken, horse, donkey, rabbit, villager, wandering_trader, bee, cat, iron_golem, copper_golem, happy_ghast, sniffer | zombie, skeleton, creeper, spider, witch, zombie_villager, pillager, ravager, enderman, ghast | cod, salmon, squid, axolotl |
 
 Los mobs de **cueva** no dependen del bioma (siguen siendo globales por
 `spawn.cave`): murciélago, cubo de azufre, slime, lepisma, araña de cueva,

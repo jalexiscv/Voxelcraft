@@ -37,8 +37,8 @@ export default {
 
     // --- Habitantes (fila «pantano» de la tabla del plan) ---
     mobs: {
-        day: ['rana', 'conejo', 'gallina', 'gato'],
-        night: ['slime', 'bruja', 'bogged', 'zombi', 'ahogado', 'enderman', 'fantasma'],
-        water: ['calamar', 'pez_globo', 'ahogado'],
+        day: ['frog', 'rabbit', 'chicken', 'cat'],
+        night: ['slime', 'witch', 'bogged', 'zombie', 'drowned', 'enderman', 'ghast'],
+        water: ['squid', 'pufferfish', 'drowned'],
     },
 };

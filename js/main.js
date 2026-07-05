@@ -195,7 +195,7 @@ function boot() {
             const gain = clamp(1 - d / 26, 0, 1);
             if (kind === 'fuse') sound.fuse();
             else if (kind === 'shoot') sound.arrow();
-            else sound.mobSay(m.def.voice[kind], gain, m.def.id, kind);
+            else sound.mobSay(m.def.voice[kind], gain, m.def.id, kind, m.def.sonidos && m.def.sonidos[kind]);
         },
         damagePlayer: (dmg, dir) => damagePlayer(dmg, dir),
         explosion: () => sound.explosion(),

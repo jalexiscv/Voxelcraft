@@ -110,4 +110,12 @@ export default {
             { noise: true, f: 150, q: 1.5, d: 0.4, v: 0.14, at: 0.4 }, // astillas al caer
         ],
     },
+
+    /** Voces reales del pack (mob/creaking). */
+    sonidos: {
+        say: ['mob/creaking/idle'],
+        // sin carpeta hurt: sway es el sonido vanilla al recibir un golpe (se mece sin inmutarse)
+        hurt: ['mob/creaking/sway'],
+        death: ['mob/creaking/death'],
+    },
 };

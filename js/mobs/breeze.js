@@ -85,4 +85,12 @@ export default {
             { noise: true, f: 380, q: 0.4, d: 0.6, v: 0.1, at: 0.25 },
         ],
     },
+
+    // Voces reales del pack: el prefijo idle también abarca idle_air (ambas son
+    // vocalizaciones ambiente del breeze, en tierra y en el aire — a propósito).
+    sonidos: {
+        say: ['mob/breeze/idle'],
+        hurt: ['mob/breeze/hurt'],
+        death: ['mob/breeze/death'],
+    },
 };

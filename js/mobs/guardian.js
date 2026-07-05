@@ -3,7 +3,7 @@
  * Es un cubo blindado con un único ojo central que vigila el agua y dispara
  * un rayo adaptado como proyectil (behavior.projectile, ver hostileAI en
  * mobs.js). Sigue el contrato de definición de mobs (ver model.js para el
- * formato de las partes y el desplegado UV; cerdo.js es el ejemplo canónico).
+ * formato de las partes y el desplegado UV; pig.js es el ejemplo canónico).
  *
  * Distribución de la piel 64×64:
  *   (0,0)   cuerpo 12×12×12 → 48×24
@@ -131,5 +131,13 @@ export default {
             { f: 240, b: 0.35, d: 0.5, w: 'sawtooth', v: 0.26 },
             { noise: true, f: 700, q: 1, d: 0.45, v: 0.12, at: 0.1 },
         ],
+    },
+
+    // Voces reales del pack (mob/guardian): variantes del guardián común;
+    // elder_* y land_* son del guardián anciano/varado y se omiten adrede.
+    sonidos: {
+        say: ['mob/guardian/ambient'],
+        hurt: ['mob/guardian/guardian_hit'],
+        death: ['mob/guardian/guardian_death'],
     },
 };

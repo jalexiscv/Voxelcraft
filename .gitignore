@@ -3,8 +3,11 @@
 /example/
 /assets/
 
-# Override local de audio (mp3 propios del usuario): jamás se distribuye con el repo.
+# Overrides locales del usuario (assets del juego original u otros propios):
+# jamás se distribuyen con el repo; el motor solo los sondea en runtime.
 /sounds/
+/models/
+/textures/
 
 # Herramientas internas de agentes y protocolos de trabajo (no se publican)
 /.claude/

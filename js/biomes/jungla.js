@@ -44,8 +44,8 @@ export default {
 
     // --- Habitantes (fila «jungla» de la tabla del plan) ---
     mobs: {
-        day: ['loro', 'ocelote', 'panda', 'gallina', 'rana', 'sniffer', 'abeja'],
-        night: ['zombi', 'esqueleto', 'creeper', 'arana', 'bruja', 'fantasma'],
-        water: ['pez_tropical', 'ajolote', 'calamar'],
+        day: ['parrot', 'ocelot', 'panda', 'chicken', 'frog', 'sniffer', 'bee'],
+        night: ['zombie', 'skeleton', 'creeper', 'spider', 'witch', 'ghast'],
+        water: ['tropical_fish', 'axolotl', 'squid'],
     },
 };

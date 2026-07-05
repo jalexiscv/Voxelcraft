@@ -39,9 +39,9 @@ export default {
         day: [],
         night: [],
         water: [
-            'bacalao', 'salmon', 'pez_tropical', 'pez_globo', 'calamar',
-            'calamar_brillante', 'delfin', 'nautilus', 'ahogado',
-            'nautilus_zombi', 'guardian',
+            'cod', 'salmon', 'tropical_fish', 'pufferfish', 'squid',
+            'glow_squid', 'dolphin', 'nautilus', 'drowned',
+            'zombie_nautilus', 'guardian',
         ],
     },
 };

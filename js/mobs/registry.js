@@ -1,7 +1,7 @@
 /**
  * Registro de mobs: la única fuente de verdad de qué tipos existen.
  * Añadir un mob nuevo = crear su definición en js/mobs/ (contrato en
- * model.js, ejemplo canónico en cerdo.js) e importarla aquí.
+ * model.js, ejemplo canónico en pig.js) e importarla aquí.
  *
  * El elenco recrea los 68 mobs del Overworld de la lista oficial de
  * Minecraft Java Edition 26.2 (ver documents/02-mobs.md), agrupado por
@@ -9,74 +9,74 @@
  * (la locomoción — terrestre/volador/acuático — es el subgrupo).
  */
 // Pasivos — terrestres
-import cerdo from './cerdo.js';
-import oveja from './oveja.js';
-import vaca from './vaca.js';
-import gallina from './gallina.js';
+import pig from './pig.js';
+import sheep from './sheep.js';
+import cow from './cow.js';
+import chicken from './chicken.js';
 import armadillo from './armadillo.js';
-import camello from './camello.js';
-import camello_husk from './camello_husk.js';
-import gato from './gato.js';
-import ocelote from './ocelote.js';
-import zorro from './zorro.js';
-import caballo from './caballo.js';
-import burro from './burro.js';
+import camel from './camel.js';
+import camel_husk from './camel_husk.js';
+import cat from './cat.js';
+import ocelot from './ocelot.js';
+import fox from './fox.js';
+import horse from './horse.js';
+import donkey from './donkey.js';
 import mooshroom from './mooshroom.js';
-import conejo from './conejo.js';
+import rabbit from './rabbit.js';
 import sniffer from './sniffer.js';
-import golem_cobre from './golem_cobre.js';
-import golem_nieve from './golem_nieve.js';
-import tortuga from './tortuga.js';
-import aldeano from './aldeano.js';
-import comerciante from './comerciante.js';
-import rana from './rana.js';
-import cubo_azufre from './cubo_azufre.js';
+import copper_golem from './copper_golem.js';
+import snow_golem from './snow_golem.js';
+import turtle from './turtle.js';
+import villager from './villager.js';
+import wandering_trader from './wandering_trader.js';
+import frog from './frog.js';
+import sulfur_cube from './sulfur_cube.js';
 // Pasivos — voladores
 import allay from './allay.js';
-import murcielago from './murcielago.js';
-import loro from './loro.js';
-import fantasma_feliz from './fantasma_feliz.js';
+import bat from './bat.js';
+import parrot from './parrot.js';
+import happy_ghast from './happy_ghast.js';
 // Pasivos — acuáticos
-import bacalao from './bacalao.js';
+import cod from './cod.js';
 import salmon from './salmon.js';
-import pez_tropical from './pez_tropical.js';
-import calamar from './calamar.js';
-import calamar_brillante from './calamar_brillante.js';
-import ajolote from './ajolote.js';
+import tropical_fish from './tropical_fish.js';
+import squid from './squid.js';
+import glow_squid from './glow_squid.js';
+import axolotl from './axolotl.js';
 // Neutrales — terrestres
-import lobo from './lobo.js';
-import cabra from './cabra.js';
+import wolf from './wolf.js';
+import goat from './goat.js';
 import panda from './panda.js';
-import oso_polar from './oso_polar.js';
-import golem_hierro from './golem_hierro.js';
+import polar_bear from './polar_bear.js';
+import iron_golem from './iron_golem.js';
 import llama from './llama.js';
 import enderman from './enderman.js';
 // Neutrales — voladores y acuáticos
-import abeja from './abeja.js';
-import pez_globo from './pez_globo.js';
-import delfin from './delfin.js';
+import bee from './bee.js';
+import pufferfish from './pufferfish.js';
+import dolphin from './dolphin.js';
 import nautilus from './nautilus.js';
 // Hostiles
-import zombi from './zombi.js';
-import esqueleto from './esqueleto.js';
+import zombie from './zombie.js';
+import skeleton from './skeleton.js';
 import creeper from './creeper.js';
-import arana from './arana.js';
-import arana_cueva from './arana_cueva.js';
-import ahogado from './ahogado.js';
-import nautilus_zombi from './nautilus_zombi.js';
+import spider from './spider.js';
+import cave_spider from './cave_spider.js';
+import drowned from './drowned.js';
+import zombie_nautilus from './zombie_nautilus.js';
 import husk from './husk.js';
 import stray from './stray.js';
 import parched from './parched.js';
 import bogged from './bogged.js';
-import zombi_aldeano from './zombi_aldeano.js';
-import bruja from './bruja.js';
-import saqueador from './saqueador.js';
-import vindicador from './vindicador.js';
-import evocador from './evocador.js';
+import zombie_villager from './zombie_villager.js';
+import witch from './witch.js';
+import pillager from './pillager.js';
+import vindicator from './vindicator.js';
+import evoker from './evoker.js';
 import ravager from './ravager.js';
 import slime from './slime.js';
-import lepisma from './lepisma.js';
-import fantasma from './fantasma.js';
+import silverfish from './silverfish.js';
+import ghast from './ghast.js';
 import vex from './vex.js';
 import creaking from './creaking.js';
 import breeze from './breeze.js';
@@ -86,20 +86,20 @@ import guardian from './guardian.js';
 /** Tipos indexados por id, agrupados por las categorías oficiales del juego. */
 export const MOBS = {
     // pasivos — terrestres
-    cerdo, oveja, vaca, gallina, armadillo, camello, camello_husk, gato,
-    ocelote, zorro, caballo, burro, mooshroom, conejo, sniffer, golem_cobre,
-    golem_nieve, tortuga, aldeano, comerciante, rana, cubo_azufre,
+    pig, sheep, cow, chicken, armadillo, camel, camel_husk, cat,
+    ocelot, fox, horse, donkey, mooshroom, rabbit, sniffer, copper_golem,
+    snow_golem, turtle, villager, wandering_trader, frog, sulfur_cube,
     // pasivos — voladores
-    allay, murcielago, loro, fantasma_feliz,
+    allay, bat, parrot, happy_ghast,
     // pasivos — acuáticos
-    bacalao, salmon, pez_tropical, calamar, calamar_brillante, ajolote,
+    cod, salmon, tropical_fish, squid, glow_squid, axolotl,
     // neutrales — terrestres
-    lobo, cabra, panda, oso_polar, golem_hierro, llama, enderman,
+    wolf, goat, panda, polar_bear, iron_golem, llama, enderman,
     // neutrales — voladores y acuáticos
-    abeja, pez_globo, delfin, nautilus,
+    bee, pufferfish, dolphin, nautilus,
     // hostiles
-    zombi, esqueleto, creeper, arana, arana_cueva, ahogado, nautilus_zombi,
-    husk, stray, parched, bogged, zombi_aldeano, bruja, saqueador, vindicador,
-    evocador, ravager, slime, lepisma, fantasma, vex, creaking, breeze,
+    zombie, skeleton, creeper, spider, cave_spider, drowned, zombie_nautilus,
+    husk, stray, parched, bogged, zombie_villager, witch, pillager, vindicator,
+    evoker, ravager, slime, silverfish, ghast, vex, creaking, breeze,
     warden, guardian,
 };
