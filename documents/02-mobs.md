@@ -38,9 +38,18 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   detrás, persigue un punto que gira a su alrededor con el radio y la
   altura oscilando (suma de senos de periodo distinto) e inversiones de
   sentido a rachas — una ronda de vigía semicircular NO fija, subiendo y
-  bajando como si inspeccionara el terreno. Con la IA `behavior.guardian`,
-  si un agresor (hostil, o neutral enfadado) ronda al jugador dentro de
-  `guardRadius`, abandona la ronda y lo embiste en 3D hasta neutralizarlo.
+  bajando como si inspeccionara el terreno.
+
+  La detección de amenazas (IA `behavior.guardian`) usa **dos radios**:
+  los agresores **terrestres** (hostil o neutral enfadado) se detectan a
+  `guardRadius` y se persiguen y atacan en 3D; los **voladores** se ven
+  hasta el **triple de lejos** (`airRadiusMul`, cielo despejado). A todo
+  volador que entra en el radio aéreo el dron va a **inspeccionarlo**
+  (`inspectFlyer`): lo ronda de cerca unos segundos observándolo y, al dar
+  el parte, **si es agresivo lo ataca** y **si es pacífico vuelve al
+  perímetro sin agredirlo** (con un cooldown para no re-inspeccionar lo
+  mismo enseguida).
+
   Sus cuatro hélices giran de verdad con la animación `rotor` (giro
   continuo en Y que aplica el render). Funciona igual en creativo, donde
   los hostiles ignoran al jugador pero el dron los sigue cazando.

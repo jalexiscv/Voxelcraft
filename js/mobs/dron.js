@@ -1,11 +1,14 @@
 /**
  * Dron guardián: mob volador ALIADO propio de la casa. Patrulla el
  * perímetro del jugador en órbita (ronda de vigía semicircular no fija,
- * con radio y altura oscilantes) y embiste al mob agresivo (hostil o
- * neutral enfadado) más cercano que lo ronde — la IA `behavior.guardian`
- * y la patrulla orbital viven en mobs.js. No aparece de forma natural (no
- * figura en las listas de ningún bioma): nace del huevo de aparición del
- * modo creativo.
+ * con radio y altura oscilantes). Detecta amenazas con DOS radios: los
+ * agresores terrestres a `guardRadius` (los persigue y ataca) y los
+ * voladores hasta el triple de lejos (`airRadiusMul`), a los que va a
+ * inspeccionar antes — los ronda observándolos y, si son pacíficos,
+ * vuelve sin agredir; si agresivos, ataca. La IA `behavior.guardian`, la
+ * patrulla y la inspección viven en mobs.js. No aparece de forma natural
+ * (no figura en las listas de ningún bioma): nace del huevo de aparición
+ * del modo creativo.
  *
  * Cuadricóptero al estilo del brief: chasis gris con capó y sensor oscuros,
  * acentos naranja y morado, cuatro brazos en X y en cada punta un buje con
@@ -43,10 +46,15 @@ export default {
     flying: true,
     hover: true, // sostiene su altitud objetivo incluso planeando quieto
     // guardián: patrulla el perímetro del jugador en órbita y ataca a los
-    // agresores que lo ronden (patrolRadius/Speed rigen la ronda de vigía)
+    // agresores que lo ronden. Dos radios de detección: los enemigos
+    // terrestres se ven a guardRadius; los VOLADORES, hasta el triple
+    // (airRadiusMul). A los voladores los inspecciona antes (inspectTime s
+    // rondándolos): si son pacíficos vuelve sin agredir; si agresivos, ataca.
     behavior: {
-        guardian: true, guardRadius: 16, attackRange: 1.5, damage: 4, cooldown: 0.9,
+        guardian: true, guardRadius: 16, airRadiusMul: 3,
+        attackRange: 1.5, damage: 4, cooldown: 0.9,
         patrolRadius: 5, patrolSpeed: 0.7,
+        inspectTime: 4, inspectCooldown: 8,
     },
     // solo por invocación (huevo del creativo): no figura en ningún bioma
     spawn: { summonOnly: true, cap: 1, group: 1 },

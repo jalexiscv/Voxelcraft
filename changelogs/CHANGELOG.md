@@ -128,3 +128,4 @@
 | 124 | 2026-07-05 | [Creativo: catálogo completo (herramientas, espadas…) y huevos de aparición de mobs](2026-07-05_creativo_catalogo_huevos.md) |
 | 125 | 2026-07-05 | [Dron guardián: mob volador aliado con hélices que giran](2026-07-05_dron_guardian.md) |
 | 126 | 2026-07-05 | [Dron guardián: patrulla orbital del perímetro en vez de flotar quieto detrás](2026-07-05_dron_patrulla_orbital.md) |
+| 127 | 2026-07-05 | [Dron guardián: dos radios de detección e inspección de voladores](2026-07-05_dron_radios_inspeccion.md) |

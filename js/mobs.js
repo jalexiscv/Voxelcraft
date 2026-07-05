@@ -73,6 +73,11 @@ export class Mob {
         this.patrolAngle = yaw;
         this.patrolT = yaw;
         this.orbitDir = 1;            // sentido del giro orbital (±1)
+        // inspección de voladores (guardián): mob que ronda observando y
+        // temporizador; cooldown para no re-inspeccionar lo mismo enseguida
+        this.inspectTarget = null;
+        this.inspectT = 0;
+        this.inspectCd = 0;
     }
 
     dying() { return this.dieT >= 0; }
@@ -219,42 +224,119 @@ export class MobSystem {
 
     /**
      * IA del guardián volador (behavior.guardian, el dron): protege al
-     * jugador. Si un AGRESOR — hostil, o neutral enfadado — ronda al
-     * jugador dentro de guardRadius, lo persigue en 3D y lo golpea cuerpo
-     * a cuerpo; sin amenazas, PATRULLA el perímetro del jugador en órbita
-     * (nunca se queda quieto detrás). Funciona igual en creativo (allí los
-     * hostiles ignoran al jugador, pero el guardián los sigue
-     * neutralizando).
+     * jugador. La detección usa DOS radios: los agresores TERRESTRES se
+     * detectan a `guardRadius`; los VOLADORES, hasta el TRIPLE de lejos
+     * (`airRadiusMul`), porque un dron ve el cielo despejado mucho antes.
+     *
+     * Prioridad de objetivo (el más cercano de cada clase, en este orden):
+     *  1. agresor terrestre en guardRadius → lo persigue y ataca.
+     *  2. cualquier VOLADOR (agresivo o no) en el radio aéreo → va a
+     *     INSPECCIONARLO: lo ronda unos segundos observándolo y, al
+     *     terminar, si era agresivo lo ataca y si era pacífico vuelve al
+     *     perímetro sin agredirlo.
+     * Sin objetivos, PATRULLA el perímetro del jugador en órbita.
      */
     guardianAI(m, dt, ctx, dist) {
         const b = m.def.behavior;
-        const radio = b.guardRadius || 16;
+        const radioTierra = b.guardRadius || 16;
+        const radioAire = radioTierra * (b.airRadiusMul || 3);
+        m.inspectCd = Math.max(0, m.inspectCd - dt);
 
-        // amenaza: el agresor vivo más cercano AL JUGADOR dentro del radio
-        let objetivo = null, mejor = Infinity;
+        // si ya está inspeccionando un volador vivo y a la vista, sigue
+        if (m.inspectTarget && !m.inspectTarget.dying() &&
+            this.mobs.includes(m.inspectTarget) &&
+            Math.hypot(m.inspectTarget.pos[0] - ctx.pos[0], m.inspectTarget.pos[2] - ctx.pos[2]) < radioAire * 1.3) {
+            this.inspectFlyer(m, dt, ctx);
+            return;
+        }
+        m.inspectTarget = null;
+
+        // busca el agresor terrestre más cercano (radio de tierra), el
+        // volador AGRESIVO más cercano y el volador más cercano a secas
+        // (ambos en el radio aéreo, el triple de amplio)
+        let terrestre = null, mejorT = Infinity;
+        let volAgresivo = null, mejorVA = Infinity;
+        let volCualquiera = null, mejorVC = Infinity;
         for (const otro of this.mobs) {
             if (otro === m || otro.dying()) continue;
-            if (!(otro.def.hostile || otro.angerT > 0)) continue;
+            const agresivo = otro.def.hostile || otro.angerT > 0;
             const d = Math.hypot(otro.pos[0] - ctx.pos[0], otro.pos[1] - ctx.pos[1], otro.pos[2] - ctx.pos[2]);
-            if (d < radio && d < mejor) { mejor = d; objetivo = otro; }
+            if (otro.def.flying) {
+                if (d < radioAire && d < mejorVC) { mejorVC = d; volCualquiera = otro; }
+                if (agresivo && d < radioAire && d < mejorVA) { mejorVA = d; volAgresivo = otro; }
+            } else if (agresivo && d < radioTierra && d < mejorT) {
+                mejorT = d; terrestre = otro;
+            }
         }
 
-        if (objetivo) {
-            m.state = 'chase';
-            const centro = [objetivo.pos[0], objetivo.pos[1] + objetivo.def.aabb.h * 0.6, objetivo.pos[2]];
-            m.yaw = Math.atan2(-(centro[0] - m.pos[0]), -(centro[2] - m.pos[2]));
-            m.targetY = centro[1];
-            m.speed = m.def.speed;
-            this.lookAt(m, centro);
-            const d3 = Math.hypot(m.pos[0] - centro[0], m.pos[1] - centro[1], m.pos[2] - centro[2]);
-            if (d3 < (b.attackRange || 1.5) && m.attackCd <= 0) {
-                m.attackCd = b.cooldown || 1;
-                this.hurt(objetivo, b.damage || 4, this.dirTo(m.pos, objetivo.pos));
-            }
+        // 1) prioridad al agresor terrestre: ataque directo
+        if (terrestre) { this.chaseTarget(m, ctx, terrestre); return; }
+
+        // 2) un volador a la vista (agresivo o no) y sin inspección reciente:
+        // ir a inspeccionarlo (dar el parte de vueltas observándolo)
+        if (volCualquiera && m.inspectCd <= 0) {
+            m.inspectTarget = volCualquiera;
+            m.inspectT = b.inspectTime || 4;
+            this.inspectFlyer(m, dt, ctx);
             return;
         }
 
+        // 3) volador AGRESIVO ya inspeccionado (en cooldown): se persigue y
+        // ataca directo, sin repetir la inspección
+        if (volAgresivo) { this.chaseTarget(m, ctx, volAgresivo); return; }
+
         this.patrolAround(m, dt, ctx);
+    }
+
+    /** Persigue en 3D a un mob y lo golpea cuerpo a cuerpo (guardián). */
+    chaseTarget(m, ctx, objetivo) {
+        const b = m.def.behavior;
+        m.state = 'chase';
+        const centro = [objetivo.pos[0], objetivo.pos[1] + objetivo.def.aabb.h * 0.6, objetivo.pos[2]];
+        m.yaw = Math.atan2(-(centro[0] - m.pos[0]), -(centro[2] - m.pos[2]));
+        m.targetY = centro[1];
+        m.speed = m.def.speed;
+        this.lookAt(m, centro);
+        const d3 = Math.hypot(m.pos[0] - centro[0], m.pos[1] - centro[1], m.pos[2] - centro[2]);
+        if (d3 < (b.attackRange || 1.5) && m.attackCd <= 0) {
+            m.attackCd = b.cooldown || 1;
+            this.hurt(objetivo, b.damage || 4, this.dirTo(m.pos, objetivo.pos));
+        }
+    }
+
+    /**
+     * Inspección de un mob volador (guardián): el dron vuela hasta él y lo
+     * RONDA de cerca observándolo mientras corre `inspectT`. Al terminar,
+     * si el volador es agresivo (hostil o enfadado) lo ataca; si es
+     * pacífico, deja la inspección y vuelve al perímetro SIN agredirlo, con
+     * un cooldown para no volver a inspeccionar lo mismo de inmediato.
+     */
+    inspectFlyer(m, dt, ctx) {
+        const objetivo = m.inspectTarget;
+        m.inspectT -= dt;
+
+        // órbita de reconocimiento alrededor del volador (radio corto)
+        m.state = 'chase';
+        m.patrolAngle += 1.6 * dt; // vuelta de observación más viva que la ronda
+        const rObs = 2.2;
+        const tx = objetivo.pos[0] + Math.cos(m.patrolAngle) * rObs;
+        const tz = objetivo.pos[2] + Math.sin(m.patrolAngle) * rObs;
+        m.yaw = Math.atan2(-(tx - m.pos[0]), -(tz - m.pos[2]));
+        const toPunto = Math.hypot(tx - m.pos[0], tz - m.pos[2]);
+        m.speed = m.def.speed * clamp(toPunto / 2.5, 0.4, 1);
+        m.targetY = objetivo.pos[1] + objetivo.def.aabb.h * 0.5; // a su altura
+        this.lookAt(m, [objetivo.pos[0], objetivo.pos[1] + objetivo.def.aabb.h * 0.6, objetivo.pos[2]]);
+
+        if (m.inspectT > 0) return; // aún observando
+
+        // parte dado: se cierra la inspección. Agresivo → pasa a atacarlo
+        // (la persecución la retomará guardianAI, ya sin inspección);
+        // pacífico → lo deja en paz y vuelve al perímetro del jugador.
+        const agresivo = objetivo.def.hostile || objetivo.angerT > 0;
+        m.inspectTarget = null;
+        m.inspectCd = m.def.behavior.inspectCooldown || 8;
+        if (agresivo) this.chaseTarget(m, ctx, objetivo);
+        else this.patrolAround(m, dt, ctx); // regresa al perímetro sin agredir
     }
 
     /**

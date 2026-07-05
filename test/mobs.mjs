@@ -490,6 +490,64 @@ class LakeWorld extends MockWorld {
     simulate(paz, 5, ctx);
     check('el dron no agrede a los pasivos', vaca.hp === hpVaca && !vaca.dying());
 
+    // DOS RADIOS de detección: un hostil TERRESTRE a 30 bloques (fuera del
+    // guardRadius de 16) se ignora; un hostil VOLADOR a la misma distancia
+    // SÍ se detecta (radio aéreo = triple = 48)
+    {
+        const s = new MobSystem({}, world, silentHooks(), 7);
+        const g = new Mob(dron, 0.5, 13, 0.5);
+        const terrLejos = new Mob({ ...zombiTest, id: 'terr_lejos',
+            behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1 } }, 30.5, 11, 0.5);
+        s.mobs.push(g, terrLejos);
+        simulate(s, 2, ctx);
+        check('un agresor terrestre fuera del radio de tierra se ignora (sigue patrullando)',
+            Math.hypot(g.pos[0] - 0.5, g.pos[2] - 0.5) < 10);
+
+        const s2 = new MobSystem({}, world, silentHooks(), 7);
+        const g2 = new Mob(dron, 0.5, 13, 0.5);
+        const volLejos = new Mob({ ...zombiTest, id: 'vol_lejos', flying: true, hostile: true,
+            behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1 } }, 30.5, 16, 0.5);
+        s2.mobs.push(g2, volLejos);
+        simulate(s2, 4, ctx);
+        check('un agresor volador a triple distancia SÍ se detecta (el dron va hacia él)',
+            Math.hypot(g2.pos[0] - 30.5, g2.pos[2] - 0.5) < 20);
+    }
+
+    // INSPECCIÓN de un volador PACÍFICO: el dron va, lo ronda observándolo
+    // y regresa al perímetro SIN agredirlo
+    {
+        const s = new MobSystem({}, world, silentHooks(), 7);
+        const g = new Mob(dron, 0.5, 13, 0.5);
+        const pajaro = new Mob({ ...pig, id: 'pajaro', flying: true, hp: 12,
+            aabb: { w: 0.5, h: 0.5 } }, 12.5, 16, 0.5);
+        s.mobs.push(g, pajaro);
+        // durante la inspección se acerca al volador
+        let cerca = false;
+        for (let t = 0; t < 5; t += DT) {
+            s.update(DT, ctx);
+            if (Math.hypot(g.pos[0] - pajaro.pos[0], g.pos[2] - pajaro.pos[2]) < 4) cerca = true;
+        }
+        check('el dron inspecciona al volador pacífico (se le acerca a observar)', cerca);
+        check('no agrede al volador pacífico', pajaro.hp === 12 && !pajaro.dying());
+        // tras la inspección vuelve al perímetro del jugador
+        simulate(s, 5, ctx);
+        check('tras inspeccionar, el dron regresa al perímetro del jugador',
+            Math.hypot(g.pos[0] - 0.5, g.pos[2] - 0.5) < 10 && pajaro.hp === 12);
+    }
+
+    // INSPECCIÓN de un volador AGRESIVO: lo ronda y luego SÍ lo ataca
+    {
+        const s = new MobSystem({}, world, silentHooks(), 7);
+        const g = new Mob(dron, 0.5, 13, 0.5);
+        const vex = new Mob({ ...zombiTest, id: 'vex_amenaza', flying: true, hostile: true, hp: 40,
+            aabb: { w: 0.5, h: 0.6 },
+            behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1 } }, 10.5, 15, 0.5);
+        s.mobs.push(g, vex);
+        const hp0 = vex.hp;
+        simulate(s, 12, ctx);
+        check('el dron ataca al volador AGRESIVO tras inspeccionarlo', vex.hp < hp0);
+    }
+
     // no aparece de forma natural (summonOnly): ni de día ni de noche
     const salvaje = new MobSystem({ dron }, new MockWorld(40), silentHooks(), 3);
     simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
