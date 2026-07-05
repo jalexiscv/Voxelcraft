@@ -846,6 +846,27 @@ console.log('== Sonidos ==');
         urls.includes('sounds/mob.zombie.idle1.mp3'));
     check('el sondeo fallido queda cacheado como null (sin repetir el fetch)',
         pack.obtener('evento.campana') === null && (await pack.resolver('evento.campana')) === null);
+
+    // Puerta anti-tormenta de 404: el respaldo plano solo se sondea cuando
+    // el árbol CONCLUYÓ; con el manifest pendiente se responde null («no sé»)
+    const packG = await import(base + 'soundpack.js?gating=1');
+    check('antes de concluir el manifest, arbolListo es false', packG.arbolListo() === false);
+    const fetchReal2 = globalThis.fetch;
+    globalThis.fetch = async (url) => (String(url).endsWith('manifest.json')
+        ? { ok: true, json: async () => ['mob/gato/meow1.mp3'] }
+        : { ok: false });
+    packG.init({});
+    await packG.cargarManifest();
+    globalThis.fetch = fetchReal2;
+    check('al concluir, arbolListo es true y el árbol responde por prefijo',
+        packG.arbolListo() === true && packG.rutasArbol('mob/gato/meow').length === 1);
+
+    // el pack por defecto de esta tanda concluyó SIN árbol (manifest 404):
+    // ahí la convención plana sí es el respaldo legítimo
+    const { hayVozEnArbol, hayEnArbol } = await import(base + 'audio.js');
+    await pack.cargarManifest();
+    check('árbol concluido sin rutas: la convención plana queda habilitada',
+        hayVozEnArbol('zombie', 'say') === false && hayEnArbol('step/grass') === false);
 }
 
 /* ==== Voces del árbol: prioridad def.sonidos → tabla genérica VOCES ==== */

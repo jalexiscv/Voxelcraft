@@ -113,3 +113,4 @@
 | 109 | 2026-07-04 | [Modelos geo: parser de geometrías .geo.json y override local con auto-piel](2026-07-04_modelos_geo.md) |
 | 110 | 2026-07-04 | [Corrección de modelos geo: burro deforme (atrezo y rotación del cuello)](2026-07-04_burro_deforme.md) |
 | 111 | 2026-07-04 | [Corrección de modelos geo: tortuga descuadrada (bind_pose no se hereda)](2026-07-04_tortuga_descuadrada.md) |
+| 112 | 2026-07-04 | [Audio: fin de la tormenta de 404 — el respaldo plano espera al árbol](2026-07-04_tormenta_404.md) |

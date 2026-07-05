@@ -208,6 +208,18 @@ let arbolCarpetas = null;
 /** Promise del fetch del manifest (una sola vez por sesión). */
 let manifestPromesa = null;
 
+/** true cuando el sondeo del manifest ya CONCLUYÓ (haya árbol o no). */
+let manifestConcluido = false;
+
+/**
+ * ¿Concluyó el sondeo del manifest? Mientras sea false no se sabe si el
+ * árbol existe: los respaldos (convención plana) NO deben sondearse aún o
+ * generan tormentas de 404 que el árbol iba a cubrir igualmente.
+ */
+export function arbolListo() {
+    return manifestConcluido;
+}
+
 /** prefijo consultado -> rutas que lo satisfacen (memoizado). */
 const prefijosCache = new Map();
 
@@ -240,7 +252,7 @@ export function cargarManifest() {
         } catch {
             return null; // sin manifest: modo clásico, sin ruido propio
         }
-    })();
+    })().then((v) => { manifestConcluido = true; return v; });
     return manifestPromesa;
 }
 

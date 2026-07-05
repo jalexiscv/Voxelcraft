@@ -189,6 +189,33 @@ function vozArbol(mobId, kind, prefijos = null) {
     return null;
 }
 
+/**
+ * ¿El árbol del pack TIENE esta voz? true/false cuando el manifest ya
+ * concluyó; null mientras carga. Con false la convención plana es el
+ * respaldo legítimo; con true o null NO debe sondearse: o la servirá el
+ * árbol o aún no se sabe, y sondear genera tormentas de 404 inútiles.
+ * (Exportada para las pruebas de humo.)
+ */
+export function hayVozEnArbol(mobId, kind, prefijos = null) {
+    if (!pack.arbolListo()) return null;
+    if (Array.isArray(prefijos)) {
+        for (const prefijo of prefijos) {
+            if (pack.rutasArbol(prefijo).length) return true;
+        }
+    }
+    const carpeta = pack.CARPETA_MOB[mobId] || mobId;
+    for (const candidato of pack.VOCES[kind] || [kind]) {
+        if (pack.rutasArbol(`mob/${carpeta}/${candidato}`).length) return true;
+    }
+    return false;
+}
+
+/** Igual que hayVozEnArbol pero para un prefijo suelto (step/dig/evento). */
+export function hayEnArbol(prefijo) {
+    if (!pack.arbolListo()) return null;
+    return pack.rutasArbol(prefijo).length > 0;
+}
+
 export class SoundEngine {
     constructor() {
         this.ctx = null;
@@ -287,9 +314,11 @@ export class SoundEngine {
         // 1) árbol del pack: step/<material>1..n del manifest
         const arbol = pack.variantesArbol('step/' + material);
         if (arbol) { this.playBuffer(arbol, 0.45, 0.95 + Math.random() * 0.1); return; }
-        // 2) convención plana: <material>1..4
-        const buf = this.packMaterial(material);
-        if (buf) { this.playBuffer(buf, 0.45, 0.95 + Math.random() * 0.1); return; }
+        // 2) convención plana, solo si el árbol concluyó sin esta familia
+        if (hayEnArbol('step/' + material) === false) {
+            const buf = this.packMaterial(material);
+            if (buf) { this.playBuffer(buf, 0.45, 0.95 + Math.random() * 0.1); return; }
+        }
         this.burst(m.freq * (0.9 + Math.random() * 0.2), m.q, m.vol * 0.7, m.dur);
     }
 
@@ -299,9 +328,11 @@ export class SoundEngine {
         // 1) árbol del pack: dig/<material>1..n del manifest
         const arbol = pack.variantesArbol('dig/' + material);
         if (arbol) { this.playBuffer(arbol, 0.9, 0.9 + Math.random() * 0.2); return; }
-        // 2) convención plana: <material>1..4
-        const buf = this.packMaterial(material);
-        if (buf) { this.playBuffer(buf, 0.9, 0.9 + Math.random() * 0.2); return; }
+        // 2) convención plana, solo si el árbol concluyó sin esta familia
+        if (hayEnArbol('dig/' + material) === false) {
+            const buf = this.packMaterial(material);
+            if (buf) { this.playBuffer(buf, 0.9, 0.9 + Math.random() * 0.2); return; }
+        }
         this.burst(m.freq * 0.7, m.q, m.vol, m.dur * 1.6);
         this.burst(m.freq * 0.5, m.q, m.vol * 0.8, m.dur * 2.2, 0.03);
     }
@@ -311,9 +342,11 @@ export class SoundEngine {
         // 1) árbol del pack: colocar comparte la familia dig/<material>
         const arbol = pack.variantesArbol('dig/' + fam);
         if (arbol) { this.playBuffer(arbol, 0.75); return; }
-        // 2) convención plana: <material>1..4
-        const buf = this.packMaterial(fam);
-        if (buf) { this.playBuffer(buf, 0.75); return; }
+        // 2) convención plana, solo si el árbol concluyó sin esta familia
+        if (hayEnArbol('dig/' + fam) === false) {
+            const buf = this.packMaterial(fam);
+            if (buf) { this.playBuffer(buf, 0.75); return; }
+        }
         const m = MATERIALS[fam];
         this.burst(m.freq, m.q, m.vol, m.dur);
         this.tone(180, 0.06, 0.08, 'triangle');
@@ -355,11 +388,15 @@ export class SoundEngine {
             // 1) árbol del pack (manifest), con los prefijos del mob primero
             const arbol = vozArbol(mobId, kind, prefijos);
             if (arbol) { this.playBuffer(arbol, gain); return; }
-            // 2) convención plana
-            const k = kind === 'say' ? 'idle' : kind;
-            const base = `mob.${mobId}.${k}`;
-            const buf = pack.obtener(base) || pack.variantes(base, 4);
-            if (buf) { this.playBuffer(buf, gain); return; }
+            // 2) convención plana: SOLO si el árbol concluyó sin esta voz
+            // (con rutas pendientes o manifest cargando, sondear el plano
+            // sería una tormenta de 404 que el árbol cubrirá igualmente)
+            if (hayVozEnArbol(mobId, kind, prefijos) === false) {
+                const k = kind === 'say' ? 'idle' : kind;
+                const base = `mob.${mobId}.${k}`;
+                const buf = pack.obtener(base) || pack.variantes(base, 4);
+                if (buf) { this.playBuffer(buf, gain); return; }
+            }
         }
         if (!entries) return;
         for (const e of entries) {
@@ -386,8 +423,11 @@ export class SoundEngine {
             const arbol = pack.variantesArbol(prefijo);
             if (arbol) { this.playBuffer(arbol, vol); return; }
         }
-        const buf = pack.obtener('evento.' + nombre);
-        if (buf) { this.playBuffer(buf, vol); return; }
+        // convención plana: solo sin ruta de árbol, o si este concluyó vacío
+        if (!prefijo || hayEnArbol(prefijo) === false) {
+            const buf = pack.obtener('evento.' + nombre);
+            if (buf) { this.playBuffer(buf, vol); return; }
+        }
         const receta = EVENTOS[nombre];
         if (receta) receta(this);
     }
