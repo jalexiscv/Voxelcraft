@@ -5,7 +5,8 @@
  * agresores terrestres a `guardRadius` (los persigue y ataca) y los
  * voladores hasta el triple de lejos (`airRadiusMul`), a los que va a
  * inspeccionar antes — los ronda observándolos y, si son pacíficos,
- * vuelve sin agredir; si agresivos, ataca. La IA `behavior.guardian`, la
+ * vuelve sin agredir; si agresivos, ataca. Ignora a los mobs de su mismo
+ * tipo (los drones no se auto-vigilan). La IA `behavior.guardian`, la
  * patrulla y la inspección viven en mobs.js. No aparece de forma natural
  * (no figura en las listas de ningún bioma): nace del huevo de aparición
  * del modo creativo.

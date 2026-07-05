@@ -253,12 +253,14 @@ export class MobSystem {
 
         // busca el agresor terrestre más cercano (radio de tierra), el
         // volador AGRESIVO más cercano y el volador más cercano a secas
-        // (ambos en el radio aéreo, el triple de amplio)
+        // (ambos en el radio aéreo, el triple de amplio). Los mobs del
+        // MISMO tipo que el guardián se ignoran: los drones son aliados
+        // entre sí, no se auto-vigilan (sí vigilan pájaros, abejas…).
         let terrestre = null, mejorT = Infinity;
         let volAgresivo = null, mejorVA = Infinity;
         let volCualquiera = null, mejorVC = Infinity;
         for (const otro of this.mobs) {
-            if (otro === m || otro.dying()) continue;
+            if (otro === m || otro.dying() || otro.def.id === m.def.id) continue;
             const agresivo = otro.def.hostile || otro.angerT > 0;
             const d = Math.hypot(otro.pos[0] - ctx.pos[0], otro.pos[1] - ctx.pos[1], otro.pos[2] - ctx.pos[2]);
             if (otro.def.flying) {

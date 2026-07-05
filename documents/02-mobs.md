@@ -48,7 +48,9 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   (`inspectFlyer`): lo ronda de cerca unos segundos observándolo y, al dar
   el parte, **si es agresivo lo ataca** y **si es pacífico vuelve al
   perímetro sin agredirlo** (con un cooldown para no re-inspeccionar lo
-  mismo enseguida).
+  mismo enseguida). Los mobs del **mismo tipo** se ignoran (los drones son
+  aliados entre sí: no se auto-vigilan, pero sí vigilan pájaros, abejas y
+  demás voladores ajenos).
 
   Sus cuatro hélices giran de verdad con la animación `rotor` (giro
   continuo en Y que aplica el render). Funciona igual en creativo, donde

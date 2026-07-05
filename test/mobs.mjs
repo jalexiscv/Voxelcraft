@@ -548,6 +548,31 @@ class LakeWorld extends MockWorld {
         check('el dron ataca al volador AGRESIVO tras inspeccionarlo', vex.hp < hp0);
     }
 
+    // DOS DRONES juntos NO se auto-vigilan (son aliados del mismo tipo):
+    // ambos patrullan sin entrar nunca en inspección, y un pájaro que
+    // aparece cerca sí lo inspeccionan (excluir el propio tipo, no todo)
+    {
+        const s = new MobSystem({}, world, silentHooks(), 7);
+        const d1 = new Mob(dron, 2, 13, 1);
+        const d2 = new Mob(dron, -1, 13, 2);
+        s.mobs.push(d1, d2);
+        let seInspeccionan = false;
+        for (let t = 0; t < 8; t += DT) {
+            s.update(DT, ctx);
+            if (d1.inspectTarget || d2.inspectTarget) seInspeccionan = true;
+        }
+        check('dos drones del mismo tipo no se vigilan entre sí', !seInspeccionan);
+        // pero un pájaro ajeno sí desencadena la inspección
+        const pajaro = new Mob({ ...pig, id: 'pajaro2', flying: true, aabb: { w: 0.5, h: 0.5 } }, 9.5, 15, 0.5);
+        s.mobs.push(pajaro);
+        let inspeccionaAjeno = false;
+        for (let t = 0; t < 4; t += DT) {
+            s.update(DT, ctx);
+            if (d1.inspectTarget === pajaro || d2.inspectTarget === pajaro) inspeccionaAjeno = true;
+        }
+        check('sí inspeccionan un volador ajeno (pájaro), no solo se ignoran todo', inspeccionaAjeno);
+    }
+
     // no aparece de forma natural (summonOnly): ni de día ni de noche
     const salvaje = new MobSystem({ dron }, new MockWorld(40), silentHooks(), 3);
     simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
