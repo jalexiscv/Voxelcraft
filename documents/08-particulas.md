@@ -33,7 +33,7 @@ binarios de terceros. La textura de las partículas se genera **en código**
 | `mob_death` | un mob muere | `explosion_death` |
 | `mob_hurt` | un mob recibe daño | `basic_crit` |
 | `block_break` | romper un bloque (creativo o picado) | `block_destruct` (teñido con el color del bloque) |
-| `evade_trail` | el dron escapista salta al evadir | `vc_evade_trail` (estela magenta con la dirección de la huida) |
+| `evade_trail` | el dron escapista salta al evadir (emitido en continuo durante el salto) | `vc_evade_trail` (estela magenta lineal, partículas quietas de vida corta que trazan la trayectoria y se disipan deprisa) |
 
 Los tres `vc_explosion_*` son **composición propia** (formato Bedrock)
 pensada para lucir: bola de fuego naranja que se expande y apaga a humo,

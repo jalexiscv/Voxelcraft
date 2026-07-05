@@ -76,12 +76,13 @@ export default {
     // vuelve a probar el perímetro cercano (nearRadius) antes de alejarse.
     behavior: {
         evasive: true, quarry: true,
-        alertRadius: 26, evadeSpread: 1.7,
+        alertRadius: 48, evadeSpread: 1.7,
         dartSlow: 0.7, ceiling: 10,
         roamRadius: 42, roamCeil: 30, nearRadius: 6, roamSpread: 1.0,
-        // salto evasivo: pausa quieto tras cada salto; la distancia del salto
-        // es 2× lo que el cazador recorre en esa pausa (ventaja evasiva)
-        hopPause: 0.35,
+        // salto evasivo: ráfaga larga + pausa quieto. La distancia base es 2×
+        // lo que el cazador recorre en la pausa, y hopReach la multiplica
+        // (saltos LARGOS de escape). trailInterval espacia el rastro continuo.
+        hopPause: 0.35, hopReach: 10, trailInterval: 0.03,
     },
     spawn: { summonOnly: true, cap: 1, group: 1 },
     drops: [{ id: ITEMS.LINGOTE_HIERRO, min: 0, max: 1 }],

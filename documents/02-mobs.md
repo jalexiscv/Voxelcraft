@@ -80,13 +80,15 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   `roamCeil` (**≈6× más alto**), luego REGRESA a probar el perímetro
   cercano (`nearRadius`) y vuelve a alejarse, así en ciclo. Cuando un
   cazador (dron/antidron) entra en su `alertRadius`, cambia a un **salto
-  evasivo con pausa** (`evadeHop`): alterna una ráfaga de desplazamiento y
-  una breve PAUSA quieto (`hopPause`), y la distancia de cada salto es el
-  **DOBLE de lo que el cazador recorre durante esa pausa** (su velocidad ×
-  `hopPause` × 2), así gana una ventaja neta prudente cada vez y el salto
-  escala con lo rápido que sea el perseguidor. Cada salto deja un **rastro
-  de partículas** magenta (efecto `evade_trail`) que traza su huida. Es una
-  **presa de práctica**
+  evasivo con pausa** (`evadeHop`): alterna una ráfaga LARGA de
+  desplazamiento y una breve PAUSA quieto (`hopPause`). La distancia de
+  cada salto es el doble de lo que el cazador recorre en la pausa,
+  multiplicado por `hopReach` (**saltos largos**, ~10× la distancia base),
+  así escala con la velocidad del perseguidor y le saca mucha ventaja de
+  golpe. Durante todo el salto emite un **rastro de partículas** magenta
+  (efecto `evade_trail`, cada `trailInterval` s) que traza una **línea a lo
+  largo de la trayectoria y se disipa deprisa**. Es una **presa de
+  práctica**
   (`behavior.quarry`): **drones y antidrones lo persiguen de inmediato** —
   el guardián lo caza sin inspección (prioridad sobre todo lo demás) y el
   antidron lo detecta como objetivo igual que a un dron. No ataca a nadie.

@@ -114,6 +114,7 @@ export class Mob {
         this.hopStartX = 0;
         this.hopStartZ = 0;
         this.hopDist = 0;
+        this.trailT = 0;             // reloj entre emisiones del rastro
     }
 
     dying() { return this.dieT >= 0; }
@@ -349,8 +350,9 @@ export class MobSystem {
         const b = m.def.behavior;
         const pausa = b.hopPause || 0.35;         // duración de la pausa (s)
         const velCaza = caza.def.flySpeed || caza.def.speed || 4.5;
-        // distancia prudente: 2× lo que el cazador avanza durante la pausa
-        const distObjetivo = 2 * velCaza * pausa;
+        // distancia prudente: 2× lo que el cazador avanza en la pausa,
+        // escalado por hopReach (saltos largos de escape veloz)
+        const distObjetivo = 2 * velCaza * pausa * (b.hopReach || 1);
 
         // arranca en fase de salto si venía de la patrulla
         if (m.hopEvadePhase === 'idle') m.hopEvadePhase = 'leap';
@@ -363,23 +365,27 @@ export class MobSystem {
                 m.dartYaw = away + (this.rng.float() * 2 - 1) * (b.evadeSpread || 1.6);
                 m.hopStartX = m.pos[0]; m.hopStartZ = m.pos[2];
                 m.hopDist = distObjetivo;
+                m.trailT = 0;
                 // altura del salto: brinco aleatorio dentro de la banda
                 const suelo = this.world.hasChunk(Math.floor(m.pos[0]) >> 4, Math.floor(m.pos[2]) >> 4)
                     ? this.world.surfaceY(Math.floor(m.pos[0]), Math.floor(m.pos[2])) + 1 : m.pos[1];
                 m.dartY = suelo + 3 + this.rng.float() * (b.ceiling || 9);
-                // rastro de partículas al arrancar el salto (efecto visual de
-                // la evasión): estela en el punto de despegue, en dirección
-                // OPUESTA a la huida (queda por detrás del dron)
-                if (this.hooks.particles) {
-                    this.hooks.particles('evade_trail', m, {
-                        x: Math.sin(m.dartYaw), z: Math.cos(m.dartYaw),
-                    });
-                }
             }
             // vuela a máxima velocidad en el rumbo del salto
             m.yaw = m.dartYaw;
             m.targetY = m.dartY;
             m.speed = m.def.flySpeed || m.def.speed;
+            // RASTRO continuo: emite la estela a intervalos cortos MIENTRAS
+            // dura el salto, así traza una LÍNEA a lo largo de toda la
+            // trayectoria (que se disipa rápido). La dirección apunta al
+            // rumbo del salto (la estela sale por detrás del dron).
+            m.trailT -= dt;
+            if (this.hooks.particles && m.trailT <= 0) {
+                m.trailT = (b.trailInterval || 0.03);
+                this.hooks.particles('evade_trail', m, {
+                    x: Math.sin(m.dartYaw), z: Math.cos(m.dartYaw),
+                });
+            }
             // ¿ya recorrió la distancia del salto (o chocó)? → pausa
             const avanzado = Math.hypot(m.pos[0] - m.hopStartX, m.pos[2] - m.hopStartZ);
             if (avanzado >= m.hopDist || m.hitWall) {

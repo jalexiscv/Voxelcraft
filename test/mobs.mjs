@@ -755,7 +755,7 @@ console.log('== Dron escapista ==');
         const cerca = { pos: [20, 11, 20], eye: [20, 12.62, 20], day: 1 };
         const saltos = [], velEnPausa = [];
         let start = [e.pos[0], e.pos[2]], pausaFrames = 0;
-        for (let t = 0; t < 6; t += DT) {
+        for (let t = 0; t < 12; t += DT) { // saltos largos: más tiempo para ≥2
             const antes = e.hopEvadePhase;
             s.update(DT, cerca);
             // fin de un salto (leap→pause): mide desde el inicio registrado
@@ -775,20 +775,30 @@ console.log('== Dron escapista ==');
     {
         const pausa = escapista.behavior.hopPause;
         const rDron = medirSalto(dron);
-        const distObjetivo = 2 * dron.speed * pausa; // 2× recorrido del dron en la pausa
+        // 2× recorrido del dron en la pausa, escalado por hopReach (saltos largos)
+        const distObjetivo = 2 * dron.speed * pausa * escapista.behavior.hopReach;
         check('al ser perseguido entra en modo salto evasivo (fases leap/pause)',
             rDron.saltos.length >= 2);
-        check('la distancia del salto es ≈ 2× lo que el cazador recorre en la pausa',
-            rDron.saltos.some((d) => Math.abs(d - distObjetivo) < 1.5));
+        check('el salto es largo: ≈ 2× lo que el cazador recorre en la pausa × hopReach',
+            rDron.saltos.some((d) => Math.abs(d - distObjetivo) < 3));
         check('en la pausa se detiene por completo (flota inmóvil)',
             rDron.velEnPausa.length > 0 && rDron.velEnPausa.every((v) => v < 0.5));
-        // la distancia del salto ESCALA con la velocidad del cazador: contra
-        // un antidron (más rápido) salta más lejos que contra un dron
-        const rAnti = medirSalto(antidron);
-        const medDron = rDron.saltos.reduce((a, d) => a + d, 0) / (rDron.saltos.length || 1);
-        const medAnti = rAnti.saltos.reduce((a, d) => a + d, 0) / (rAnti.saltos.length || 1);
+        // la distancia del salto ESCALA con la velocidad del cazador: con un
+        // cazador simulado más rápido, el escapista fija un salto más largo.
+        // Se mide la distancia OBJETIVO del primer salto (m.hopDist) con un
+        // dron falso lento y otro rápido, sin dejar que su IA interfiera.
+        const distSaltoCon = (velCaza) => {
+            const s2 = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+            const e2 = new Mob(escapista, 20.5, 20, 20.5);
+            const falso = new Mob({ ...dron, id: 'caza_falso', speed: velCaza }, 24.5, 20, 20.5);
+            s2.mobs.push(e2, falso);
+            const cerca2 = { pos: [20, 11, 20], eye: [20, 12.62, 20], day: 1 };
+            // un tick basta para que evadeHop fije hopDist del primer salto
+            s2.update(DT, cerca2);
+            return e2.hopDist;
+        };
         check('el salto escala con la velocidad del cazador (más lejos del más rápido)',
-            medAnti > medDron * 1.5);
+            distSaltoCon(11) > distSaltoCon(4.5) * 1.8);
     }
 
     // ventaja evasiva realista: contra un dron (más lento) gana distancia neta
