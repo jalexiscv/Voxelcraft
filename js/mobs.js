@@ -13,10 +13,14 @@
  * Locomoción por banderas de la definición: terrestre (por defecto),
  * `flying` (sin gravedad, altitud objetivo), `aquatic` (nada dentro del agua
  * y aletea varado en tierra), `hop` (avanza a saltos: conejo/rana/slime),
- * `glide` (cae lento). Otros rasgos: `timid` (huye si te acercas),
- * `hideOnHurt` (se repliega al ser golpeado), `noBurn` (no arde al sol),
- * `behavior.teleport` (se teletransporta al ser herido) y
- * `behavior.stingOnce` (una sola picadura y se calma, como la abeja).
+ * `glide` (cae lento). Los terrestres SALTAN al chocar de frente; los
+ * VOLADORES hacen un «desatasco por ascenso» (unstuck climb): si quieren
+ * avanzar pero apenas se mueven (atascados contra pared, rincón o valle),
+ * se elevan unos instantes para superar el obstáculo y retomar la
+ * trayectoria — así los drones no se quedan pegados al suelo. Otros
+ * rasgos: `timid` (huye si te acercas), `hideOnHurt` (se repliega al ser
+ * golpeado), `noBurn` (no arde al sol), `behavior.teleport` (se
+ * teletransporta al ser herido) y `behavior.stingOnce` (la abeja).
  */
 import { B } from './blocks.js';
 import { raycast } from './player.js';
@@ -53,6 +57,8 @@ export class Mob {
         this.onGround = false;
         this.inWater = false;
         this.hitWall = false;
+        this.stuckT = 0;              // s acumulados atascado (desatasco del volador)
+        this.unstickT = 0;           // s de ascenso de desatasco en curso
         this.hp = def.hp;
         this.hurtT = 0;               // destello rojo restante
         this.dieT = -1;               // ≥0: muriendo (se elimina al llegar a 0)
@@ -716,6 +722,18 @@ export class MobSystem {
     stepPhysics(m, dt) {
         const fx = Math.floor(m.pos[0]), fz = Math.floor(m.pos[2]);
         m.inWater = this.world.get(fx, Math.floor(m.pos[1] + 0.3), fz) === B.WATER;
+        // posición horizontal previa: mide el avance real (para el desatasco)
+        const prevX = m.pos[0], prevZ = m.pos[2];
+
+        // desatasco por ASCENSO (unstuck climb): un volador que quiere
+        // avanzar pero está atascado se eleva unos instantes para superar el
+        // obstáculo y retomar la trayectoria. `unstickT` es la elevación en
+        // curso; eleva la altura objetivo por encima de su posición actual.
+        const volador = m.def.flying || m.airborne;
+        if (volador && m.unstickT > 0) {
+            m.unstickT -= dt;
+            m.targetY = Math.max(m.targetY, m.pos[1] + 2.5);
+        }
 
         // velocidad horizontal deseada según el rumbo
         const wishX = -Math.sin(m.yaw) * m.speed;
@@ -785,10 +803,31 @@ export class MobSystem {
 
         // salto automático al chocar de frente — pisando suelo o nadando
         // (así también salen del agua por la orilla, como el jugador); los
-        // voladores no lo necesitan y los acuáticos no deben auparse a tierra
-        if (m.hitWall && m.speed > 0 && !m.def.flying && !m.def.aquatic &&
+        // acuáticos no deben auparse a tierra
+        if (m.hitWall && m.speed > 0 && !m.def.flying && !m.def.aquatic && !m.airborne &&
             (m.onGround || m.inWater)) {
             m.vel[1] = m.def.jumpVel || JUMP_VELOCITY;
+        }
+
+        // DESATASCO por ascenso del VOLADOR: si quiere avanzar pero apenas
+        // se mueve en horizontal (atascado contra pared, rincón o valle),
+        // acumula tiempo y, pasado el umbral, dispara un ascenso que lo eleva
+        // para superar el obstáculo y retomar la trayectoria.
+        if (volador && m.speed > 0.1) {
+            const avance = Math.hypot(m.pos[0] - prevX, m.pos[2] - prevZ);
+            const esperado = m.speed * dt;
+            if (avance < esperado * 0.3 && (m.hitWall || m.onGround)) {
+                m.stuckT += dt;
+                if (m.stuckT >= 0.35 && m.unstickT <= 0) {
+                    m.unstickT = 0.9;              // sube durante ~0.9 s
+                    m.vel[1] = Math.max(m.vel[1], 6); // impulso inicial hacia arriba
+                    m.stuckT = 0;
+                }
+            } else {
+                m.stuckT = Math.max(0, m.stuckT - dt * 2); // avanza: se relaja rápido
+            }
+        } else {
+            m.stuckT = 0;
         }
 
         m.animSpeed = Math.hypot(m.vel[0], m.vel[2]);

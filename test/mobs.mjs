@@ -317,6 +317,29 @@ class LakeWorld extends MockWorld {
     check('el volador no cae al suelo', ave.pos[1] > 11.5 && !ave.onGround);
 }
 {
+    // DESATASCO por ascenso: un volador que empuja contra una pared a ras
+    // del suelo, sin poder avanzar, se eleva para superar el obstáculo y
+    // retoma la trayectoria (los drones dejan de quedarse pegados al piso)
+    const world = new MockWorld();
+    for (let y = 11; y <= 14; y++) world.addWall(3, y, 0); // pared de 4 de alto en x=3
+    const sys = new MobSystem({}, world, silentHooks(), 7);
+    const ave = new Mob({ ...pig, id: 'ave_atasco', flying: true, speed: 3, flySpeed: 6 }, 1.5, 11, 0.5);
+    sys.mobs.push(ave);
+    const ctx = { pos: [30, 11, 30], eye: [30, 12.62, 30], day: 1 };
+    // fuerza cada tick a querer avanzar hacia +X (contra la pared) a ras
+    let yMax = ave.pos[1], atascado = false;
+    for (let t = 0; t < 4; t += DT) {
+        ave.yaw = -Math.PI / 2; ave.speed = 3; ave.targetY = 11; // empuje bajo hacia +X
+        sys.stepPhysics(ave, DT);
+        yMax = Math.max(yMax, ave.pos[1]);
+        if (t < 0.5 && ave.hitWall) atascado = true; // al inicio choca de pared
+    }
+    check('el volador atascado contra la pared se eleva (desatasco por ascenso)',
+        atascado && yMax > 14);
+    check('tras elevarse supera el obstáculo y avanza (retoma trayectoria)',
+        ave.pos[0] > 3.5);
+}
+{
     // acuático: nada dentro del lago sin salir del agua
     const world = new LakeWorld();
     const sys = new MobSystem({}, world, silentHooks(), 7);
