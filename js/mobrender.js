@@ -221,9 +221,10 @@ export class MobRenderer {
             gl.bindTexture(gl.TEXTURE_2D, type.texs[(m.variant || 0) % type.texs.length]);
             const swing = Math.sin(m.animPhase) * Math.min(m.animSpeed * 0.6, 1);
             const flap = m.onGround || m.inWater ? 0.12 : Math.sin(time * 26) * 0.9;
+            const rotor = (time * 45) % (Math.PI * 2); // hélices: ~7 vueltas/s
 
             for (const part of type.parts) {
-                this.partMatrix(this.mPart, part, m, swing, flap);
+                this.partMatrix(this.mPart, part, m, swing, flap, rotor);
                 gl.uniformMatrix4fv(this.u.uModel, false, this.mPart);
                 gl.bindVertexArray(part.vao);
                 gl.drawArrays(gl.TRIANGLES, 0, part.n);
@@ -251,7 +252,7 @@ export class MobRenderer {
     }
 
     /** M = base · T(pivot) · [mirada si anim=head] · Rz · Ry · Rx. */
-    partMatrix(out, part, m, swing, flap) {
+    partMatrix(out, part, m, swing, flap, rotor) {
         mat4Translate(this.mA, part.pivot[0], part.pivot[1], part.pivot[2]);
         mat4Multiply(out, this.mBase, this.mA);
 
@@ -281,6 +282,7 @@ export class MobRenderer {
             case 'legY1': ry -= swing * 0.35; break;
             case 'flapL': rz += flap; break;
             case 'flapR': rz -= flap; break;
+            case 'rotor': ry += rotor || 0; break; // giro continuo (hélices)
         }
         if (rz) { mat4RotateZ(this.mA, rz); mat4Multiply(out, out, this.mA); }
         if (ry) { mat4RotateY(this.mA, ry); mat4Multiply(out, out, this.mA); }

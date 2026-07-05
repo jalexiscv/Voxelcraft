@@ -119,9 +119,10 @@ console.log('== Cobertura del elenco ==');
     }
     for (const m of Object.values(MOBS)) {
         if (m.spawn && m.spawn.cave) habitables.add(m.id); // los de cueva son globales
+        if (m.spawn && m.spawn.summonOnly) habitables.add(m.id); // solo por invocación (dron)
     }
     const sinHogar = Object.keys(MOBS).filter((id) => !habitables.has(id));
-    check(`los ${Object.keys(MOBS).length} mobs tienen bioma o cueva donde aparecer` +
+    check(`los ${Object.keys(MOBS).length} mobs tienen bioma, cueva o invocación donde aparecer` +
         (sinHogar.length ? ` → sin hogar: ${sinHogar.join(', ')}` : ''), sinHogar.length === 0);
     const desconocidos = [...habitables].filter((id) => !MOBS[id]);
     check('las listas de los biomas solo citan mobs existentes', desconocidos.length === 0);

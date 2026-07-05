@@ -31,8 +31,9 @@ export const PX = 1 / 16;
 /** Sombreado por cara, idéntico al del mesher de chunks. */
 export const SHADE = { top: 1.0, bottom: 0.5, z: 0.8, x: 0.6 };
 
-/** Animaciones que el render sabe aplicar a una parte. */
-export const ANIMS = ['none', 'leg0', 'leg1', 'arm0', 'arm1', 'legY0', 'legY1', 'head', 'flapL', 'flapR'];
+/** Animaciones que el render sabe aplicar a una parte. `rotor` es un giro
+ *  CONTINUO alrededor de Y con el ángulo del fotograma (hélices del dron). */
+export const ANIMS = ['none', 'leg0', 'leg1', 'arm0', 'arm1', 'legY0', 'legY1', 'head', 'flapL', 'flapR', 'rotor'];
 
 const UV_INSET = 0.25; // texels hacia dentro: evita sangrado entre caras
 

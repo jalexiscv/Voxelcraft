@@ -83,7 +83,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Agricultura: labrar con azada, sembrar trigo/zanahoria/patata, crecimiento con riego, pan y patata asada | ✅ (ver [04-items.md](04-items.md)) |
 | Cámara de vigilancia: bloque dinámico dibujado como entidad animada (paneo ±70° cada 8 s y LED parpadeante), crafteable con hierro, cristal y palo | ✅ (ver [04-items.md](04-items.md)) |
 | Depuración (F3), reaparición (R) | ✅ |
-| Mobs (68 criaturas con IA), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
+| Mobs (68 criaturas con IA + el dron guardián propio de la casa), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
 | Multijugador | ❌ (ver «Futuro») |
 
 ## Verificación

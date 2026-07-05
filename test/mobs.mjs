@@ -434,6 +434,49 @@ class LakeWorld extends MockWorld {
     simulate(sys, 3, { pos: [0.5, 11, 0.5], eye: [0.5, 12.62, 0.5], day: 0.25 });
     check('el proyectil hiere con el daño del tirador', hooks.calls.damage.some((d) => d.dmg === 2));
 }
+{
+    // dron guardián: escolta al jugador y embiste al agresor que lo ronde
+    const dron = (await import('../js/mobs/dron.js')).default;
+    const world = new MockWorld();
+    const sys = new MobSystem({}, world, silentHooks(), 7);
+    const guard = new Mob(dron, 3, 13, 3);
+    sys.mobs.push(guard);
+    const ctx = { pos: [0.5, 11, 0.5], eye: [0.5, 12.62, 0.5], day: 1 };
+
+    // sin amenazas cerca, escolta: vuela hacia el jugador y planea a su lado
+    simulate(sys, 4, ctx);
+    check('sin amenazas el dron escolta al jugador (se le acerca)',
+        Math.hypot(guard.pos[0] - 0.5, guard.pos[2] - 0.5) < 3 && !guard.dying());
+    check('planea a la altura de la cabeza sin caer (hover)',
+        guard.pos[1] > ctx.pos[1] + 1 && !guard.onGround);
+
+    // aparece un hostil robusto junto al jugador: el dron lo persigue en 3D
+    // (baja hacia el objetivo terrestre) y lo hiere hasta matarlo
+    const zombi = new Mob({
+        ...zombiTest, id: 'zombi_amenaza', hp: 40,
+        behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1 },
+    }, 3.5, 11, 0.5);
+    sys.mobs.push(zombi);
+    const hpAntes = zombi.hp;
+    let yMin = guard.pos[1];
+    for (let t = 0; t < 6; t += DT) { sys.update(DT, ctx); yMin = Math.min(yMin, guard.pos[1]); }
+    check('el dron ataca al agresor cercano al jugador', zombi.hp < hpAntes);
+    check('el dron persigue en 3D (baja hacia el objetivo terrestre)', yMin < 12.5);
+
+    // el dron NO ataca a un pasivo (una vaca no es una amenaza)
+    const paz = new MobSystem({}, world, silentHooks(), 7);
+    const guard2 = new Mob(dron, 1.5, 13, 0.5);
+    const vaca = new Mob(pig, 2.5, 11, 0.5);
+    paz.mobs.push(guard2, vaca);
+    const hpVaca = vaca.hp;
+    simulate(paz, 5, ctx);
+    check('el dron no agrede a los pasivos', vaca.hp === hpVaca && !vaca.dying());
+
+    // no aparece de forma natural (summonOnly): ni de día ni de noche
+    const salvaje = new MobSystem({ dron }, new MockWorld(40), silentHooks(), 3);
+    simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
+    check('el dron no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
+}
 
 /* ==== Contrato de las 68 definiciones (elenco oficial del Overworld) ==== */
 console.log('== Definiciones de mobs ==');
@@ -472,6 +515,17 @@ console.log('== Definiciones de mobs ==');
         }
         check('el elenco usa animaciones variadas (≥5 tipos)', anims.size >= 5 && [...anims].every((a) => ANIMS.includes(a)));
     }
+
+    // mobs PROPIOS de la casa (no vanilla): mismo contrato validable, con
+    // la anim 'rotor' de las hélices del dron
+    const PROPIOS = ['dron'];
+    for (const id of PROPIOS) {
+        const def = (await import(`../js/mobs/${id}.js`)).default;
+        const { errors } = validate(def, id);
+        check(`contrato válido (propio): ${id}${errors.length ? ` → ${errors[0]}` : ''}`, errors.length === 0);
+    }
+    check('el dron usa la anim rotor en sus hélices', (await import('../js/mobs/dron.js')).default
+        .parts.some((p) => p.anim === 'rotor'));
 
     // Campo `sonidos` (pack local opcional, contrato en documents/02-mobs.md):
     // todo prefijo es ruta bajo mob/ en minúsculas, sin extensión, sin barra

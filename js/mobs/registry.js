@@ -6,7 +6,9 @@
  * El elenco recrea los 68 mobs del Overworld de la lista oficial de
  * Minecraft Java Edition 26.2 (ver documents/02-mobs.md), agrupado por
  * las categorías oficiales del juego: pasivos, neutrales y hostiles
- * (la locomoción — terrestre/volador/acuático — es el subgrupo).
+ * (la locomoción — terrestre/volador/acuático — es el subgrupo). Tras el
+ * elenco oficial van los mobs PROPIOS de la casa (el dron guardián), que
+ * no aparecen de forma natural: se invocan con su huevo del creativo.
  */
 // Pasivos — terrestres
 import pig from './pig.js';
@@ -82,6 +84,8 @@ import creaking from './creaking.js';
 import breeze from './breeze.js';
 import warden from './warden.js';
 import guardian from './guardian.js';
+// Propios de la casa (no vanilla): solo por huevo de aparición
+import dron from './dron.js';
 
 /** Tipos indexados por id, agrupados por las categorías oficiales del juego. */
 export const MOBS = {
@@ -102,4 +106,6 @@ export const MOBS = {
     husk, stray, parched, bogged, zombie_villager, witch, pillager, vindicator,
     evoker, ravager, slime, silverfish, ghast, vex, creaking, breeze,
     warden, guardian,
+    // propios de la casa
+    dron,
 };

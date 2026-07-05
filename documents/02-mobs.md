@@ -26,6 +26,22 @@ zombi · esqueleto · creeper (explota) · araña · araña de cueva · ahogado 
 | Jefes (1) | Wither | Se construye con bloques que no existen; sin combate de jefes |
 | Variantes (6) | Skeleton Horse, Zombie Horse, Mule, Trader Llama, Elder Guardian, Tadpole | Variantes de montura/cría de mobs ya recreados; no hay monturas ni crías |
 
+## Mobs propios de la casa (no vanilla)
+
+Además del elenco oficial, VoxelCraft incluye criaturas propias que **no
+aparecen de forma natural** (`spawn.summonOnly`): solo nacen del **huevo
+de aparición** del modo creativo. Se registran tras el elenco vanilla en
+`js/mobs/registry.js`.
+
+- **Dron guardián** (`dron`) — cuadricóptero volador ALIADO. Escolta al
+  jugador planeando a su lado (`hover`: sostiene su altitud incluso
+  quieto) y, con la IA `behavior.guardian`, embiste en 3D al agresor
+  (hostil, o neutral enfadado) más cercano que ronde al jugador dentro de
+  `guardRadius`, protegiéndolo. Sus cuatro hélices giran de verdad con la
+  animación `rotor` (giro continuo en Y que aplica el render). Funciona
+  igual en creativo, donde los hostiles ignoran al jugador pero el dron
+  los sigue neutralizando.
+
 ## Arquitectura
 
 ```
@@ -64,10 +80,11 @@ Cada tanda sortea un hábitat: **superficie** (de día los pasivos del bioma sob
 ### Huevos de aparición (modo creativo)
 
 El selector del creativo ofrece un **huevo por cada mob del registro**
-(`js/eggs.js`: ids numéricos estables desde 300, por encima de los items,
-con el cascarón del icono pintado con la paleta procedural del propio
-mob). Usarlo sobre la cara de un bloque hace aparecer el mob en la celda
-adyacente (`MobSystem.spawnAt`): sin sorteo de hábitat ni topes por tipo
+(los 68 vanilla y el dron guardián propio de la casa) — `js/eggs.js`: ids
+numéricos estables desde 300, por encima de los items, con el cascarón
+del icono pintado con la paleta procedural del propio mob. Usarlo sobre
+la cara de un bloque hace aparecer el mob en la celda adyacente
+(`MobSystem.spawnAt`): sin sorteo de hábitat ni topes por tipo
 — solo un tope duro de 128 mobs simultáneos que protege al render — con
 la tonalidad sorteada como en la aparición natural y su voz de saludo.
 Los huevos solo existen en el creativo: jamás entran al inventario de

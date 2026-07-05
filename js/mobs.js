@@ -169,7 +169,8 @@ export class MobSystem {
 
         m.angerT = Math.max(0, m.angerT - dt);
         // en modo creativo los hostiles ignoran al jugador (deambulan como pasivos)
-        if ((m.def.hostile || m.angerT > 0) && !ctx.creative) this.hostileAI(m, dt, ctx, dist);
+        if (m.def.behavior && m.def.behavior.guardian) this.guardianAI(m, dt, ctx, dist);
+        else if ((m.def.hostile || m.angerT > 0) && !ctx.creative) this.hostileAI(m, dt, ctx, dist);
         else this.passiveAI(m, dt, ctx, dist);
 
         this.stepPhysics(m, dt);
@@ -207,6 +208,57 @@ export class MobSystem {
             m.speed = 0;
         }
         // mirada: al jugador si está cerca, si no al frente
+        this.lookAt(m, dist < 8 ? ctx.eye : null);
+    }
+
+    /**
+     * IA del guardián volador (behavior.guardian, el dron): protege al
+     * jugador. Si un AGRESOR — hostil, o neutral enfadado — ronda al
+     * jugador dentro de guardRadius, lo persigue en 3D y lo golpea cuerpo
+     * a cuerpo; sin amenazas, escolta al jugador planeando a su lado.
+     * Funciona igual en creativo (allí los hostiles ignoran al jugador,
+     * pero el guardián los sigue neutralizando).
+     */
+    guardianAI(m, dt, ctx, dist) {
+        const b = m.def.behavior;
+        const radio = b.guardRadius || 16;
+
+        // amenaza: el agresor vivo más cercano AL JUGADOR dentro del radio
+        let objetivo = null, mejor = Infinity;
+        for (const otro of this.mobs) {
+            if (otro === m || otro.dying()) continue;
+            if (!(otro.def.hostile || otro.angerT > 0)) continue;
+            const d = Math.hypot(otro.pos[0] - ctx.pos[0], otro.pos[1] - ctx.pos[1], otro.pos[2] - ctx.pos[2]);
+            if (d < radio && d < mejor) { mejor = d; objetivo = otro; }
+        }
+
+        if (objetivo) {
+            m.state = 'chase';
+            const centro = [objetivo.pos[0], objetivo.pos[1] + objetivo.def.aabb.h * 0.6, objetivo.pos[2]];
+            m.yaw = Math.atan2(-(centro[0] - m.pos[0]), -(centro[2] - m.pos[2]));
+            m.targetY = centro[1];
+            m.speed = m.def.speed;
+            this.lookAt(m, centro);
+            const d3 = Math.hypot(m.pos[0] - centro[0], m.pos[1] - centro[1], m.pos[2] - centro[2]);
+            if (d3 < (b.attackRange || 1.5) && m.attackCd <= 0) {
+                m.attackCd = b.cooldown || 1;
+                this.hurt(objetivo, b.damage || 4, this.dirTo(m.pos, objetivo.pos));
+            }
+            return;
+        }
+
+        // escolta: si se aparta más de ~2 bloques del jugador vuela hacia
+        // él; ya pegado, planea a su lado a la altura de la cabeza. La
+        // banda muerta evita el tiritón de arranque/parada al orbitar.
+        if (dist > 2.2) {
+            m.state = 'wander';
+            m.yaw = Math.atan2(-(ctx.pos[0] - m.pos[0]), -(ctx.pos[2] - m.pos[2]));
+            m.speed = m.def.speed * Math.min(1, (dist - 1.5) / 2); // frena al llegar
+        } else {
+            m.state = 'idle';
+            m.speed = 0;
+        }
+        m.targetY = ctx.pos[1] + 2.2;
         this.lookAt(m, dist < 8 ? ctx.eye : null);
     }
 
@@ -357,7 +409,10 @@ export class MobSystem {
 
         // eje vertical según el modo de locomoción
         if (m.def.flying) {
-            const wishY = m.speed > 0 ? clamp((m.targetY - m.pos[1]) * 1.5, -m.def.speed, m.def.speed) : 0;
+            // los voladores solo ajustan altitud al desplazarse; el guardián
+            // (hover) sostiene su altura objetivo también planeando quieto
+            const ajusta = m.speed > 0 || m.def.hover;
+            const wishY = ajusta ? clamp((m.targetY - m.pos[1]) * 1.5, -m.def.speed, m.def.speed) : 0;
             m.vel[1] = approach(m.vel[1], wishY, 22 * dt);
         } else if (m.def.aquatic && m.inWater) {
             const wishY = clamp((m.targetY - m.pos[1]) * 1.2, -1.5, 1.5);
@@ -646,6 +701,7 @@ export class MobSystem {
     /** ¿Puede `def` aparecer en ese hábitat, posición, hora y bioma? */
     eligibleAt(def, habitat, spot, day, bioma) {
         const sp = def.spawn || {};
+        if (sp.summonOnly) return false; // el dron solo nace por invocación
         if (habitat === 'water') {
             return !!sp.water && (!def.hostile || day < NIGHT) &&
                 bioma.mobs.water.includes(def.id);
