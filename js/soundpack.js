@@ -10,8 +10,8 @@
  *
  * Formatos aceptados, por id y en este orden: `.mp3` (decodeAudioData
  * nativo) y `.fsb` (bancos FMOD FSB5 vía js/fsb5.js: códecs PCM* envueltos
- * en WAV y MPEG como frames mp3 crudos; VORBIS y demás no son
- * decodificables y caen al sintetizador con un aviso).
+ * en WAV, MPEG como frames mp3 crudos y FADPCM decodificado en JS puro;
+ * VORBIS y demás no son decodificables y caen al sintetizador con aviso).
  *
  * Convención de nombres (todo bajo sounds/ en la raíz; se muestra .mp3
  * pero cada id acepta también .fsb):
@@ -38,7 +38,7 @@
  *                      si ninguna está disponible (sondea las que falten).
  */
 
-import { parseFSB5, sampleAWav } from './fsb5.js';
+import { parseFSB5, sampleAWav, decodeFADPCM, pcm16AWav } from './fsb5.js';
 
 const BASE = 'sounds/';
 
@@ -82,6 +82,11 @@ async function decodificarFSB(datos) {
     }
     if (header.codec === 'MPEG') {
         return ctx.decodeAudioData(sample.data.slice().buffer);
+    }
+    if (header.codec === 'FADPCM') {
+        const pcm = decodeFADPCM(sample);
+        const wav = pcm16AWav(pcm, sample.frequency, sample.channels);
+        return wav ? ctx.decodeAudioData(wav.buffer) : null;
     }
     if (!codecsAvisados.has(header.codec)) {
         codecsAvisados.add(header.codec);

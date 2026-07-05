@@ -108,3 +108,4 @@
 | 104 | 2026-07-04 | Documento 06: referencia de nombres de archivo del pack de sonidos local |
 | 105 | 2026-07-04 | [Puertas de dos bloques con giro real y vallas 3D conectadas](2026-07-04_puertas_vallas.md) |
 | 106 | 2026-07-04 | [Pack de sonidos: soporte de bancos FMOD FSB5 junto al mp3](2026-07-04_fsb5.md) |
+| 107 | 2026-07-04 | [Decodificador FADPCM en JS puro y conversión del pack a mp3](2026-07-04_fadpcm.md) |

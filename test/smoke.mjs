@@ -884,6 +884,34 @@ console.log('== FSB5 ==');
         sampleAWav(samples[0], 'PCMFLOAT')?.length === 44 + N * 2);
     check('un archivo que no es FSB5 lanza un error claro',
         (() => { try { parseFSB5(new Uint8Array(16)); return false; } catch (e) { return /FSB5/.test(e.message); } })());
+
+    // FADPCM determinista: frame con índice de coeficientes 0 (coefs nulos),
+    // shift 6 e historia 0 => cada nibble n decodifica exacto a
+    // (n < 8 ? n : n - 16) * 64, sin depender de muestras anteriores.
+    const { decodeFADPCM, pcm16AWav } = await import(base + 'fsb5.js');
+    const banco = new Uint8Array(60 + 8 + 140);
+    const bv = new DataView(banco.buffer);
+    banco.set([0x46, 0x53, 0x42, 0x35], 0);            // "FSB5"
+    bv.setUint32(4, 1, true); bv.setUint32(8, 1, true);
+    bv.setUint32(12, 8, true); bv.setUint32(16, 0, true);
+    bv.setUint32(20, 140, true);
+    bv.setUint32(24, 16, true);                        // modo 16 = FADPCM
+    bv.setBigUint64(60, (256n << 34n) | (9n << 1n), true); // 256 muestras, 48000 Hz
+    const frame = 60 + 8;
+    bv.setUint32(frame + 4, 0x66666666, true);         // shifts: todos 6
+    bv.setUint32(frame + 0x0c, 0x76543210, true);      // nibbles 0..7
+    bv.setUint32(frame + 0x10, 0xFEDCBA98, true);      // nibbles 8..15 (negativos)
+    const fad = parseFSB5(banco);
+    const pcm = decodeFADPCM(fad.samples[0]);
+    const esperado = [0, 64, 128, 192, 256, 320, 384, 448,
+        -512, -448, -384, -320, -256, -192, -128, -64];
+    check('FADPCM decodifica el frame de referencia muestra a muestra',
+        fad.header.codec === 'FADPCM' && pcm.length === 256 &&
+        esperado.every((v, i) => pcm[i] === v) && pcm[16] === 0 && pcm[255] === 0);
+    const wavFad = pcm16AWav(pcm, 48000, 1);
+    check('el PCM decodificado se envuelve en WAV canónico',
+        wavFad.length === 44 + 512 &&
+        new DataView(wavFad.buffer).getUint32(24, true) === 48000);
 }
 
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);

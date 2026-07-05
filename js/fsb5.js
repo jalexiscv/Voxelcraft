@@ -130,6 +130,76 @@ const PCM_WAV = {
     PCMFLOAT: { bits: 32, fmt: 3 }, // IEEE float
 };
 
+/*
+ * FADPCM: el ADPCM propietario de FMOD (XA/PSX retocado, coeficientes ya
+ * multiplicados por 64). Algoritmo reimplementado tomando como referencia
+ * el decodificador de vgmstream (fadpcm_decoder.c, depurado byte a byte
+ * contra las DLL de FMOD por ese proyecto).
+ *
+ * Cada frame ocupa 0x8c bytes y produce 256 muestras mono; es
+ * autocontenido: su cabecera de 0xc bytes trae los índices de coeficiente
+ * y shift de sus 8 grupos de nibbles más la historia inicial (hist1/hist2).
+ */
+const FADPCM_COEFS = [
+    [0, 0], [60, 0], [122, 60], [115, 52], [98, 55], [0, 0], [0, 0],
+];
+const FADPCM_FRAME = 0x8c;                       // bytes por frame y canal
+const FADPCM_MUESTRAS = (FADPCM_FRAME - 0x0c) * 2; // 256 muestras por frame
+
+/**
+ * Decodifica un sample FADPCM a PCM16 entrelazado (Int16Array). Con más de
+ * un canal, los frames van intercalados por canal (entrelazado externo).
+ */
+export function decodeFADPCM(sample) {
+    const bytes = sample.data;
+    const canales = sample.channels || 1;
+    const framesPorCanal = Math.floor(bytes.length / (FADPCM_FRAME * canales));
+    const total = Math.min(sample.sampleCount || Infinity, framesPorCanal * FADPCM_MUESTRAS);
+    const pcm = new Int16Array(total * canales);
+    const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+    for (let c = 0; c < canales; c++) {
+        let escritas = 0;
+        for (let f = 0; f < framesPorCanal && escritas < total; f++) {
+            const base = (f * canales + c) * FADPCM_FRAME;
+            const coefs = v.getUint32(base + 0x00, true);
+            const shifts = v.getUint32(base + 0x04, true);
+            let hist1 = v.getInt16(base + 0x08, true);
+            let hist2 = v.getInt16(base + 0x0a, true);
+
+            for (let i = 0; i < 8; i++) {
+                const idx = ((coefs >>> (i * 4)) & 0x0f) % 7;
+                const shift = 22 - ((shifts >>> (i * 4)) & 0x0f);
+                const [c1, c2] = FADPCM_COEFS[idx];
+
+                for (let j = 0; j < 4; j++) {
+                    const nibbles = v.getUint32(base + 0x0c + 0x10 * i + 0x04 * j, true);
+                    for (let k = 0; k < 8; k++) {
+                        let s = (nibbles >>> (k * 4)) & 0x0f;
+                        s = (s << 28) >> shift;              // extensión de signo + escala
+                        s = (s - hist2 * c2 + hist1 * c1) >> 6;
+                        if (s > 32767) s = 32767; else if (s < -32768) s = -32768;
+                        if (escritas < total) pcm[escritas * canales + c] = s;
+                        escritas++;
+                        hist2 = hist1;
+                        hist1 = s;
+                    }
+                }
+            }
+        }
+    }
+    return pcm;
+}
+
+/**
+ * Envuelve PCM16 ya decodificado (Int16Array entrelazado) en un WAV
+ * canónico listo para decodeAudioData o para escribir a disco.
+ */
+export function pcm16AWav(pcm, frequency, channels) {
+    const falso = { frequency, channels, data: new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength) };
+    return sampleAWav(falso, 'PCM16');
+}
+
 /**
  * Convierte un sample PCM16 a un archivo WAV reproducible (Uint8Array).
  * Solo válido si header.codec === 'PCM16'.

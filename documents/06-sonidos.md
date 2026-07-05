@@ -98,10 +98,16 @@ vex · creaking · breeze · warden · guardian
 
 *   Formatos: **mp3** y **fsb** (bancos FMOD FSB5). Cada id sondea primero
     `<id>.mp3` y después `<id>.fsb`. De los FSB se reproducen los códecs
-    PCM (8/16/24/32/float, envueltos en WAV) y MPEG (frames mp3 crudos);
-    los bancos VORBIS/ADPCM no son decodificables con WebAudio: avisan una
+    PCM (8/16/24/32/float, envueltos en WAV), MPEG (frames mp3 crudos) y
+    **FADPCM** (el ADPCM de FMOD, decodificado en JS puro tomando como
+    referencia el algoritmo de vgmstream); los bancos VORBIS avisan una
     vez en consola y ese sonido lo cubre el sintetizador. Parser propio en
-    `js/fsb5.js` (aportado por el usuario, probado en la suite).
+    `js/fsb5.js` (aportado por el usuario, probado en la suite muestra a
+    muestra).
+*   Conversión opcional a mp3: `node .hermes/tools/fsb-a-mp3.mjs` (local,
+    fuera del repo) decodifica cada `.fsb` con el parser del motor y
+    codifica con el ffmpeg del sistema, conservando el nombre base. Al
+    sondearse `.mp3` primero, los convertidos tienen prioridad.
 *   Un archivo mal nombrado simplemente no se encuentra: no hay error, el
     sintetizador cubre ese sonido.
 *   El sondeo se cachea (incluidos los que no existen): si añades archivos
