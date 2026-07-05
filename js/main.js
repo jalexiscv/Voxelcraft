@@ -23,6 +23,7 @@ import { Inventory } from './inventory.js';
 import { DropSystem } from './drops.js';
 import { ITEM_DEFS, ITEMS, isItem } from './items.js';
 import { esCultivo, cosechaDe, plantaDe, maduro, tickCultivos } from './farming.js';
+import { esPuerta, esAbierta, colocarPuerta, alternarPuerta, romperPuerta } from './doors.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { SoundEngine } from './audio.js';
@@ -576,7 +577,9 @@ function boot() {
 
         if (button === 0 && def.breakable) {           // picar (dureza en golpes)
             if (game.mode === 'creativo') {            // creativo: rotura instantánea
-                game.world.set(hit.x, hit.y, hit.z, B.AIR);
+                // la puerta cae entera: cualquier hoja limpia el par (sin drop)
+                if (esPuerta(hit.id)) romperPuerta(game.world, hit.x, hit.y, hit.z);
+                else game.world.set(hit.x, hit.y, hit.z, B.AIR);
                 sound.dig(def.sound);
                 return;
             }
@@ -590,6 +593,14 @@ function boot() {
             game.breaking.hits += fuerzaDeGolpe(def);
             sound.dig(def.sound);
             if (game.breaking.hits >= game.breaking.need) {
+                // romper cualquier hoja de puerta tira el PAR entero y suelta
+                // UN único drop (en la hoja inferior; dropDe lo recoge cerrado)
+                if (esPuerta(hit.id)) {
+                    const base = romperPuerta(game.world, hit.x, hit.y, hit.z);
+                    game.breaking = null;
+                    if (base) game.drops.spawn(dropDe(hit.id), base.x, base.y, base.z);
+                    return;
+                }
                 // romper un cofre con contenido: su botín cae ANTES del set
                 // a AIR (que limpia el estado del bloque). Tope de 64 drops
                 // de golpe (la capacidad del sistema: los de más expulsarían
@@ -654,11 +665,12 @@ function boot() {
                 document.exitPointerLock();
                 return;
             }
-            // la puerta alterna abierta/cerrada con el uso
-            if (hit.id === B.DOOR_CLOSED || hit.id === B.DOOR_OPEN) {
-                game.world.set(hit.x, hit.y, hit.z,
-                    hit.id === B.DOOR_CLOSED ? B.DOOR_OPEN : B.DOOR_CLOSED);
-                sound.evento(hit.id === B.DOOR_CLOSED ? 'puerta_abrir' : 'puerta_cerrar');
+            // la puerta alterna abierta/cerrada con el uso: desde cualquier
+            // hoja giran LAS DOS del par (un solo sonido por clic)
+            if (esPuerta(hit.id)) {
+                const abre = !esAbierta(hit.id);
+                alternarPuerta(game.world, hit.x, hit.y, hit.z);
+                sound.evento(abre ? 'puerta_abrir' : 'puerta_cerrar');
                 return;
             }
             // la cama salta la noche: al usarla de noche, amanece
@@ -698,6 +710,21 @@ function boot() {
             if (!replaceable) return;
             const id = hud.activeBlock();
             if (isItem(id) || !DEFS[id]) return;       // las herramientas no se colocan
+            // la puerta ocupa DOS bloques: pasa por la mecánica del par (aire
+            // en ambas celdas y suelo sólido debajo); si no cabe, no se
+            // coloca NI se consume del inventario
+            if (id === B.DOOR_CLOSED) {
+                if (player.intersectsBlock(tx, ty, tz) ||
+                    player.intersectsBlock(tx, ty + 1, tz)) return;
+                if (game.mode === 'supervivencia' && game.inventory.count(id) === 0) return;
+                if (!colocarPuerta(game.world, tx, ty, tz)) return;
+                if (game.mode === 'supervivencia') {
+                    game.inventory.take(id);
+                    hud.refreshCounts();
+                }
+                sound.place(DEFS[id].sound);
+                return;
+            }
             if (DEFS[id].solid && player.intersectsBlock(tx, ty, tz)) return;
             if (game.mode === 'supervivencia') {
                 if (!game.inventory.take(id)) return; // sin existencias
@@ -720,7 +747,7 @@ function boot() {
         if (id === B.GRASS || id === B.SNOWY_GRASS || id === B.MYCELIUM || id === B.PODZOL) return B.DIRT;
         if (id === B.FARMLAND) return B.DIRT; // la tierra labrada vuelve a ser tierra
         if (id === B.COAL_ORE) return ITEMS.CARBON;
-        if (id === B.DOOR_OPEN) return B.DOOR_CLOSED; // la puerta se recoge cerrada
+        if (esPuerta(id)) return B.DOOR_CLOSED; // cualquier hoja se recoge como puerta cerrada
         return id;
     }
 

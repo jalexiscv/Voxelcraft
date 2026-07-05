@@ -106,3 +106,4 @@
 | 102 | 2026-07-04 | [Aldeas procedurales: estudio, 8 arquetipos y generación por celdas](2026-07-04_aldeas.md) |
 | 103 | 2026-07-04 | [Sonido declarativo: catálogo por evento, voz por mob y pack local opcional](2026-07-04_sonidos.md) |
 | 104 | 2026-07-04 | Documento 06: referencia de nombres de archivo del pack de sonidos local |
+| 105 | 2026-07-04 | [Puertas de dos bloques con giro real y vallas 3D conectadas](2026-07-04_puertas_vallas.md) |

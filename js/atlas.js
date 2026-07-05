@@ -51,6 +51,9 @@ export const TILE = {
     IT_SEMILLAS: 123, IT_TRIGO: 124, IT_PAN: 125, IT_ZANAHORIA: 126,
     IT_PATATA: 127, IT_PATATA_ASADA: 128,
     IT_AZADA_MADERA: 129, IT_AZADA_PIEDRA: 130, IT_AZADA_HIERRO: 131,
+    // hoja superior de la puerta de dos bloques (la inferior es DOOR_T y el
+    // canto compartido de ambas hojas es DOOR_OPEN_T)
+    DOOR_TOP_T: 132,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -632,34 +635,135 @@ painters[TILE.FURNACE_TOP] = (t) => {
     for (let x = 5; x <= 10; x++) for (let y = 5; y <= 10; y++) t.px(x, y, 70, 70, 70);
 };
 
+/* ---- Puerta de dos bloques: carpintería de roble cálido (diseño propio) ---- */
+
+const ROBLE_MARCO = [90, 64, 38];        // montantes y travesaños (tono oscuro)
+const ROBLE_MARCO_MEDIO = [118, 86, 50]; // anillo interior del marco
+const ROBLE_ARISTA = [176, 140, 90];     // arista clara del marco (luz arriba/izquierda)
+const METAL_PLACA = [158, 160, 166], METAL_SOMBRA = [108, 110, 116];
+const METAL_REMACHE = [82, 84, 90], METAL_BRILLO = [198, 200, 206];
+
+/** Campo de madera de roble con veta vertical sutil + marco perimetral de 2 px. */
+function baseHojaPuerta(t) {
+    for (let x = 0; x < TILE_PX; x++) {
+        // cada columna arrastra su propia sombra: veta vertical del PRNG
+        const veta = t.rng.int(4) === 0 ? -14 : t.rng.int(11) - 5;
+        for (let y = 0; y < TILE_PX; y++) {
+            const d = veta + t.rng.int(7) - 3;
+            t.px(x, y, 176 + d, 136 + d, 84 + d);
+        }
+    }
+    for (let i = 0; i < TILE_PX; i++) {                     // anillo exterior oscuro
+        t.px(i, 0, ...ROBLE_MARCO); t.px(i, 15, ...ROBLE_MARCO);
+        t.px(0, i, ...ROBLE_MARCO); t.px(15, i, ...ROBLE_MARCO);
+    }
+    for (let i = 1; i < 15; i++) {                          // anillo interior
+        t.px(i, 1, ...ROBLE_ARISTA); t.px(1, i, ...ROBLE_ARISTA);          // arista clara (luz)
+        t.px(i, 14, ...ROBLE_MARCO_MEDIO); t.px(14, i, ...ROBLE_MARCO_MEDIO); // canto en sombra
+    }
+}
+
+/** Panel rehundido con bisel: sombra arriba/izquierda, luz abajo/derecha. */
+function panelRehundido(t, x0, y0, x1, y1) {
+    for (let y = y0; y <= y1; y++) {                        // fondo del panel, algo hundido
+        for (let x = x0; x <= x1; x++) {
+            const d = t.rng.int(9) - 4;
+            t.px(x, y, 148 + d, 110 + d, 66 + d);
+        }
+    }
+    for (let y = y0; y <= y1; y++) t.px(x1, y, 188, 150, 96);  // bisel: luz derecha
+    for (let x = x0; x <= x1; x++) t.px(x, y1, 188, 150, 96);  // bisel: luz inferior
+    for (let x = x0; x <= x1; x++) t.px(x, y0, 104, 76, 44);   // bisel: sombra superior
+    for (let y = y0; y <= y1; y++) t.px(x0, y, 104, 76, 44);   // bisel: sombra izquierda
+}
+
+/** Placa de bisagra metálica 3×2 con remache, pegada al canto izquierdo. */
+function bisagraPuerta(t, y0) {
+    for (let y = y0; y < y0 + 2; y++) {
+        for (let x = 0; x <= 2; x++) t.px(x, y, ...METAL_PLACA);
+    }
+    t.px(0, y0, ...METAL_BRILLO);                           // brillo del pliegue
+    t.px(2, y0 + 1, ...METAL_SOMBRA);                       // borde en sombra
+    t.px(1, y0, ...METAL_REMACHE);                          // remaches
+    t.px(2, y0, ...METAL_REMACHE);
+}
+
 painters[TILE.DOOR_T] = (t) => {
-    painters[TILE.PLANKS](t);
-    for (let i = 0; i < TILE_PX; i++) {                     // marco
-        t.px(i, 0, 84, 60, 34); t.px(i, 15, 84, 60, 34);
-        t.px(0, i, 84, 60, 34); t.px(15, i, 84, 60, 34);
-    }
-    for (let y = 3; y <= 6; y++) {                          // ventanuco (hueco alfa)
-        for (let x = 5; x <= 10; x++) t.px(x, y, 0, 0, 0, 0);
-    }
-    t.px(12, 9, 210, 190, 120); t.px(12, 10, 210, 190, 120); // pomo
+    // hoja inferior: dos paneles rehundidos, travesaño central, pomo dorado
+    // a media altura en el lado derecho y bisagras arriba/abajo
+    baseHojaPuerta(t);
+    panelRehundido(t, 3, 3, 12, 6);                         // panel superior
+    panelRehundido(t, 3, 9, 12, 12);                        // panel inferior
+    // el travesaño central (y = 7..8) queda delimitado por los biseles de
+    // ambos paneles; no necesita línea propia
+    bisagraPuerta(t, 2);                                    // bisagra superior
+    bisagraPuerta(t, 12);                                   // bisagra inferior
+    t.px(12, 7, 254, 244, 190); t.px(13, 7, 222, 178, 76);  // pomo esférico dorado 2×2
+    t.px(12, 8, 222, 178, 76); t.px(13, 8, 170, 126, 44);   // (destello arriba-izquierda)
 };
 
 painters[TILE.DOOR_OPEN_T] = (t) => {
-    // hoja abierta pegada al canto: casi todo hueco, tablón lateral visible
-    for (let y = 0; y < TILE_PX; y++) {
-        for (let x = 0; x <= 3; x++) {
-            const d = t.rng.int(9) - 4;
-            t.px(x, y, 170 + d, 132 + d, 82 + d);
+    // canto de la hoja: listones de roble con veta vertical en módulos de 5 px
+    // (4 px útiles + junta), para que cualquier franja muestre un listón entero
+    for (let x = 0; x < TILE_PX; x++) {
+        const junta = x % 5 === 4;                          // junta oscura entre listones
+        const veta = t.rng.int(9) - 4;
+        for (let y = 0; y < TILE_PX; y++) {
+            const d = veta + t.rng.int(7) - 3;
+            if (junta) t.px(x, y, 94 + d, 68 + d, 40 + d);
+            else t.px(x, y, 168 + d, 128 + d, 80 + d);
         }
-        t.px(0, y, 84, 60, 34);
     }
-    t.px(2, 8, 210, 190, 120);                              // pomo
+    for (let x = 0; x < TILE_PX; x++) {                     // testas (corte de la madera)
+        t.px(x, 0, 132, 100, 60); t.px(x, 15, 116, 86, 52);
+    }
+};
+
+painters[TILE.DOOR_TOP_T] = (t) => {
+    // hoja superior: mismo lenguaje de marco, travesaño ancho de remate y
+    // vidriera de 2×2 cuarterones translúcidos separados por parteluces
+    baseHojaPuerta(t);
+    for (let x = 2; x <= 13; x++) t.px(x, 2, ...ROBLE_ARISTA); // remate: luz del travesaño ancho
+    for (let x = 2; x <= 13; x++) {                         // junquillo perimetral de la vidriera
+        t.px(x, 4, ...ROBLE_MARCO_MEDIO); t.px(x, 13, ...ROBLE_MARCO_MEDIO);
+    }
+    for (let y = 4; y <= 13; y++) {
+        t.px(2, y, ...ROBLE_MARCO_MEDIO); t.px(13, y, ...ROBLE_MARCO_MEDIO);
+    }
+    for (let y = 5; y <= 12; y++) {                         // cuarterones de vidrio (alfa parcial)
+        for (let x = 3; x <= 12; x++) {
+            const d = t.rng.int(13) - 6;
+            t.px(x, y, 198 + d, 224 + d, 240 + d, 148);
+        }
+    }
+    for (let x = 3; x <= 12; x++) t.px(x, 8, ...ROBLE_MARCO);  // parteluz horizontal (1 px)
+    for (let y = 4; y <= 13; y++) t.px(8, y, ...ROBLE_MARCO);  // parteluz vertical (1 px)
+    for (let i = 0; i < 3; i++) {                           // destellos diagonales en dos cuarterones
+        t.px(4 + i, 7 - i, 236, 246, 252, 178);
+        t.px(9 + i, 12 - i, 236, 246, 252, 178);
+    }
+    bisagraPuerta(t, 12);                                   // bisagra al canto izquierdo abajo
 };
 
 painters[TILE.FENCE_T] = (t) => {
-    for (let y = 2; y < TILE_PX; y++) { t.px(7, y, 124, 92, 56); t.px(8, y, 104, 76, 46); } // poste
-    for (const ry of [5, 10]) {                             // travesaños
-        for (let x = 0; x < TILE_PX; x++) { t.px(x, ry, 140, 106, 64); t.px(x, ry + 1, 116, 86, 50); }
+    // madera de poste envejecida: tono más gris que los tablones, veta
+    // vertical marcada, nudos sutiles y grietas — la usa la valla 3D en
+    // todas las caras como subregiones (poste y travesaños)
+    for (let x = 0; x < TILE_PX; x++) {
+        const veta = t.rng.int(3) === 0 ? -18 : t.rng.int(13) - 6;
+        for (let y = 0; y < TILE_PX; y++) {
+            const d = veta + t.rng.int(9) - 4;
+            t.px(x, y, 142 + d, 120 + d, 88 + d);
+        }
+    }
+    for (let i = 0; i < 2; i++) {                           // nudos: óvalos oscuros con centro claro
+        const nx = 2 + t.rng.int(12), ny = 2 + t.rng.int(12);
+        t.px(nx, ny, 96, 78, 52); t.px(nx + 1, ny, 96, 78, 52);
+        t.px(nx, ny + 1, 96, 78, 52); t.px(nx + 1, ny + 1, 122, 100, 68);
+    }
+    for (let i = 0; i < 3; i++) {                           // grietas verticales finas
+        const gx = t.rng.int(TILE_PX), gy = t.rng.int(11);
+        for (let j = 0; j < 4; j++) t.px(gx, gy + j, 104, 86, 58);
     }
 };
 

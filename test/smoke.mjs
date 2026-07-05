@@ -38,7 +38,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('84 tipos definidos', DEFS.length === 84 && DEFS.every(d => d));
+check('86 tipos definidos', DEFS.length === 86 && DEFS.every(d => d));
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -217,7 +217,7 @@ console.log('== Luz de bloques ==');
 console.log('== Paneles finos ==');
 {
     check('puerta y ventana llevan el flag panel (colisión intacta)',
-        DEFS[B.DOOR_CLOSED].panel === true && DEFS[B.DOOR_OPEN].panel === true &&
+        DEFS[B.DOOR_CLOSED].panel === true && DEFS[B.DOOR_OPEN].panel === 'x' &&
         DEFS[B.WINDOW].panel === true &&
         DEFS[B.DOOR_CLOSED].solid && DEFS[B.WINDOW].solid && !DEFS[B.DOOR_OPEN].solid);
 
@@ -237,6 +237,163 @@ console.log('== Paneles finos ==');
     }
     check('la ventana se malla como caja fina (6 caras en z 0.40/0.60)',
         finas === 36 && gordas === 0);
+}
+
+/* ==== Puertas de dos bloques y valla 3D ==== */
+console.log('== Puertas y vallas ==');
+{
+    const { TILE, TILE_PX } = await import(base + 'atlas.js');
+    const { esPuerta, esHojaSuperior, esAbierta, parDe, alternada,
+            colocarPuerta, alternarPuerta, romperPuerta } = await import(base + 'doors.js');
+
+    // ids y flags de las cuatro hojas: cerradas = panel en z, abiertas = la
+    // MISMA hoja girada (panel en x); solo la inferior cerrada va al selector
+    check('hojas superiores con ids fijos 84/85 (registro completo: 86)',
+        B.DOOR_TOP_CLOSED === 84 && B.DOOR_TOP_OPEN === 85 && DEFS.length === 86);
+    check('flags de panel: cerradas en z (true), abiertas giradas en x',
+        DEFS[B.DOOR_CLOSED].panel === true && DEFS[B.DOOR_TOP_CLOSED].panel === true &&
+        DEFS[B.DOOR_OPEN].panel === 'x' && DEFS[B.DOOR_TOP_OPEN].panel === 'x');
+    check('solo la hoja inferior cerrada es colocable y ninguna hoja es opaca',
+        DEFS[B.DOOR_CLOSED].placeable && !DEFS[B.DOOR_OPEN].placeable &&
+        !DEFS[B.DOOR_TOP_CLOSED].placeable && !DEFS[B.DOOR_TOP_OPEN].placeable &&
+        [B.DOOR_CLOSED, B.DOOR_OPEN, B.DOOR_TOP_CLOSED, B.DOOR_TOP_OPEN]
+            .every((id) => !DEFS[id].opaque));
+    check('las hojas cerradas colisionan y las abiertas se atraviesan',
+        DEFS[B.DOOR_CLOSED].solid && DEFS[B.DOOR_TOP_CLOSED].solid &&
+        !DEFS[B.DOOR_OPEN].solid && !DEFS[B.DOOR_TOP_OPEN].solid);
+    check('téselas de puerta (hoja, vidriera, canto) y valla pintables',
+        [TILE.DOOR_T, TILE.DOOR_OPEN_T, TILE.DOOR_TOP_T, TILE.FENCE_T]
+            .every((tl) => tl >= 0 && tl < ATLAS_GRID * ATLAS_GRID &&
+                typeof painters[tl] === 'function'));
+    check('las cuatro hojas comparten el canto de listones (edge)',
+        [B.DOOR_CLOSED, B.DOOR_OPEN, B.DOOR_TOP_CLOSED, B.DOOR_TOP_OPEN]
+            .every((id) => DEFS[id].edge === TILE.DOOR_OPEN_T));
+
+    // clasificadores puros del par (doors.js)
+    check('esPuerta/esHojaSuperior/esAbierta clasifican las cuatro hojas',
+        [B.DOOR_CLOSED, B.DOOR_OPEN, B.DOOR_TOP_CLOSED, B.DOOR_TOP_OPEN].every(esPuerta) &&
+        !esPuerta(B.PLANKS) && !esPuerta(B.FENCE) &&
+        esHojaSuperior(B.DOOR_TOP_CLOSED) && esHojaSuperior(B.DOOR_TOP_OPEN) &&
+        !esHojaSuperior(B.DOOR_CLOSED) && !esHojaSuperior(B.DOOR_OPEN) &&
+        esAbierta(B.DOOR_OPEN) && esAbierta(B.DOOR_TOP_OPEN) &&
+        !esAbierta(B.DOOR_CLOSED) && !esAbierta(B.DOOR_TOP_CLOSED));
+    check('parDe y alternada emparejan hojas y respetan lo que no es puerta',
+        parDe(B.DOOR_CLOSED) === B.DOOR_TOP_CLOSED && parDe(B.DOOR_TOP_OPEN) === B.DOOR_OPEN &&
+        alternada(B.DOOR_CLOSED) === B.DOOR_OPEN &&
+        alternada(alternada(B.DOOR_TOP_CLOSED)) === B.DOOR_TOP_CLOSED &&
+        parDe(B.STONE) === B.STONE && alternada(B.STONE) === B.STONE);
+
+    // mecánica del par sobre un World headless (suelo de piedra en y<8)
+    const wd = new World(7);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wd.addChunk(cx, cz, flatChunk());
+    }
+    check('colocar escribe las DOS hojas sobre suelo sólido',
+        colocarPuerta(wd, 5, 8, 5) === true &&
+        wd.get(5, 8, 5) === B.DOOR_CLOSED && wd.get(5, 9, 5) === B.DOOR_TOP_CLOSED);
+    check('no se coloca sin vano libre de 2, sin suelo o contra el techo',
+        colocarPuerta(wd, 5, 8, 5) === false &&   // vano ocupado por la propia puerta
+        colocarPuerta(wd, 5, 9, 5) === false &&   // la hoja superior estorba
+        colocarPuerta(wd, 9, 20, 9) === false &&  // sin suelo sólido debajo
+        colocarPuerta(wd, 9, 63, 9) === false);   // el techo no admite la hoja superior
+    check('alternar desde la hoja SUPERIOR abre el par entero',
+        alternarPuerta(wd, 5, 9, 5) === B.DOOR_OPEN &&
+        wd.get(5, 8, 5) === B.DOOR_OPEN && wd.get(5, 9, 5) === B.DOOR_TOP_OPEN);
+    check('alternar desde la hoja inferior vuelve a cerrar el par',
+        alternarPuerta(wd, 5, 8, 5) === B.DOOR_CLOSED &&
+        wd.get(5, 8, 5) === B.DOOR_CLOSED && wd.get(5, 9, 5) === B.DOOR_TOP_CLOSED);
+    check('alternar donde no hay puerta devuelve null', alternarPuerta(wd, 2, 8, 2) === null);
+    check('romper desde cualquiera de las hojas limpia el par y da la base',
+        (() => {
+            const basePos = romperPuerta(wd, 5, 9, 5); // desde la hoja superior
+            return basePos !== null && basePos.y === 8 &&
+                wd.get(5, 8, 5) === B.AIR && wd.get(5, 9, 5) === B.AIR &&
+                romperPuerta(wd, 5, 8, 5) === null; // ya no queda puerta
+        })());
+
+    // mallado: la hoja abierta GIRA (panel en x) frente a la cerrada (panel en z)
+    const wm = new World(8);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wm.addChunk(cx, cz, flatChunk());
+    }
+    wm.set(2, 10, 2, B.DOOR_CLOSED);              // panel clásico en z
+    wm.set(7, 10, 7, B.DOOR_OPEN);                // hoja girada: panel en x
+    wm.set(12, 10, 2, B.FENCE);                   // valla sola (sin vecinos)
+    wm.set(4, 10, 12, B.FENCE);                   // pareja de vallas conectadas…
+    wm.set(5, 10, 12, B.FENCE);                   // …travesaños entre ambas
+    wm.set(9, 10, 12, B.FENCE);                   // valla contra muro sólido…
+    wm.set(10, 10, 12, B.STONE);                  // …conecta con él
+    wm.set(12, 10, 7, B.FENCE);                   // valla junto a una planta…
+    wm.set(13, 10, 7, B.TALL_GRASS);              // …que NO conecta
+    const mm = meshChunk(wm, 0, 0);
+    const vertsCelda = (m, cx0, cy0, cz0) => {
+        const v = [];
+        for (let i = 0; i < m.solid.length; i += 6) {
+            const x = m.solid[i], y = m.solid[i + 1], z = m.solid[i + 2];
+            if (x >= cx0 && x <= cx0 + 1 && y >= cy0 && y <= cy0 + 1 &&
+                z >= cz0 && z <= cz0 + 1) v.push([x, y, z]);
+        }
+        return v;
+    };
+    const eps = 1e-6;
+    const vCerrada = vertsCelda(mm, 2, 10, 2), vAbierta = vertsCelda(mm, 7, 10, 7);
+    check('la hoja cerrada se malla como panel fino en z (hoja a lo ancho de x)',
+        vCerrada.length > 0 &&
+        vCerrada.every(([, , z]) => z >= 2.4 - eps && z <= 2.6 + eps) &&
+        vCerrada.some(([x]) => x < 2.05) && vCerrada.some(([x]) => x > 2.95));
+    check('la hoja abierta GIRA: panel fino en x (hoja a lo ancho de z)',
+        vAbierta.length > 0 &&
+        vAbierta.every(([x]) => x >= 7.4 - eps && x <= 7.6 + eps) &&
+        vAbierta.some(([, , z]) => z < 7.05) && vAbierta.some(([, , z]) => z > 7.95));
+
+    // valla 3D: poste siempre; travesaños SOLO hacia vecinos conectables
+    const vSola = vertsCelda(mm, 12, 10, 2);
+    check('la valla sola emite solo el poste central (sin travesaños)',
+        vSola.length > 0 && vSola.every(([x, , z]) =>
+            x >= 12.375 - eps && x <= 12.625 + eps &&
+            z >= 2.375 - eps && z <= 2.625 + eps));
+    const vPareja = vertsCelda(mm, 4, 10, 12);
+    check('con una valla vecina brotan travesaños hasta el borde (más quads que sola)',
+        vPareja.length > vSola.length && vPareja.some(([x]) => x > 4.95));
+    check('los travesaños solo van hacia el lado conectado',
+        vPareja.every(([x]) => x >= 4.375 - eps) &&
+        vPareja.every(([, , z]) => z >= 12.375 - eps && z <= 12.625 + eps));
+    const vMuro = vertsCelda(mm, 9, 10, 12);
+    check('la valla también conecta con un bloque sólido opaco',
+        vMuro.some(([x, , z]) => x > 9.99 && z > 12.4 - eps && z < 12.6 + eps));
+    // el quad diagonal de la planta vecina toca el plano x=13: se descarta ese
+    // plano y se exige la firma exacta del poste (esquinas solo en y=10/11)
+    const vPlanta = vertsCelda(mm, 12, 10, 7).filter(([x]) => x < 12.99);
+    check('una planta vecina NO conecta (queda el poste solo)',
+        vPlanta.length === vSola.length && vPlanta.every(([x, y, z]) =>
+            x >= 12.375 - eps && x <= 12.625 + eps &&
+            z >= 7.375 - eps && z <= 7.625 + eps &&
+            (Math.abs(y - 10) < eps || Math.abs(y - 11) < eps)));
+
+    // arte: pintores headless sobre un lienzo mínimo compatible con Tile
+    const lienzo = (semilla) => ({
+        rng: new PRNG(semilla),
+        data: new Uint8ClampedArray(TILE_PX * TILE_PX * 4),
+        px(x, y, r, g, b, a = 255) {
+            if (x < 0 || y < 0 || x >= TILE_PX || y >= TILE_PX) return;
+            const i = (y * TILE_PX + x) * 4;
+            this.data[i] = r; this.data[i + 1] = g; this.data[i + 2] = b; this.data[i + 3] = a;
+        },
+    });
+    const alfas = (tile) => {
+        const t = lienzo(1000 + tile); // misma convención de semilla que buildAtlas
+        painters[tile](t);
+        const a = [];
+        for (let i = 3; i < t.data.length; i += 4) a.push(t.data[i]);
+        return a;
+    };
+    const aTop = alfas(TILE.DOOR_TOP_T), aBajo = alfas(TILE.DOOR_T);
+    check('la vidriera superior tiene cuarterones translúcidos (alfa parcial)',
+        aTop.filter((a) => a > 0 && a < 255).length >= 20);
+    check('la hoja inferior es opaca en toda su carpintería (sin agujeros)',
+        aBajo.length === TILE_PX * TILE_PX && aBajo.every((a) => a === 255));
+    check('el marco de la vidriera sigue opaco (solo el vidrio es translúcido)',
+        aTop.filter((a) => a === 255).length > TILE_PX * TILE_PX / 2);
 }
 
 console.log('== Raycast ==');
@@ -499,7 +656,7 @@ console.log('== Cultivos ==');
     check('ids fijos del plan: FARMLAND 71 y cultivos 72..83',
         B.FARMLAND === 71 && B.TRIGO_0 === 72 && B.TRIGO_3 === 75 &&
         B.ZANAHORIA_0 === 76 && B.ZANAHORIA_3 === 79 &&
-        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 84);
+        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 86);
     check('items de agricultura con ids fijos 231..239',
         ITEMS.SEMILLAS_TRIGO === 231 && ITEMS.TRIGO === 232 && ITEMS.PAN === 233 &&
         ITEMS.ZANAHORIA === 234 && ITEMS.PATATA === 235 && ITEMS.PATATA_ASADA === 236 &&

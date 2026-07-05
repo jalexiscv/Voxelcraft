@@ -34,6 +34,8 @@ export const B = {
     TRIGO_0: 72, TRIGO_1: 73, TRIGO_2: 74, TRIGO_3: 75,
     ZANAHORIA_0: 76, ZANAHORIA_1: 77, ZANAHORIA_2: 78, ZANAHORIA_3: 79,
     PATATA_0: 80, PATATA_1: 81, PATATA_2: 82, PATATA_3: 83,
+    // puerta de dos bloques: hojas superiores (las coloca la mecánica del par)
+    DOOR_TOP_CLOSED: 84, DOOR_TOP_OPEN: 85,
 };
 
 /**
@@ -59,7 +61,9 @@ function def(name, side, opts = {}) {
         opaque: opts.opaque !== undefined ? opts.opaque : true,   // oculta caras vecinas y bloquea luz solar
         liquid: opts.liquid || false,
         cross: opts.cross || false,       // se dibuja como dos quads en X (plantas)
-        panel: opts.panel || false,       // se malla como caja fina centrada (puerta/ventana); la colisión no cambia
+        panel: opts.panel || false,       // caja fina centrada: true = grosor en z, 'x' = grosor en x (hoja de puerta girada); la colisión no cambia
+        fence: opts.fence || false,       // valla 3D: poste + travesaños hacia vecinos conectables
+        edge: opts.edge !== undefined ? opts.edge : null, // tésela del canto de los paneles (si falta, franjas de side)
         hideSame: opts.hideSame || false, // no dibujar caras entre bloques del mismo id
         bright: opts.bright || false,     // emite luz propia (lava 15, antorcha 14)
         sound,
@@ -136,9 +140,13 @@ DEFS[B.CRAFTING_TABLE] = def('Mesa de crafteo', TILE.CRAFTING_SIDE, { top: TILE.
 
 /* ---- Bloques funcionales (documents/04-items.md) ---- */
 DEFS[B.FURNACE]     = def('Horno', TILE.FURNACE_SIDE, { top: TILE.FURNACE_TOP, hardness: 5 });
-DEFS[B.DOOR_CLOSED] = def('Puerta', TILE.DOOR_T, { opaque: false, panel: true, sound: 'wood' });
-DEFS[B.DOOR_OPEN]   = def('Puerta abierta', TILE.DOOR_OPEN_T, { solid: false, opaque: false, panel: true, placeable: false, sound: 'wood' });
-DEFS[B.FENCE]       = def('Valla', TILE.FENCE_T, { cross: true, opaque: false, sound: 'wood' });
+// Puerta de dos bloques: la hoja cerrada es un panel en z y la abierta la
+// MISMA hoja girada (panel en x, misma tésela). Las hojas superiores las
+// coloca la mecánica del par (placeable false). DOOR_OPEN_T es la tésela del
+// canto (listón de madera) compartida por las cuatro hojas.
+DEFS[B.DOOR_CLOSED] = def('Puerta', TILE.DOOR_T, { opaque: false, panel: true, edge: TILE.DOOR_OPEN_T, sound: 'wood' });
+DEFS[B.DOOR_OPEN]   = def('Puerta abierta', TILE.DOOR_T, { solid: false, opaque: false, panel: 'x', edge: TILE.DOOR_OPEN_T, placeable: false, sound: 'wood' });
+DEFS[B.FENCE]       = def('Valla', TILE.FENCE_T, { fence: true, opaque: false, sound: 'wood' });
 DEFS[B.WINDOW]      = def('Ventana', TILE.WINDOW_T, { opaque: false, hideSame: true, panel: true, hardness: 1 });
 DEFS[B.TORCH]       = def('Antorcha', TILE.TORCH_T, { cross: true, solid: false, opaque: false, bright: true, sound: 'wood', hardness: 1, tool: null });
 DEFS[B.BED]         = def('Cama', TILE.PLANKS, { top: TILE.BED_TOP, sound: 'cloth', hardness: 2 });
@@ -158,6 +166,12 @@ for (const [clave, nombre] of [['TRIGO', 'Trigo'], ['ZANAHORIA', 'Zanahoria'], [
         DEFS[B[`${clave}_${e}`]] = cultivo(`${nombre} ${NOMBRES_ETAPA[e]}`, TILE[`${clave}_ET${e}`]);
     }
 }
+
+/* ---- Puerta de dos bloques: hojas superiores ---- */
+// Mismos flags de material que las hojas inferiores (sound wood → dureza 3,
+// hacha); la vidriera translúcida vive en la tésela DOOR_TOP_T.
+DEFS[B.DOOR_TOP_CLOSED] = def('Puerta (hoja superior)', TILE.DOOR_TOP_T, { opaque: false, panel: true, edge: TILE.DOOR_OPEN_T, placeable: false, sound: 'wood' });
+DEFS[B.DOOR_TOP_OPEN]   = def('Puerta abierta (hoja superior)', TILE.DOOR_TOP_T, { solid: false, opaque: false, panel: 'x', edge: TILE.DOOR_OPEN_T, placeable: false, sound: 'wood' });
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */
 export const PLACEABLE = DEFS

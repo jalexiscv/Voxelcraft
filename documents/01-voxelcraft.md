@@ -15,7 +15,7 @@ Minecraft/ (raíz del proyecto)
     ├── main.js              <-- Integración y bucle de juego (rAF)
     ├── math.js              <-- Matrices 4×4 y utilidades (column-major, WebGL)
     ├── noise.js             <-- PRNG Park–Miller, Perlin 2D, fractal, distorsión
-    ├── blocks.js            <-- Registro de 84 tipos de bloque (fuente de verdad)
+    ├── blocks.js            <-- Registro de 86 tipos de bloque (fuente de verdad)
     ├── atlas.js             <-- Atlas de texturas procedural (Canvas 2D) + nubes
     ├── world.js             <-- Mundo infinito: mapa disperso de chunks + alturas de luz
     ├── worldgen.js          <-- Generator por chunk (módulo puro, testeable)
@@ -31,6 +31,7 @@ Minecraft/ (raíz del proyecto)
     ├── items.js             <-- Herramientas y recetas de crafteo (puro)
     ├── drops.js             <-- Drops: cubitos flotantes de bloques rotos (puro)
     ├── farming.js           <-- Agricultura: etapas, siembra, cosecha y crecimiento (puro)
+    ├── doors.js             <-- Puerta de dos bloques: mecánica del par de hojas (puro)
     ├── hud.js               <-- Hotbar, selector, corazones de salud, depuración
     ├── mobs.js              <-- Mobs: IA, física, aparición, flechas y explosiones
     ├── mobrender.js         <-- Render WebGL de mobs (partes-caja animadas)
@@ -73,7 +74,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Crafteo clásico por cuadrícula: inventario 2×2 (E), mesa de crafteo colocable 3×3, recetas con forma y recetario con autocolocado | ✅ |
 | Botín de los mobs al morir, espadas por niveles y herramientas de hierro | ✅ (ver [04-items.md](04-items.md)) |
 | Horno con fundición (lingotes, cristal, comida) y sistema de hambre con alimentos | ✅ |
-| Luz real de antorchas y lava, puertas y ventanas como paneles finos, valla, cama y cofres | ✅ |
+| Luz real de antorchas y lava, puertas de DOS bloques (hoja + vidriera) cuyas hojas giran al abrirse, ventanas como paneles finos, valla 3D que conecta con sus vecinos, cama y cofres | ✅ |
 | Aldeas procedurales: pozo, caminos, parcelas y 8 edificios con paleta por bioma | ✅ (ver [05-aldeas.md](05-aldeas.md)) |
 | Agricultura: labrar con azada, sembrar trigo/zanahoria/patata, crecimiento con riego, pan y patata asada | ✅ (ver [04-items.md](04-items.md)) |
 | Depuración (F3), reaparición (R) | ✅ |
@@ -82,7 +83,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 
 ## Verificación
 
-Cuatro suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 122 comprobaciones; ver [02-mobs.md](02-mobs.md)), `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)) y `node test/villages.mjs` (aldeas, 62 comprobaciones; ver [05-aldeas.md](05-aldeas.md)). La de humo (136 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
+Cuatro suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 122 comprobaciones; ver [02-mobs.md](02-mobs.md)), `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)) y `node test/villages.mjs` (aldeas, 62 comprobaciones; ver [05-aldeas.md](05-aldeas.md)). La de humo (167 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, puertas de dos bloques (mecánica del par, giro del panel y alfa de la vidriera), valla 3D conectada, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
 
 ## Futuro
 

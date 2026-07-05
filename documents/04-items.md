@@ -98,17 +98,27 @@ fantasma: membrana 0-1.
 *   **Combustibles** (`COMBUSTIBLES`, usos por unidad): carbón ×4 ·
     tronco ×2 · tablones ×1 · palo ×1.
 
-## Bloques funcionales (ids 63-69, téselas 99-107)
+## Bloques funcionales (ids 63-69 y 84-85, téselas 99-107 y 132)
 
 | Id | Bloque | Téselas | Función |
 |---|---|---|---|
 | 63 | Horno | side 99, frente 100, top 101 | interfaz de fundición (clic der) |
-| 64 | Puerta (cerrada) | 102 | clic derecho la abre; colisiona |
-| 65 | Puerta (abierta) | 103 | clic derecho la cierra; se atraviesa |
-| 66 | Valla | 104 (cross) | colisiona; decorativa |
+| 64 | Puerta, hoja inferior (cerrada) | 102 (paneles y bisagras), canto 103 | clic derecho abre el PAR; colisiona |
+| 65 | Puerta, hoja inferior (abierta) | 102 girada (panel en x), canto 103 | clic derecho cierra el par; se atraviesa |
+| 66 | Valla | 104 | 3D: poste + travesaños hacia vallas y muros vecinos; colisiona |
 | 67 | Ventana | 105 | cristal con marco de madera |
 | 68 | Antorcha | 106 (cross) | brilla con luz propia (decorativa) |
 | 69 | Cama | top 107, side PLANKS | clic derecho de noche → amanece |
+| 84 | Puerta, hoja superior (cerrada) | 132 (vidriera translúcida), canto 103 | la coloca la mecánica del par |
+| 85 | Puerta, hoja superior (abierta) | 132 girada (panel en x), canto 103 | gira junto a la inferior; se atraviesa |
+
+**Puerta de DOS bloques** (`js/doors.js`, puro y testeado en Node): colocar
+exige un vano de 2 de alto con suelo sólido y escribe las dos hojas de una
+vez; el clic derecho sobre CUALQUIER hoja gira el par entero (las hojas
+abiertas son las mismas téselas malladas como panel en el eje x); romper
+cualquier hoja limpia el par y suelta **1 puerta** (la receta no cambia:
+sigue dando 1). La valla se malla en 3D: poste central y dos travesaños
+por cada vecino conectable (otra valla o un bloque sólido opaco).
 
 **Recetas nuevas**: horno (anillo de 8 adoquines) · puerta (2×3 de
 tablones) · valla (3×2 alternando palo/tablón: `SPS`/`SPS`) · ventana (2×2
@@ -172,14 +182,21 @@ fases (bloques/atlas → items/recetas → mecánica + botín → verificación)
 *   **Luz real de la antorcha** — ✅ implementado: campo de luz de bloque
     0..15 con propagación BFS; el shader combina luz solar (afectada por el
     día) y luz de bloque (constante). Antorcha 14, lava 15.
-*   **Paneles finos** — ✅ implementado para puerta y ventana (caja fina
-    centrada, sin orientación); trampillas y cristaleras quedan como futuro.
+*   **Paneles finos** — ✅ implementado: ventana como caja fina en z y
+    puerta de DOS bloques (hojas 64/65 abajo y 84/85 arriba) cuyas hojas
+    giran al abrirse (el mismo panel mallado con el grosor en x); la valla
+    dejó el cross plano y es 3D conectada. Trampillas y cristaleras quedan
+    como futuro.
 
 ## Verificación
 
 *   `node test/smoke.mjs` — fundiciones/combustibles/recetas nuevas,
-    contrato de items y tanda «Cultivos» (33 comprobaciones: ids y flags,
+    contrato de items, tanda «Cultivos» (33 comprobaciones: ids y flags,
     lógica de farming.js, crecimiento real sobre un mundo de prueba,
-    receta del pan, fundición de la patata y azadas).
+    receta del pan, fundición de la patata y azadas) y tanda «Puertas y
+    vallas» (24 comprobaciones: ids/flags de las cuatro hojas, téselas
+    pintables, mecánica del par sobre un World headless, giro del panel
+    al eje x en el mesher, valla con travesaños solo hacia vecinos
+    conectables y alfa de la vidriera vs. hoja inferior opaca).
 *   `node test/mobs.mjs` — drops al morir (roll determinista con el PRNG del
     sistema) y contrato `drops` de las 68 definiciones (validador).

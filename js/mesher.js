@@ -18,7 +18,10 @@ import { CHUNK } from './world.js';
 
 const SUN_SHADOW = 0.55; // multiplicador de luz para celdas sin sol directo
 const SUN_MAX = 0.96;    // tope del canal solar (deja libre la parte entera)
-const PANEL_Z0 = 0.40, PANEL_Z1 = 0.60; // grosor de los paneles finos
+const PANEL_Z0 = 0.40, PANEL_Z1 = 0.60; // grosor de los paneles finos (en z o en x según def.panel)
+const FENCE_P0 = 0.375, FENCE_P1 = 0.625;         // sección del poste de la valla
+const FENCE_T0 = 0.44, FENCE_T1 = 0.56;           // sección transversal de los travesaños
+const FENCE_RAILS = [[0.36, 0.54], [0.72, 0.90]]; // bandas de altura de los travesaños
 
 /** Las 6 caras del cubo: normal, sombreado y esquinas en orden de perímetro. */
 const FACES = [
@@ -108,43 +111,152 @@ function emitCross(out, world, x, y, z, tile) {
 }
 
 /**
- * Panel fino (puerta/ventana): caja centrada x∈[0,1], y∈[0,1], z∈[0.40,0.60]
- * con la tésela completa en las dos caras grandes y cantos de 3 px (franja
- * lateral de la tésela). Sin estados de orientación: panel siempre centrado
- * en z. Sin AO (la caja está retranqueada del borde del bloque); la luz es
- * la de la propia celda. La colisión no cambia (el bloque sigue siendo solid).
+ * Panel fino (puerta/ventana): caja centrada y∈[0,1] con el grosor en un eje:
+ * def.panel === 'x' → x∈[0.40,0.60] (la hoja de la puerta abierta es la MISMA
+ * hoja girada 90°, misma tésela); cualquier otro truthy → z∈[0.40,0.60]
+ * (comportamiento clásico). Las caras grandes llevan la tésela completa y los
+ * cantos usan franjas de def.edge (listón de madera de la puerta) o, si falta,
+ * de la propia tésela. Sin AO (la caja está retranqueada del borde del
+ * bloque); la luz es la de la propia celda. La colisión no cambia.
  */
-function emitPanel(out, world, x, y, z, id, def) {
+function emitPanel(out, world, x, y, z, def) {
     const [u0, v0, u1, v1] = tileUV(def.side);
-    const du = u1 - u0, dv = v1 - v0;
+    const [eu0, ev0, eu1, ev1] = tileUV(def.edge !== null ? def.edge : def.side);
+    const deu = eu1 - eu0, dev = ev1 - ev0;
     const grosor = PANEL_Z1 - PANEL_Z0; // 0.2 ≈ 3 px de tésela
     const sun = world.sunlit(x, y, z) ? 1 : SUN_SHADOW;
     const luzBloque = world.blockLightAt(x, y, z);
     const luz = (shade) => Math.min(shade * sun, SUN_MAX) + luzBloque;
-    const z0 = z + PANEL_Z0, z1 = z + PANEL_Z1;
     const quad = (a, b, c, d) => out.push(...a, ...b, ...c, ...a, ...c, ...d);
+    // un canto se oculta contra vecinos opacos o contra otro panel del mismo
+    // eje (las dos hojas de una puerta, ventanas contiguas): las cajas encajan
+    const cantoOculto = (nId) => DEFS[nId].opaque || (DEFS[nId].panel && DEFS[nId].panel === def.panel);
 
-    // caras grandes (±z), siempre visibles: quedan retranqueadas del borde
+    if (def.panel === 'x') {
+        // hoja girada: grosor en x, caras grandes mirando a ±x
+        const x0 = x + PANEL_Z0, x1 = x + PANEL_Z1;
+        for (const xc of [x0, x1]) {
+            const l = luz(0.6);
+            quad([xc, y, z, u0, v1, l], [xc, y, z + 1, u1, v1, l],
+                 [xc, y + 1, z + 1, u1, v0, l], [xc, y + 1, z, u0, v0, l]);
+        }
+        // cantos ±z: franja vertical del listón
+        for (const dz of [-1, 1]) {
+            if (cantoOculto(world.get(x, y, z + dz))) continue;
+            const zc = dz < 0 ? z : z + 1, l = luz(0.8);
+            quad([x0, y, zc, eu0, ev1, l], [x1, y, zc, eu0 + grosor * deu, ev1, l],
+                 [x1, y + 1, zc, eu0 + grosor * deu, ev0, l], [x0, y + 1, zc, eu0, ev0, l]);
+        }
+        // cantos ±y: franja del listón a lo largo de z
+        for (const dy of [-1, 1]) {
+            if (cantoOculto(world.get(x, y + dy, z))) continue;
+            const yc = dy < 0 ? y : y + 1, l = luz(dy < 0 ? 0.5 : 1.0);
+            quad([x0, yc, z, eu0, ev0, l], [x1, yc, z, eu0 + grosor * deu, ev0, l],
+                 [x1, yc, z + 1, eu0 + grosor * deu, ev0 + dev, l], [x0, yc, z + 1, eu0, ev0 + dev, l]);
+        }
+        return;
+    }
+
+    // clásico: grosor en z, caras grandes mirando a ±z
+    const z0 = z + PANEL_Z0, z1 = z + PANEL_Z1;
     for (const zc of [z0, z1]) {
         const l = luz(0.8);
         quad([x, y, zc, u0, v1, l], [x + 1, y, zc, u1, v1, l],
              [x + 1, y + 1, zc, u1, v0, l], [x, y + 1, zc, u0, v0, l]);
     }
-    // cantos ±x: franja vertical; se ocultan contra vecinos opacos o paneles iguales
+    // cantos ±x: franja vertical
     for (const dx of [-1, 1]) {
-        const nId = world.get(x + dx, y, z);
-        if (DEFS[nId].opaque || nId === id) continue;
+        if (cantoOculto(world.get(x + dx, y, z))) continue;
         const xc = dx < 0 ? x : x + 1, l = luz(0.6);
-        quad([xc, y, z0, u0, v1, l], [xc, y, z1, u0 + grosor * du, v1, l],
-             [xc, y + 1, z1, u0 + grosor * du, v0, l], [xc, y + 1, z0, u0, v0, l]);
+        quad([xc, y, z0, eu0, ev1, l], [xc, y, z1, eu0 + grosor * deu, ev1, l],
+             [xc, y + 1, z1, eu0 + grosor * deu, ev0, l], [xc, y + 1, z0, eu0, ev0, l]);
     }
     // cantos ±y: franja horizontal (arriba claro, abajo oscuro, como los cubos)
     for (const dy of [-1, 1]) {
-        const nId = world.get(x, y + dy, z);
-        if (DEFS[nId].opaque || nId === id) continue;
+        if (cantoOculto(world.get(x, y + dy, z))) continue;
         const yc = dy < 0 ? y : y + 1, l = luz(dy < 0 ? 0.5 : 1.0);
-        quad([x, yc, z0, u0, v0, l], [x + 1, yc, z0, u1, v0, l],
-             [x + 1, yc, z1, u1, v0 + grosor * dv, l], [x, yc, z1, u0, v0 + grosor * dv, l]);
+        quad([x, yc, z0, eu0, ev0, l], [x + 1, yc, z0, eu1, ev0, l],
+             [x + 1, yc, z1, eu1, ev0 + grosor * dev, l], [x, yc, z1, eu0, ev0 + grosor * dev, l]);
+    }
+}
+
+/**
+ * Caja alineada a ejes dentro de la celda (x,y,z): límites locales en 0..1.
+ * Cada cara toma como UV la subregión de la tésela correspondiente a su
+ * huella (mismo criterio que las franjas de emitPanel), así el poste y los
+ * travesaños de la valla comparten la textura sin costuras. `skip` es una
+ * máscara de bits para omitir caras ocultas (orden: +x,-x,+y,-y,+z,-z).
+ * Sin AO (geometría retranqueada); `luz` viene precalculada de la celda.
+ */
+function emitBox(out, x, y, z, box, uv, luz, skip = 0) {
+    const [bx0, by0, bz0, bx1, by1, bz1] = box;
+    const [u0, v0, u1, v1] = uv;
+    const U = (f) => u0 + f * (u1 - u0);
+    const V = (f) => v0 + f * (v1 - v0);
+    const quad = (a, b, c, d) => out.push(...a, ...b, ...c, ...a, ...c, ...d);
+    // caras ±x (v = 1-y para no invertir la textura en vertical)
+    for (const [bit, xf] of [[0, bx1], [1, bx0]]) {
+        if (skip & (1 << bit)) continue;
+        const l = luz(0.6), xc = x + xf;
+        quad([xc, y + by0, z + bz0, U(bz0), V(1 - by0), l],
+             [xc, y + by0, z + bz1, U(bz1), V(1 - by0), l],
+             [xc, y + by1, z + bz1, U(bz1), V(1 - by1), l],
+             [xc, y + by1, z + bz0, U(bz0), V(1 - by1), l]);
+    }
+    // caras ±y (planta: u = x, v = z; arriba claro, abajo oscuro)
+    for (const [bit, yf, shade] of [[2, by1, 1.0], [3, by0, 0.5]]) {
+        if (skip & (1 << bit)) continue;
+        const l = luz(shade), yc = y + yf;
+        quad([x + bx0, yc, z + bz0, U(bx0), V(bz0), l],
+             [x + bx1, yc, z + bz0, U(bx1), V(bz0), l],
+             [x + bx1, yc, z + bz1, U(bx1), V(bz1), l],
+             [x + bx0, yc, z + bz1, U(bx0), V(bz1), l]);
+    }
+    // caras ±z
+    for (const [bit, zf] of [[4, bz1], [5, bz0]]) {
+        if (skip & (1 << bit)) continue;
+        const l = luz(0.8), zc = z + zf;
+        quad([x + bx0, y + by0, zc, U(bx0), V(1 - by0), l],
+             [x + bx1, y + by0, zc, U(bx1), V(1 - by0), l],
+             [x + bx1, y + by1, zc, U(bx1), V(1 - by1), l],
+             [x + bx0, y + by1, zc, U(bx0), V(1 - by1), l]);
+    }
+}
+
+/**
+ * Valla 3D: poste central (x,z∈[0.375,0.625], y∈[0,1]) y, por cada vecino
+ * horizontal conectable (otra valla o un sólido opaco), DOS travesaños desde
+ * el poste hasta el borde del bloque. Los extremos de los travesaños no
+ * emiten cara: contra otra valla el travesaño continúa sin costura, contra
+ * un muro opaco quedaría pegada, y contra el poste propio queda dentro.
+ * La colisión no cambia (la def sigue siendo un sólido de bloque completo).
+ */
+function emitFence(out, world, x, y, z, def) {
+    const uv = tileUV(def.side);
+    const sun = world.sunlit(x, y, z) ? 1 : SUN_SHADOW;
+    const luzBloque = world.blockLightAt(x, y, z);
+    const luz = (shade) => Math.min(shade * sun, SUN_MAX) + luzBloque;
+
+    // poste central: tapa y base solo si el vecino vertical no las oculta
+    let skipPoste = 0;
+    if (DEFS[world.get(x, y + 1, z)].opaque) skipPoste |= 1 << 2;
+    if (DEFS[world.get(x, y - 1, z)].opaque) skipPoste |= 1 << 3;
+    emitBox(out, x, y, z, [FENCE_P0, 0, FENCE_P0, FENCE_P1, 1, FENCE_P1], uv, luz, skipPoste);
+
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nDef = DEFS[world.get(x + dx, y, z + dz)];
+        if (!nDef.fence && !(nDef.solid && nDef.opaque)) continue; // no conecta
+        for (const [ry0, ry1] of FENCE_RAILS) {
+            if (dx !== 0) { // travesaño a lo largo de x: extremos ±x ocultos
+                const box = dx > 0 ? [FENCE_P1, ry0, FENCE_T0, 1, ry1, FENCE_T1]
+                                   : [0, ry0, FENCE_T0, FENCE_P0, ry1, FENCE_T1];
+                emitBox(out, x, y, z, box, uv, luz, (1 << 0) | (1 << 1));
+            } else {        // travesaño a lo largo de z: extremos ±z ocultos
+                const box = dz > 0 ? [FENCE_T0, ry0, FENCE_P1, FENCE_T1, ry1, 1]
+                                   : [FENCE_T0, ry0, 0, FENCE_T1, ry1, FENCE_P0];
+                emitBox(out, x, y, z, box, uv, luz, (1 << 4) | (1 << 5));
+            }
+        }
     }
 }
 
@@ -170,7 +282,12 @@ export function meshChunk(world, cx, cz) {
                 }
 
                 if (def.panel) {
-                    emitPanel(solid, world, x, y, z, id, def);
+                    emitPanel(solid, world, x, y, z, def);
+                    continue;
+                }
+
+                if (def.fence) {
+                    emitFence(solid, world, x, y, z, def);
                     continue;
                 }
 

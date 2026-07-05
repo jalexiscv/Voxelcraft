@@ -185,9 +185,27 @@ function estamparEdificio(pieza, biomaAncla, seed, blocks, x0, z0, li) {
                 const ch = plano.capas[dy][lz][lx];
                 if (ch === '.') continue;
                 // CULTIVO: bloque por columna de mundo (semilla, wx, wz)
-                blocks[li(lcx, y, lcz)] = posicional[ch] === 'CULTIVO'
+                const id = posicional[ch] === 'CULTIVO'
                     ? bloqueCultivo(seed, wx, wz)
                     : ids[ch];
+                // puerta de dos bloques: la celda del plano marca la hoja
+                // INFERIOR y su TOP va a y+1 (dentro del corte de aire). Si
+                // el plano trae la puerta apilada (casa_grande y biblioteca:
+                // D también en la capa 2), la celda con otra puerta justo
+                // DEBAJO es la hoja superior. Determinista e independiente
+                // del orden: ambas celdas comparten columna (y chunk) y las
+                // dos ramas escriben el mismo resultado en las mismas y
+                if (id === B.DOOR_CLOSED) {
+                    const chAbajo = dy > 0 ? plano.capas[dy - 1][lz][lx] : null;
+                    if (chAbajo !== null && ids[chAbajo] === B.DOOR_CLOSED) {
+                        blocks[li(lcx, y, lcz)] = B.DOOR_TOP_CLOSED;
+                    } else {
+                        blocks[li(lcx, y, lcz)] = B.DOOR_CLOSED;
+                        if (y + 1 < SY) blocks[li(lcx, y + 1, lcz)] = B.DOOR_TOP_CLOSED;
+                    }
+                    continue;
+                }
+                blocks[li(lcx, y, lcz)] = id;
             }
         }
     }
