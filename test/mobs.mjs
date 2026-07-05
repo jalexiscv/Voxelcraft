@@ -435,7 +435,7 @@ class LakeWorld extends MockWorld {
     check('el proyectil hiere con el daño del tirador', hooks.calls.damage.some((d) => d.dmg === 2));
 }
 {
-    // dron guardián: escolta al jugador y embiste al agresor que lo ronde
+    // dron guardián: patrulla el perímetro del jugador y embiste al agresor
     const dron = (await import('../js/mobs/dron.js')).default;
     const world = new MockWorld();
     const sys = new MobSystem({}, world, silentHooks(), 7);
@@ -443,12 +443,30 @@ class LakeWorld extends MockWorld {
     sys.mobs.push(guard);
     const ctx = { pos: [0.5, 11, 0.5], eye: [0.5, 12.62, 0.5], day: 1 };
 
-    // sin amenazas cerca, escolta: vuela hacia el jugador y planea a su lado
-    simulate(sys, 4, ctx);
-    check('sin amenazas el dron escolta al jugador (se le acerca)',
-        Math.hypot(guard.pos[0] - 0.5, guard.pos[2] - 0.5) < 3 && !guard.dying());
-    check('planea a la altura de la cabeza sin caer (hover)',
-        guard.pos[1] > ctx.pos[1] + 1 && !guard.onGround);
+    // sin amenazas, patrulla orbital: muestrea la ronda unos segundos y
+    // comprueba que da vueltas alrededor del jugador — a un radio acotado,
+    // sin quedarse quieto y con radio/altura VARIABLES (no fijos)
+    const angulos = [], radios = [], alturas = [];
+    let quietoMax = 0, prev = [...guard.pos];
+    for (let t = 0; t < 12; t += DT) {
+        sys.update(DT, ctx);
+        const dx = guard.pos[0] - 0.5, dz = guard.pos[2] - 0.5;
+        angulos.push(Math.atan2(dz, dx));
+        radios.push(Math.hypot(dx, dz));
+        alturas.push(guard.pos[1]);
+        quietoMax = Math.max(quietoMax, Math.hypot(guard.pos[0] - prev[0], guard.pos[2] - prev[2]));
+        prev = [...guard.pos];
+    }
+    check('el dron no cae al patrullar (vuela sobre el jugador)',
+        alturas.every((y) => y > ctx.pos[1] + 0.5) && !guard.onGround);
+    check('patrulla a un radio acotado del jugador (perímetro, no encima ni lejos)',
+        radios.every((r) => r > 1.5 && r < 9) && !guard.dying());
+    check('orbita: el ángulo alrededor del jugador recorre buena parte del círculo',
+        (Math.max(...angulos) - Math.min(...angulos)) > 2);
+    check('la ronda no es fija: radio y altura varían visiblemente',
+        (Math.max(...radios) - Math.min(...radios)) > 1 &&
+        (Math.max(...alturas) - Math.min(...alturas)) > 0.8);
+    check('nunca se queda plantado (se mueve todos los fotogramas)', quietoMax > 0.01);
 
     // aparece un hostil robusto junto al jugador: el dron lo persigue en 3D
     // (baja hacia el objetivo terrestre) y lo hiere hasta matarlo

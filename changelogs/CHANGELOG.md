@@ -127,3 +127,4 @@
 | 123 | 2026-07-05 | [Corrección de modelos geo: orejas del burro despegadas de la cabeza al mirar](2026-07-05_orejas_burro_despegadas.md) |
 | 124 | 2026-07-05 | [Creativo: catálogo completo (herramientas, espadas…) y huevos de aparición de mobs](2026-07-05_creativo_catalogo_huevos.md) |
 | 125 | 2026-07-05 | [Dron guardián: mob volador aliado con hélices que giran](2026-07-05_dron_guardian.md) |
+| 126 | 2026-07-05 | [Dron guardián: patrulla orbital del perímetro en vez de flotar quieto detrás](2026-07-05_dron_patrulla_orbital.md) |

@@ -67,6 +67,12 @@ export class Mob {
         this.hopT = 0;                // temporizador del siguiente brinco
         this.targetY = y;             // altitud/profundidad objetivo (volador/acuático)
         this.variant = 0;             // tonalidad de piel (defs con variants)
+        // patrulla orbital del guardián (dron): ángulo alrededor del jugador
+        // y reloj propio para las oscilaciones de radio y altura. La fase
+        // inicial la fija el yaw, así varios drones reparten la órbita.
+        this.patrolAngle = yaw;
+        this.patrolT = yaw;
+        this.orbitDir = 1;            // sentido del giro orbital (±1)
     }
 
     dying() { return this.dieT >= 0; }
@@ -215,9 +221,10 @@ export class MobSystem {
      * IA del guardián volador (behavior.guardian, el dron): protege al
      * jugador. Si un AGRESOR — hostil, o neutral enfadado — ronda al
      * jugador dentro de guardRadius, lo persigue en 3D y lo golpea cuerpo
-     * a cuerpo; sin amenazas, escolta al jugador planeando a su lado.
-     * Funciona igual en creativo (allí los hostiles ignoran al jugador,
-     * pero el guardián los sigue neutralizando).
+     * a cuerpo; sin amenazas, PATRULLA el perímetro del jugador en órbita
+     * (nunca se queda quieto detrás). Funciona igual en creativo (allí los
+     * hostiles ignoran al jugador, pero el guardián los sigue
+     * neutralizando).
      */
     guardianAI(m, dt, ctx, dist) {
         const b = m.def.behavior;
@@ -247,19 +254,53 @@ export class MobSystem {
             return;
         }
 
-        // escolta: si se aparta más de ~2 bloques del jugador vuela hacia
-        // él; ya pegado, planea a su lado a la altura de la cabeza. La
-        // banda muerta evita el tiritón de arranque/parada al orbitar.
-        if (dist > 2.2) {
-            m.state = 'wander';
-            m.yaw = Math.atan2(-(ctx.pos[0] - m.pos[0]), -(ctx.pos[2] - m.pos[2]));
-            m.speed = m.def.speed * Math.min(1, (dist - 1.5) / 2); // frena al llegar
-        } else {
-            m.state = 'idle';
-            m.speed = 0;
+        this.patrolAround(m, dt, ctx);
+    }
+
+    /**
+     * Patrulla orbital del guardián: en vez de plantarse tras el jugador,
+     * persigue un PUNTO que gira a su alrededor. El radio y la altura
+     * oscilan suavemente (suma de senos con periodos incomensurables) para
+     * una trayectoria semicircular NO fija — sube y baja como si inspeccio-
+     * nara el terreno — y de vez en cuando invierte el sentido del giro.
+     * El dron vuela SIEMPRE hacia el punto móvil, así nunca queda inmóvil.
+     */
+    patrolAround(m, dt, ctx) {
+        const b = m.def.behavior;
+        const rBase = b.patrolRadius || 5;      // radio medio de la órbita
+        const angVel = b.patrolSpeed || 0.7;    // rad/s alrededor del jugador
+
+        m.state = 'wander';
+        m.patrolT += dt;
+        m.patrolAngle += angVel * m.orbitDir * dt;
+
+        // sentido de giro: se invierte a rachas, para que el barrido no sea
+        // un círculo perfecto sino idas y venidas por el perímetro
+        if (Math.sin(m.patrolT * 0.11) + Math.sin(m.patrolT * 0.017) < -1.4) {
+            m.orbitDir = m.patrolAngle % (Math.PI * 2) > Math.PI ? 1 : -1;
         }
-        m.targetY = ctx.pos[1] + 2.2;
-        this.lookAt(m, dist < 8 ? ctx.eye : null);
+
+        // radio y altura oscilantes (barrido de inspección): dos senos de
+        // periodo distinto no repiten pronto, así la ronda no se siente fija
+        const radio = rBase + 1.6 * Math.sin(m.patrolT * 0.6) + 0.8 * Math.sin(m.patrolT * 1.3);
+        const alt = 2.2 + 1.1 * Math.sin(m.patrolT * 0.45) + 0.5 * Math.sin(m.patrolT * 0.9);
+
+        // punto objetivo sobre la órbita alrededor del jugador
+        const tx = ctx.pos[0] + Math.cos(m.patrolAngle) * radio;
+        const tz = ctx.pos[2] + Math.sin(m.patrolAngle) * radio;
+        const toPunto = Math.hypot(tx - m.pos[0], tz - m.pos[2]);
+
+        m.yaw = Math.atan2(-(tx - m.pos[0]), -(tz - m.pos[2]));
+        // se acerca al punto y luego lo sigue orbitando (nunca frena del
+        // todo: el punto se mueve, el dron va tras él en ronda perpetua)
+        m.speed = m.def.speed * clamp(toPunto / 2.5, 0.35, 1);
+        m.targetY = ctx.pos[1] + alt;
+
+        // la mirada barre el terreno: hacia fuera del jugador (vigilando el
+        // perímetro), no hacia el propio jugador
+        const outX = m.pos[0] + Math.cos(m.patrolAngle) * 4;
+        const outZ = m.pos[2] + Math.sin(m.patrolAngle) * 4;
+        this.lookAt(m, [outX, m.pos[1], outZ]);
     }
 
     hostileAI(m, dt, ctx, dist) {

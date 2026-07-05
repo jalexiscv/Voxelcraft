@@ -1,9 +1,11 @@
 /**
- * Dron guardián: mob volador ALIADO propio de la casa. Escolta al jugador
- * planeando a su lado y embiste al mob agresivo (hostil o neutral enfadado)
- * más cercano que lo ronde — la IA `behavior.guardian` vive en mobs.js. No
- * aparece de forma natural (no figura en las listas de ningún bioma): nace
- * del huevo de aparición del modo creativo.
+ * Dron guardián: mob volador ALIADO propio de la casa. Patrulla el
+ * perímetro del jugador en órbita (ronda de vigía semicircular no fija,
+ * con radio y altura oscilantes) y embiste al mob agresivo (hostil o
+ * neutral enfadado) más cercano que lo ronde — la IA `behavior.guardian`
+ * y la patrulla orbital viven en mobs.js. No aparece de forma natural (no
+ * figura en las listas de ningún bioma): nace del huevo de aparición del
+ * modo creativo.
  *
  * Cuadricóptero al estilo del brief: chasis gris con capó y sensor oscuros,
  * acentos naranja y morado, cuatro brazos en X y en cada punta un buje con
@@ -40,8 +42,12 @@ export default {
     speed: 4.5,
     flying: true,
     hover: true, // sostiene su altitud objetivo incluso planeando quieto
-    // guardián: escolta al jugador y ataca a los agresores que lo ronden
-    behavior: { guardian: true, guardRadius: 16, attackRange: 1.5, damage: 4, cooldown: 0.9 },
+    // guardián: patrulla el perímetro del jugador en órbita y ataca a los
+    // agresores que lo ronden (patrolRadius/Speed rigen la ronda de vigía)
+    behavior: {
+        guardian: true, guardRadius: 16, attackRange: 1.5, damage: 4, cooldown: 0.9,
+        patrolRadius: 5, patrolSpeed: 0.7,
+    },
     // solo por invocación (huevo del creativo): no figura en ningún bioma
     spawn: { summonOnly: true, cap: 1, group: 1 },
     // chatarra útil al ser destruido

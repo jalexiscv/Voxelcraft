@@ -33,14 +33,17 @@ aparecen de forma natural** (`spawn.summonOnly`): solo nacen del **huevo
 de aparición** del modo creativo. Se registran tras el elenco vanilla en
 `js/mobs/registry.js`.
 
-- **Dron guardián** (`dron`) — cuadricóptero volador ALIADO. Escolta al
-  jugador planeando a su lado (`hover`: sostiene su altitud incluso
-  quieto) y, con la IA `behavior.guardian`, embiste en 3D al agresor
-  (hostil, o neutral enfadado) más cercano que ronde al jugador dentro de
-  `guardRadius`, protegiéndolo. Sus cuatro hélices giran de verdad con la
-  animación `rotor` (giro continuo en Y que aplica el render). Funciona
-  igual en creativo, donde los hostiles ignoran al jugador pero el dron
-  los sigue neutralizando.
+- **Dron guardián** (`dron`) — cuadricóptero volador ALIADO. **Patrulla el
+  perímetro del jugador en órbita** (`patrolAround`): en vez de plantarse
+  detrás, persigue un punto que gira a su alrededor con el radio y la
+  altura oscilando (suma de senos de periodo distinto) e inversiones de
+  sentido a rachas — una ronda de vigía semicircular NO fija, subiendo y
+  bajando como si inspeccionara el terreno. Con la IA `behavior.guardian`,
+  si un agresor (hostil, o neutral enfadado) ronda al jugador dentro de
+  `guardRadius`, abandona la ronda y lo embiste en 3D hasta neutralizarlo.
+  Sus cuatro hélices giran de verdad con la animación `rotor` (giro
+  continuo en Y que aplica el render). Funciona igual en creativo, donde
+  los hostiles ignoran al jugador pero el dron los sigue cazando.
 
 ## Arquitectura
 
