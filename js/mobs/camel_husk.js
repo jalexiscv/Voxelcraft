@@ -82,14 +82,21 @@ export default {
         // mechón reseco de la cola
         skin.fill(56, 9, 8, 2, PIEL_OSCURA, 4);
 
-        // cara frontal de la cabeza: rect (10,10)..(16,17)
-        skin.px(11, 12, OJO);                           // ojo izquierdo, apagado
-        skin.px(14, 12, OJO);                           // ojo derecho, apagado
-        skin.px(11, 13, PIEL_OSCURA);                   // ojeras hundidas
-        skin.px(14, 13, PIEL_OSCURA);
+        // punta del hocico (cara frontal −Z): rect (10,10)..(16,17)
         skin.px(11, 15, NARIZ);                         // fosas nasales resecas
         skin.px(14, 15, NARIZ);
         skin.fill(12, 16, 2, 1, NARIZ);                 // boca entreabierta
+
+        // CARA de perfil (la cabeza es alargada: los ojos van a los LADOS,
+        // junto al cráneo — la izquierda de cada rect lateral): +X
+        // (0,10)..(10,17) y −X (16,10)..(26,17)
+        for (const bx of [0, 16]) {
+            skin.fill(bx + 2, 10, 2, 1, PIEL_OSCURA, 0); // ceja huesuda
+            skin.fill(bx + 2, 11, 2, 2, OJO, 0);         // ojo apagado, sin brillo
+            skin.fill(bx + 2, 13, 2, 1, PIEL_OSCURA, 0); // ojera hundida
+            skin.fill(bx + 6, 16, 3, 1, NARIZ, 0);       // boca reseca de perfil
+            skin.px(bx + 8, 14, NARIZ);                  // ollar de perfil
+        }
     },
 
     parts: [

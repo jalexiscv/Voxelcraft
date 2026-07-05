@@ -11,6 +11,7 @@
  *   (76,14) cuello 6×16×6   → 24×22
  *   (0,36)  cabeza 6×6×10   → 32×16
  *   (32,36) pata 4×18×4     → 16×22 (las cuatro patas comparten desplegado)
+ *   (48,36) oreja 2×3×2     → 8×5 (ambas orejas comparten desplegado)
  */
 
 import { ITEMS } from '../items.js';
@@ -64,13 +65,27 @@ export default {
         skin.fill(76, 10, 36, 4, ROJO_SILLA, 5);
         skin.fill(76, 12, 36, 1, DORADO, 4);
 
-        // cara frontal de la cabeza: rect (10,46)..(16,52)
-        skin.px(11, 47, OSCURO);                    // ojo izquierdo
-        skin.px(14, 47, OSCURO);                    // ojo derecho
-        skin.fill(10, 49, 6, 3, BEIGE_CLARO, 4);    // hocico claro
+        // punta del hocico (cara frontal −Z de la cabeza): rect (10,46)..(16,52)
+        skin.fill(10, 49, 6, 3, BEIGE_CLARO, 4);    // morro claro
         skin.px(11, 50, OSCURO);                    // fosa nasal izquierda
         skin.px(14, 50, OSCURO);                    // fosa nasal derecha
         skin.fill(12, 51, 2, 1, PARDO, 0);          // boca
+
+        // CARA de perfil (la cabeza es alargada: los ojos van a los LADOS,
+        // junto al cráneo). En las caras laterales la U crece del cráneo
+        // (izquierda del rect) hacia el morro: +X (0,46)..(10,52) y
+        // −X (16,46)..(26,52)
+        for (const bx of [0, 16]) {
+            skin.fill(bx + 2, 46, 2, 1, PARDO, 0);      // ceja/párpado
+            skin.fill(bx + 2, 47, 2, 2, OSCURO, 0);     // ojo grande de perfil
+            skin.px(bx + 3, 47, [238, 234, 224]);       // brillo del ojo
+            skin.fill(bx + 6, 51, 3, 1, PARDO, 0);      // línea de la boca
+            skin.px(bx + 8, 49, PARDO);                 // ollar de perfil
+        }
+
+        // orejas: base + pabellón interior pardo en la cara frontal
+        skin.fill(48, 36, 8, 5, BEIGE, 6);
+        skin.fill(50, 38, 2, 2, PARDO, 4);
 
         // patas: pezuñas pardas (borde inferior lateral y cara de apoyo)
         skin.fill(32, 56, 16, 2, PARDO, 5);
@@ -84,6 +99,8 @@ export default {
         { name: 'joroba', size: [8, 4, 10], pivot: [0, 30, 0], origin: [-4, 0, -5], uv: [76, 0] },
         { name: 'cuello', size: [6, 16, 6], pivot: [0, 26, -12], origin: [-3, -2, -3], uv: [76, 14], anim: 'head' },
         { name: 'cabeza', size: [6, 6, 10], pivot: [0, 26, -12], origin: [-3, 10, -10], uv: [0, 36], anim: 'head' },
+        { name: 'oreja_i', size: [2, 3, 2], pivot: [0, 26, -12], origin: [-3, 16, -2], uv: [48, 36], anim: 'head' },
+        { name: 'oreja_d', size: [2, 3, 2], pivot: [0, 26, -12], origin: [1, 16, -2], uv: [48, 36], anim: 'head' },
         { name: 'pata_di', size: [4, 18, 4], pivot: [-4, 18, -9], origin: [-2, -18, -2], uv: [32, 36], anim: 'leg0' },
         { name: 'pata_dd', size: [4, 18, 4], pivot: [4, 18, -9], origin: [-2, -18, -2], uv: [32, 36], anim: 'leg1' },
         { name: 'pata_ti', size: [4, 18, 4], pivot: [-4, 18, 9], origin: [-2, -18, -2], uv: [32, 36], anim: 'leg1' },
