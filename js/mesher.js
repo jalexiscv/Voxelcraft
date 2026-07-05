@@ -316,6 +316,10 @@ export function meshChunk(world, cx, cz) {
                 if (id === B.AIR) continue;
                 const def = DEFS[id];
 
+                // bloques dinámicos (cámara): sin malla estática, los dibuja
+                // una entidad por frame (js/camaras.js vía mobrender)
+                if (def.dinamico) continue;
+
                 if (def.cross) {
                     emitCross(solid, world, x, y, z, def.side);
                     continue;

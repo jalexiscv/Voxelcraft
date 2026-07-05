@@ -38,7 +38,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('86 tipos definidos', DEFS.length === 86 && DEFS.every(d => d));
+check('87 tipos definidos', DEFS.length === 87 && DEFS.every(d => d));
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -248,8 +248,8 @@ console.log('== Puertas y vallas ==');
 
     // ids y flags de las cuatro hojas: cerradas = panel en z, abiertas = la
     // MISMA hoja girada (panel en x); solo la inferior cerrada va al selector
-    check('hojas superiores con ids fijos 84/85 (registro completo: 86)',
-        B.DOOR_TOP_CLOSED === 84 && B.DOOR_TOP_OPEN === 85 && DEFS.length === 86);
+    check('hojas superiores con ids fijos 84/85 (registro completo: 87)',
+        B.DOOR_TOP_CLOSED === 84 && B.DOOR_TOP_OPEN === 85 && DEFS.length === 87);
     check('flags de panel: cerradas en z (true), abiertas giradas en x',
         DEFS[B.DOOR_CLOSED].panel === true && DEFS[B.DOOR_TOP_CLOSED].panel === true &&
         DEFS[B.DOOR_OPEN].panel === 'x' && DEFS[B.DOOR_TOP_OPEN].panel === 'x');
@@ -680,7 +680,7 @@ console.log('== Cultivos ==');
     check('ids fijos del plan: FARMLAND 71 y cultivos 72..83',
         B.FARMLAND === 71 && B.TRIGO_0 === 72 && B.TRIGO_3 === 75 &&
         B.ZANAHORIA_0 === 76 && B.ZANAHORIA_3 === 79 &&
-        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 86);
+        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 87);
     check('items de agricultura con ids fijos 231..239',
         ITEMS.SEMILLAS_TRIGO === 231 && ITEMS.TRIGO === 232 && ITEMS.PAN === 233 &&
         ITEMS.ZANAHORIA === 234 && ITEMS.PATATA === 235 && ITEMS.PATATA_ASADA === 236 &&
@@ -1244,6 +1244,161 @@ console.log('== Modelos geo ==');
         ender.find((p) => p.name === 'body').pivot[1] === 38 &&
         ender.every((p) => !p.rot) &&
         ender.find((p) => p.name === 'head').origin[1] === 0);
+}
+
+/* ==== Cámara de vigilancia: bloque dinámico dibujado como entidad ==== */
+console.log('== Cámara de vigilancia ==');
+{
+    const { TILE } = await import(base + 'atlas.js');
+    const { CAMARA_DEF, CamaraSystem, yawBarrido, varianteLED, LED_UV,
+            BARRIDO_PERIODO, BARRIDO_AMPLITUD } = await import(base + 'camaras.js');
+    const { partUVRects } = await import(base + 'mobs/model.js');
+    const { Skin } = await import(base + 'mobs/skin.js');
+    const { RECIPES, ITEMS, matchGrid, craft, autoColocar } = await import(base + 'items.js');
+    const { Inventory } = await import(base + 'inventory.js');
+
+    // id, flags y tésela del icono
+    check('id fijo 86 y registro a 87 tipos', B.CAMERA === 86 && DEFS.length === 87);
+    check('flags: dinámica, ni sólida ni opaca, colocable, dureza 3 a pico',
+        DEFS[B.CAMERA].dinamico === true && !DEFS[B.CAMERA].solid &&
+        !DEFS[B.CAMERA].opaque && DEFS[B.CAMERA].placeable &&
+        DEFS[B.CAMERA].hardness === 3 && DEFS[B.CAMERA].tool === 'pico' &&
+        DEFS[B.CAMERA].sound === 'stone' && PLACEABLE.includes(B.CAMERA));
+    check('ningún otro bloque hereda el flag dinamico',
+        DEFS.filter((d) => d.dinamico).length === 1);
+    check('tésela 133 del icono pintable dentro del atlas',
+        TILE.CAMERA === 133 && DEFS[B.CAMERA].side === TILE.CAMERA &&
+        typeof painters[TILE.CAMERA] === 'function');
+
+    // el mesher NO emite geometría para ella (idéntico con y sin cámara)
+    const wCam = new World(11);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wCam.addChunk(cx, cz, flatChunk());
+    }
+    const sinCamara = meshChunk(wCam, 0, 0);
+    wCam.set(5, 10, 5, B.CAMERA);
+    const conCamara = meshChunk(wCam, 0, 0);
+    check('el mesher no emite malla para el bloque dinámico',
+        conCamara.solid.length === sinCamara.solid.length &&
+        eq(new Uint8Array(conCamara.solid.buffer), new Uint8Array(sinCamara.solid.buffer)));
+
+    // el raycast SÍ la golpea (para romperla y apuntarle) y no colisiona
+    const rayoCam = raycast(wCam, [5.5, 10.5, 2.5], [0, 0, 1], 5);
+    check('el raycast golpea la cámara aunque no colisione',
+        !!rayoCam && rayoCam.id === B.CAMERA && rayoCam.x === 5 && rayoCam.z === 5 &&
+        wCam.solidAt(5, 10, 5) === false);
+
+    // def de partes: ≥10 partes bien formadas con UVs dentro de la piel
+    check('la def tiene ≥10 partes con size/pivot/origin/uv válidos',
+        CAMARA_DEF.parts.length >= 10 && CAMARA_DEF.parts.every((p) =>
+            p.name && [p.size, p.pivot, p.origin].every((v) =>
+                Array.isArray(v) && v.length === 3 && v.every(Number.isFinite)) &&
+            p.size.every((n) => Number.isInteger(n) && n >= 1) &&
+            Array.isArray(p.uv) && p.uv.length === 2));
+    check('todo desplegado UV cae dentro de la piel 64×64',
+        CAMARA_DEF.parts.every((p) => partUVRects(p).every((r) =>
+            r.x >= 0 && r.y >= 0 && r.w > 0 && r.h > 0 &&
+            r.x + r.w <= CAMARA_DEF.skin.w && r.y + r.h <= CAMARA_DEF.skin.h)));
+    check('el cabezal completo (cuerpo, visera, aro, lente y LED) gira con head',
+        ['cuerpo', 'visera', 'aro', 'lente', 'led'].every((n) => {
+            const p = CAMARA_DEF.parts.find((q) => q.name === n);
+            return p && p.anim === 'head' && p.rot && p.rot[0] < 0; // cabeceo fijo hacia abajo
+        }) && CAMARA_DEF.parts.find((p) => p.name === 'placa').anim === undefined);
+
+    // dos variantes de piel: LED apagado/encendido, idénticas fuera del LED
+    const pielV = (v) => {
+        const s = new Skin(CAMARA_DEF.skin.w, CAMARA_DEF.skin.h, toSeed('camara') + v * 131);
+        CAMARA_DEF.paint(s, v);
+        return s;
+    };
+    const s0 = pielV(0), s1 = pielV(1);
+    let fueraIgual = true, dentroDistinto = 0, sinPintar = 0;
+    for (let y = 0; y < s0.h; y++) {
+        for (let x = 0; x < s0.w; x++) {
+            const i = (y * s0.w + x) * 4;
+            const led = x >= LED_UV.x && x < LED_UV.x + LED_UV.w &&
+                        y >= LED_UV.y && y < LED_UV.y + LED_UV.h;
+            const igual = s0.data[i] === s1.data[i] && s0.data[i + 1] === s1.data[i + 1] &&
+                          s0.data[i + 2] === s1.data[i + 2] && s0.data[i + 3] === s1.data[i + 3];
+            if (led && !igual) dentroDistinto++;
+            if (!led && !igual) fueraIgual = false;
+        }
+    }
+    for (const p of CAMARA_DEF.parts) {
+        for (const r of partUVRects(p)) {
+            for (let y = r.y; y < r.y + r.h; y++) {
+                for (let x = r.x; x < r.x + r.w; x++) {
+                    if (s0.data[(y * s0.w + x) * 4 + 3] === 0) sinPintar++;
+                }
+            }
+        }
+    }
+    check('las variantes difieren EXACTAMENTE en la zona del LED',
+        fueraIgual && dentroDistinto === LED_UV.w * LED_UV.h);
+    check('paint cubre todos los texels referenciados por las UV', sinPintar === 0);
+
+    // barrido: puro, periódico (período 8 s) y con extremos exactos en ±70°
+    const muestras = [];
+    for (let t = 0; t <= BARRIDO_PERIODO; t += 0.01) muestras.push(yawBarrido(t));
+    check('yaw(t) es puro y periódico: yaw(t) = yaw(t+8)',
+        [0.3, 1.44, 4.7, 6.02].every((t) =>
+            Math.abs(yawBarrido(t) - yawBarrido(t + BARRIDO_PERIODO)) < 1e-9 &&
+            yawBarrido(t) === yawBarrido(t)));
+    check('extremos del barrido en ±70° con pausa en cada extremo',
+        Math.abs(BARRIDO_AMPLITUD - 70 * Math.PI / 180) < 1e-12 &&
+        Math.abs(Math.max(...muestras) - BARRIDO_AMPLITUD) < 1e-9 &&
+        Math.abs(Math.min(...muestras) + BARRIDO_AMPLITUD) < 1e-9 &&
+        yawBarrido(1.9) === BARRIDO_AMPLITUD && yawBarrido(2.1) === BARRIDO_AMPLITUD);
+    check('el barrido es suave (sin saltos entre muestras de 10 ms)',
+        muestras.every((v, i) => i === 0 || Math.abs(v - muestras[i - 1]) < 0.02));
+
+    // LED: encendido 0,15 s cada 1,2 s (variante 1 solo durante el destello)
+    check('patrón de vigilancia del LED: 0,15 s encendido cada 1,2 s',
+        varianteLED(0.05) === 1 && varianteLED(0.149) === 1 && varianteLED(0.2) === 0 &&
+        varianteLED(1.1) === 0 && varianteLED(1.25) === 1 && varianteLED(2.7) === 0);
+
+    // registro: escaneo del chunk, animación y alta/baja en caliente
+    const sys = new CamaraSystem();
+    sys.sync(wCam); // la cámara de (5,10,5) sigue puesta
+    check('sync escanea los chunks cargados y levanta la entidad en el centro',
+        sys.entidades.length === 1 &&
+        sys.entidades[0].pos[0] === 5.5 && sys.entidades[0].pos[1] === 10 &&
+        sys.entidades[0].pos[2] === 5.5 && sys.entidades[0].def === CAMARA_DEF);
+    sys.update(3.3);
+    check('update anima el cabezal y el LED de la entidad',
+        sys.entidades[0].headYaw === yawBarrido(3.3) &&
+        sys.entidades[0].variant === varianteLED(3.3) && sys.entidades[0].yaw === 0);
+    check('la entidad lleva los campos neutros que mobrender espera',
+        sys.entidades[0].fuseT === -1 && sys.entidades[0].hurtT === 0 &&
+        sys.entidades[0].dying() === false && sys.entidades[0].animSpeed === 0);
+    wCam.set(5, 10, 5, B.AIR);
+    sys.onSet(5, 10, 5, B.AIR);
+    check('romper la cámara la da de baja al momento', sys.entidades.length === 0);
+    wCam.set(6, 10, 6, B.CAMERA);
+    sys.onSet(6, 10, 6, B.CAMERA);
+    check('colocar una cámara la da de alta al momento',
+        sys.entidades.length === 1 && sys.entidades[0].pos[0] === 6.5);
+    wCam.chunks.delete('0,0'); // descarga del chunk (streaming)
+    sys.sync(wCam);
+    check('descargar el chunk retira sus cámaras del registro', sys.entidades.length === 0);
+
+    // receta con forma: 3 lingotes / lingote-cristal-lingote / palo centrado
+    const H = ITEMS.LINGOTE_HIERRO, G = B.GLASS, S = ITEMS.PALO;
+    const recCam = RECIPES.find((r) => r.name === 'Cámara de vigilancia');
+    check('la receta casa en la mesa 3×3 y produce el bloque 86',
+        (matchGrid([H, H, H, H, G, H, 0, S, 0], 3) || {}).name === 'Cámara de vigilancia' &&
+        recCam.out.id === B.CAMERA && recCam.out.n === 1);
+    check('mal dispuesta (palo descentrado) NO se fabrica',
+        (matchGrid([H, H, H, H, G, H, S, 0, 0], 3) || {}).name !== 'Cámara de vigilancia');
+    {
+        const inv = new Inventory();
+        inv.add(H, 5); inv.add(G, 1); inv.add(S, 1);
+        check('no cabe en la cuadrícula personal 2×2 (exige mesa)',
+            autoColocar(recCam, 2, inv) === null);
+        check('se craftea consumiendo 5 lingotes, 1 cristal y 1 palo',
+            craft(inv, recCam) && inv.count(B.CAMERA) === 1 &&
+            inv.count(H) === 0 && inv.count(G) === 0 && inv.count(S) === 0);
+    }
 }
 
 /* ==== Templo del origen: monumento fijo en el punto de aparición ==== */

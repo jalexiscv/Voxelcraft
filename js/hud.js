@@ -159,7 +159,8 @@ export class HUD {
         const def = DEFS[blockId];
         if (!def) return;
 
-        if (def.cross) {
+        // plantas en X y bloques dinámicos (cámara): sprite plano, no cubo
+        if (def.cross || def.dinamico) {
             ctx.drawImage(this.shadedTile(def.side, 1), 2, 2, ICON - 4, ICON - 4);
             return;
         }

@@ -15,7 +15,7 @@ Minecraft/ (raíz del proyecto)
     ├── main.js              <-- Integración y bucle de juego (rAF)
     ├── math.js              <-- Matrices 4×4 y utilidades (column-major, WebGL)
     ├── noise.js             <-- PRNG Park–Miller, Perlin 2D, fractal, distorsión
-    ├── blocks.js            <-- Registro de 86 tipos de bloque (fuente de verdad)
+    ├── blocks.js            <-- Registro de 87 tipos de bloque (fuente de verdad)
     ├── atlas.js             <-- Atlas de texturas procedural (Canvas 2D) + nubes
     ├── world.js             <-- Mundo infinito: mapa disperso de chunks + alturas de luz
     ├── worldgen.js          <-- Generator por chunk (módulo puro, testeable)
@@ -81,6 +81,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Aldeas procedurales: pozo, caminos, parcelas y 8 edificios con paleta por bioma | ✅ (ver [05-aldeas.md](05-aldeas.md)) |
 | Templo del origen: pirámide escalonada monumental que corona siempre el punto de aparición, con torres gemelas, contrafuertes y cámara equipada (mesa, horno, cofre y cama) bajo una claraboya | ✅ |
 | Agricultura: labrar con azada, sembrar trigo/zanahoria/patata, crecimiento con riego, pan y patata asada | ✅ (ver [04-items.md](04-items.md)) |
+| Cámara de vigilancia: bloque dinámico dibujado como entidad animada (paneo ±70° cada 8 s y LED parpadeante), crafteable con hierro, cristal y palo | ✅ (ver [04-items.md](04-items.md)) |
 | Depuración (F3), reaparición (R) | ✅ |
 | Mobs (68 criaturas con IA), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
 | Multijugador | ❌ (ver «Futuro») |

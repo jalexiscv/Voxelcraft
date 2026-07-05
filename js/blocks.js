@@ -36,6 +36,7 @@ export const B = {
     PATATA_0: 80, PATATA_1: 81, PATATA_2: 82, PATATA_3: 83,
     // puerta de dos bloques: hojas superiores (las coloca la mecánica del par)
     DOOR_TOP_CLOSED: 84, DOOR_TOP_OPEN: 85,
+    CAMERA: 86,         // cámara de vigilancia: bloque dinámico (entidad animada)
 };
 
 /**
@@ -66,6 +67,7 @@ function def(name, side, opts = {}) {
         edge: opts.edge !== undefined ? opts.edge : null, // tésela del canto de los paneles (si falta, franjas de side)
         hideSame: opts.hideSame || false, // no dibujar caras entre bloques del mismo id
         bright: opts.bright || false,     // emite luz propia (lava 15, antorcha 14)
+        dinamico: opts.dinamico || false, // sin malla estática: lo dibuja una entidad por frame (js/camaras.js)
         sound,
         breakable: opts.breakable !== undefined ? opts.breakable : true,
         placeable: opts.placeable !== undefined ? opts.placeable : true,
@@ -172,6 +174,14 @@ for (const [clave, nombre] of [['TRIGO', 'Trigo'], ['ZANAHORIA', 'Zanahoria'], [
 // hacha); la vidriera translúcida vive en la tésela DOOR_TOP_T.
 DEFS[B.DOOR_TOP_CLOSED] = def('Puerta (hoja superior)', TILE.DOOR_TOP_T, { opaque: false, panel: true, edge: TILE.DOOR_OPEN_T, placeable: false, sound: 'wood' });
 DEFS[B.DOOR_TOP_OPEN]   = def('Puerta abierta (hoja superior)', TILE.DOOR_TOP_T, { solid: false, opaque: false, panel: 'x', edge: TILE.DOOR_OPEN_T, placeable: false, sound: 'wood' });
+
+/* ---- Cámara de vigilancia (bloque dinámico) ---- */
+// El mesher NO emite malla para ella (dinamico: la dibuja js/camaras.js como
+// entidad de partes-caja con paneo y LED); no colisiona (como la antorcha)
+// pero el raycast sí la golpea para poder romperla. Suena y se pica a piedra.
+DEFS[B.CAMERA] = def('Cámara de vigilancia', TILE.CAMERA, {
+    dinamico: true, solid: false, opaque: false, hardness: 3, tool: 'pico',
+});
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */
 export const PLACEABLE = DEFS

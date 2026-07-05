@@ -178,6 +178,9 @@ export const RECIPES = [
         pattern: ['CC', ' S', ' S'], keys: { C: B.COBBLE, S: ITEMS.PALO } },
     { name: 'Azada de hierro', out: { id: ITEMS.AZADA_HIERRO, n: 1 },
         pattern: ['HH', ' S', ' S'], keys: { H: ITEMS.LINGOTE_HIERRO, S: ITEMS.PALO } },
+    // cámara de vigilancia: carcasa de hierro, objetivo de cristal y poste
+    { name: 'Cámara de vigilancia', out: { id: B.CAMERA, n: 1 },
+        pattern: ['HHH', 'HGH', ' S '], keys: { H: ITEMS.LINGOTE_HIERRO, G: B.GLASS, S: ITEMS.PALO } },
 ];
 
 // Deriva `in` (cantidades) de las recetas con forma: el recetario y

@@ -26,6 +26,7 @@ import { esCultivo, cosechaDe, plantaDe, maduro, tickCultivos } from './farming.
 import { esPuerta, esAbierta, colocarPuerta, alternarPuerta, romperPuerta } from './doors.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
+import { CamaraSystem, CAMARA_DEF } from './camaras.js';
 import { SoundEngine } from './audio.js';
 import { HUD } from './hud.js';
 import { saveWorld, loadMeta, loadChunksInto, hasSave } from './storage.js';
@@ -55,6 +56,8 @@ function boot() {
     }
 
     const mobRenderer = new MobRenderer(renderer, MOBS);
+    mobRenderer.buildType(CAMARA_DEF);  // la cámara comparte el pipeline de mobs
+    const camaras = new CamaraSystem(); // registro y animación de las cámaras
     const hud = new HUD(atlasCanvas);
     const sound = new SoundEngine();
     const player = new Player();
@@ -258,6 +261,7 @@ function boot() {
             game.inFlight--;
             game.world.addChunk(cx, cz, new Uint8Array(blocks));
             onChunkArrived(cx, cz);
+            camaras.sync(game.world); // alta de cámaras del chunk recién llegado
             pumpGeneration();
         };
     }
@@ -372,6 +376,7 @@ function boot() {
         game.seed = seed;
         game.world = new World(seed);
         game.mobs = new MobSystem(MOBS, game.world, mobHooks, seed);
+        camaras.reset(); // el registro de cámaras es por mundo
         game.hp = 20;
         game.dead = false;
         game.hurtGraceT = 0;
@@ -579,7 +584,10 @@ function boot() {
             if (game.mode === 'creativo') {            // creativo: rotura instantánea
                 // la puerta cae entera: cualquier hoja limpia el par (sin drop)
                 if (esPuerta(hit.id)) romperPuerta(game.world, hit.x, hit.y, hit.z);
-                else game.world.set(hit.x, hit.y, hit.z, B.AIR);
+                else {
+                    game.world.set(hit.x, hit.y, hit.z, B.AIR);
+                    camaras.onSet(hit.x, hit.y, hit.z, B.AIR); // baja si era cámara
+                }
                 sound.dig(def.sound);
                 return;
             }
@@ -619,6 +627,7 @@ function boot() {
                     }
                 }
                 game.world.set(hit.x, hit.y, hit.z, B.AIR);
+                camaras.onSet(hit.x, hit.y, hit.z, B.AIR); // baja si era cámara
                 game.breaking = null;
                 if (esCultivo(hit.id)) {
                     // cosechar: maduro suelta el botín completo; inmaduro,
@@ -741,6 +750,7 @@ function boot() {
                 hud.refreshCounts();
             }
             game.world.set(tx, ty, tz, id);
+            camaras.onSet(tx, ty, tz, id); // alta si se colocó una cámara
             sound.place(DEFS[id].sound);
         }
     }
@@ -883,6 +893,7 @@ function boot() {
             pumpGeneration();
             ensureMeshes();
             unloadFar();
+            camaras.sync(game.world); // baja de cámaras en chunks descargados
         }
         processDirty(6);
     }
@@ -928,7 +939,11 @@ function boot() {
             camRight: [cy, 0, -sy],
             camUp: [sy * sp, cp, cy * sp],
         };
-        f.drawEntities = () => mobRenderer.render(f, game.mobs.mobs, game.mobs.arrows, game.time, game.world);
+        f.drawEntities = () => {
+            camaras.update(game.time); // barrido del cabezal + parpadeo del LED
+            mobRenderer.render(f, game.mobs.mobs.concat(camaras.entidades),
+                game.mobs.arrows, game.time, game.world);
+        };
         renderer.render(f);
 
         if (hud.debugVisible()) {

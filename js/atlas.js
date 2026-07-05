@@ -54,6 +54,9 @@ export const TILE = {
     // hoja superior de la puerta de dos bloques (la inferior es DOOR_T y el
     // canto compartido de ambas hojas es DOOR_OPEN_T)
     DOOR_TOP_T: 132,
+    // icono de la cámara de vigilancia (el bloque en sí es dinámico: en el
+    // mundo lo dibuja js/camaras.js; esta tésela solo viste HUD y selector)
+    CAMERA: 133,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -979,6 +982,37 @@ const azadaTile = (cabeza, brillo) => (t) => {
 painters[TILE.IT_AZADA_MADERA] = azadaTile(CABEZA_MADERA, BRILLO_MADERA);
 painters[TILE.IT_AZADA_PIEDRA] = azadaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
 painters[TILE.IT_AZADA_HIERRO] = azadaTile(CABEZA_HIERRO, BRILLO_HIERRO);
+
+painters[TILE.CAMERA] = (t) => {
+    // icono de la cámara de vigilancia (perfil, objetivo a la izquierda):
+    // carcasa gris grafito con arista clara, visera, objetivo azulado con
+    // destello, rejilla lateral, LED rojo y poste con placa atornillada
+    for (let y = 3; y <= 8; y++) {                          // cuerpo del cabezal
+        for (let x = 2; x <= 12; x++) {
+            const d = t.rng.int(7) - 3;
+            t.px(x, y, 66 + d, 70 + d, 78 + d);
+        }
+    }
+    for (let x = 2; x <= 12; x++) t.px(x, 3, 116, 122, 134); // arista superior clara
+    for (let x = 2; x <= 12; x++) t.px(x, 8, 44, 46, 52);    // canto inferior en sombra
+    for (let x = 1; x <= 11; x++) t.px(x, 2, 40, 42, 48);    // visera/parasol
+    for (const gx of [8, 10]) {                              // rejilla de ventilación
+        for (let y = 4; y <= 7; y++) t.px(gx, y, 48, 50, 56);
+    }
+    for (let y = 4; y <= 7; y++) { t.px(0, y, 38, 40, 46); t.px(1, y, 38, 40, 46); } // aro del cañón
+    t.px(0, 5, 44, 72, 140); t.px(1, 5, 44, 72, 140);        // lente azul noche
+    t.px(0, 6, 36, 58, 116); t.px(1, 6, 36, 58, 116);
+    t.px(0, 5, 168, 205, 245);                               // destello especular
+    t.px(12, 3, 255, 72, 56);                                // LED rojo encendido
+    t.px(9, 9, 52, 54, 60); t.px(10, 9, 52, 54, 60);         // rótula
+    for (let y = 10; y <= 13; y++) {                         // poste corto
+        t.px(9, y, 72, 76, 84); t.px(10, y, 52, 54, 60);
+    }
+    for (let y = 14; y <= 15; y++) {                         // placa base
+        for (let x = 5; x <= 14; x++) t.px(x, y, 58, 60, 66);
+    }
+    t.px(6, 14, 140, 146, 158); t.px(13, 14, 140, 146, 158); // tornillos
+};
 
 /**
  * Construye el atlas completo. Devuelve el canvas (para subirlo como textura

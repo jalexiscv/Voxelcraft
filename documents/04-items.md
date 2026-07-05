@@ -98,7 +98,7 @@ ghast: membrana 0-1.
 *   **Combustibles** (`COMBUSTIBLES`, usos por unidad): carbón ×4 ·
     tronco ×2 · tablones ×1 · palo ×1.
 
-## Bloques funcionales (ids 63-69 y 84-85, téselas 99-107 y 132)
+## Bloques funcionales (ids 63-69, 84-86, téselas 99-107 y 132-133)
 
 | Id | Bloque | Téselas | Función |
 |---|---|---|---|
@@ -111,6 +111,7 @@ ghast: membrana 0-1.
 | 69 | Cama | top 107, side PLANKS | clic derecho de noche → amanece |
 | 84 | Puerta, hoja superior (cerrada) | 132 (vidriera translúcida), canto 103 | la coloca la mecánica del par |
 | 85 | Puerta, hoja superior (abierta) | 132 girada (panel en x), canto 103 | gira junto a la inferior; se atraviesa |
+| 86 | Cámara de vigilancia | 133 (solo icono del HUD) | bloque **dinámico** (`js/camaras.js`): sin malla estática, se dibuja como entidad de 13 partes-caja con el pipeline de mobs — el cabezal barre ±70° cada 8 s (con pausa en los extremos y cabeceo de 15°) y su LED rojo parpadea (0,15 s cada 1,2 s); no colisiona pero el raycast la golpea; se pica a piedra (dureza 3, pico) y suelta su bloque |
 
 **Puerta de DOS bloques** (`js/doors.js`, puro y testeado en Node): colocar
 exige un vano de 2 de alto con suelo sólido y escribe las dos hojas de una
@@ -124,7 +125,9 @@ por cada vecino conectable (otra valla o un bloque sólido opaco).
 tablones) · valla (3×2 alternando palo/tablón: `SPS`/`SPS`) · ventana (2×2
 de cristal → 2) · antorcha (carbón sobre palo → 4) · cama (lana sobre
 tablones: `WWW`/`PPP`) · espadas (material ×2 sobre palo, en columna) ·
-picos/hachas/palas de hierro (como las de piedra con lingotes).
+picos/hachas/palas de hierro (como las de piedra con lingotes) · cámara de
+vigilancia (mesa 3×3: fila de 3 lingotes de hierro, fila lingote-cristal-
+lingote y palo centrado abajo como poste → 1).
 
 ## Agricultura (bloques 71-83, items 231-239, téselas 110-131)
 

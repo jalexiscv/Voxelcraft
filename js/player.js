@@ -215,8 +215,10 @@ export function raycast(world, origin, dir, maxDist = 5) {
         const id = world.get(x, y, z);
         const def = DEFS[id];
         // los paneles no sólidos (la hoja abierta de la puerta) también son
-        // objetivo: si el rayo los atravesara, la puerta no podría cerrarse
-        if (id !== B.AIR && (def.solid || def.cross || def.panel)) {
+        // objetivo: si el rayo los atravesara, la puerta no podría cerrarse;
+        // los bloques dinámicos (cámara) tampoco colisionan pero se apuntan
+        // igual, para poder romperlos
+        if (id !== B.AIR && (def.solid || def.cross || def.panel || def.dinamico)) {
             return { x, y, z, id, nx: normal[0], ny: normal[1], nz: normal[2] };
         }
         // avanzar al siguiente cruce de celda
