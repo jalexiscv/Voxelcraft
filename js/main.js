@@ -669,6 +669,16 @@ function boot() {
             // hoja giran LAS DOS del par (un solo sonido por clic)
             if (esPuerta(hit.id)) {
                 const abre = !esAbierta(hit.id);
+                // cerrarla contigo en el vano te emparedaría (la hoja
+                // cerrada colisiona como bloque entero): ignora el clic
+                if (!abre) {
+                    const yb = hit.id === B.DOOR_TOP_OPEN ? hit.y - 1 : hit.y;
+                    const [px, py, pz] = game.player.pos;
+                    const dentro = px > hit.x - 0.35 && px < hit.x + 1.35 &&
+                                   pz > hit.z - 0.35 && pz < hit.z + 1.35 &&
+                                   py + 1.8 > yb && py < yb + 2;
+                    if (dentro) return;
+                }
                 alternarPuerta(game.world, hit.x, hit.y, hit.z);
                 sound.evento(abre ? 'puerta_abrir' : 'puerta_cerrar');
                 return;

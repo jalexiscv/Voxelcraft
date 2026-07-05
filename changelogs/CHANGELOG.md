@@ -117,3 +117,4 @@
 | 113 | 2026-07-04 | [Templo del origen: pirámide monumental en el punto de inicio](2026-07-04_templo_origen.md) |
 | 114 | 2026-07-05 | [Corrección de modelos geo: araña deforme (pose de abanico horneada)](2026-07-05_arana_pose.md) |
 | 115 | 2026-07-05 | [Corrección de modelos geo: enderman deforme (traslados de pose por hueso)](2026-07-05_enderman_pose.md) |
+| 116 | 2026-07-05 | [Puertas: cierre fiable, bisagra real y sin emparedamientos](2026-07-05_puertas_bisagra.md) |

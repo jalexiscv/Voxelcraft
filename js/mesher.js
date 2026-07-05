@@ -110,16 +110,21 @@ function emitCross(out, world, x, y, z, tile) {
     }
 }
 
+/** Retranqueo de la hoja abierta respecto a su jamba (evita el z-fighting). */
+const BISAGRA = 0.04;
+
 /**
- * Panel fino (puerta/ventana): caja centrada y∈[0,1] con el grosor en un eje:
- * def.panel === 'x' → x∈[0.40,0.60] (la hoja de la puerta abierta es la MISMA
- * hoja girada 90°, misma tésela); cualquier otro truthy → z∈[0.40,0.60]
- * (comportamiento clásico). Las caras grandes llevan la tésela completa y los
- * cantos usan franjas de def.edge (listón de madera de la puerta) o, si falta,
- * de la propia tésela. Sin AO (la caja está retranqueada del borde del
- * bloque); la luz es la de la propia celda. La colisión no cambia.
+ * Panel fino (puerta/ventana): caja y∈[0,1] con el grosor (0.2) en un eje.
+ * La ORIENTACIÓN sale de las JAMBAS vecinas (bloques sólidos u otros
+ * paneles): la hoja cerrada y la ventana se alinean con el muro que las
+ * enmarca (muro a lo largo de x → grosor en z, y viceversa) y la hoja
+ * abierta gira 90° y se PEGA a la jamba de su bisagra, en vez de quedarse
+ * centrada en el vano. Sin jambas claras se cae al clásico (grosor en z;
+ * abierta contra x−). Las caras grandes llevan la tésela completa y los
+ * cantos franjas de def.edge (o de la propia tésela). Sin AO (caja
+ * retranqueada); la luz es la de la propia celda. La colisión no cambia.
  */
-function emitPanel(out, world, x, y, z, def) {
+function emitPanel(out, world, x, y, z, id, def) {
     const [u0, v0, u1, v1] = tileUV(def.side);
     const [eu0, ev0, eu1, ev1] = tileUV(def.edge !== null ? def.edge : def.side);
     const deu = eu1 - eu0, dev = ev1 - ev0;
@@ -128,13 +133,48 @@ function emitPanel(out, world, x, y, z, def) {
     const luzBloque = world.blockLightAt(x, y, z);
     const luz = (shade) => Math.min(shade * sun, SUN_MAX) + luzBloque;
     const quad = (a, b, c, d) => out.push(...a, ...b, ...c, ...a, ...c, ...d);
-    // un canto se oculta contra vecinos opacos o contra otro panel del mismo
-    // eje (las dos hojas de una puerta, ventanas contiguas): las cajas encajan
-    const cantoOculto = (nId) => DEFS[nId].opaque || (DEFS[nId].panel && DEFS[nId].panel === def.panel);
 
-    if (def.panel === 'x') {
-        // hoja girada: grosor en x, caras grandes mirando a ±x
-        const x0 = x + PANEL_Z0, x1 = x + PANEL_Z1;
+    const esPuertaId = (i) => i === B.DOOR_CLOSED || i === B.DOOR_OPEN ||
+        i === B.DOOR_TOP_CLOSED || i === B.DOOR_TOP_OPEN;
+    const puerta = esPuertaId(id);
+    const abierta = id === B.DOOR_OPEN || id === B.DOOR_TOP_OPEN;
+    const yBase = (id === B.DOOR_TOP_CLOSED || id === B.DOOR_TOP_OPEN) ? y - 1 : y;
+
+    // jamba: sólido u otro panel en el vecino; para la puerta cuenta a la
+    // altura de cualquiera de sus dos hojas (el marco puede no llegar a ambas)
+    const jamba = (dx, dz) => {
+        const ys = puerta ? [yBase, yBase + 1] : [y];
+        return ys.some((yy) => {
+            const n = DEFS[world.get(x + dx, yy, z + dz)];
+            return n.solid || !!n.panel;
+        });
+    };
+    const jx0 = jamba(-1, 0), jx1 = jamba(1, 0);
+    const jz0 = jamba(0, -1), jz1 = jamba(0, 1);
+    // el muro corre a lo largo de x salvo que SOLO haya jambas en z
+    const muroEnX = !((jz0 || jz1) && !(jx0 || jx1));
+
+    // eje del grosor y borde inferior de la caja dentro del bloque
+    let grosorEnX, off;
+    if (!puerta || !abierta) {
+        grosorEnX = !muroEnX;   // cerrada/ventana: en el plano del muro
+        off = PANEL_Z0;         // centrada en el vano
+    } else if (muroEnX) {
+        grosorEnX = true;       // abierta: girada 90°, pegada a su bisagra
+        off = (jx1 && !jx0) ? 1 - BISAGRA - grosor : BISAGRA;
+    } else {
+        grosorEnX = false;
+        off = (jz1 && !jz0) ? 1 - BISAGRA - grosor : BISAGRA;
+    }
+
+    // un canto se oculta contra vecinos opacos, contra la otra hoja del par
+    // o contra otra ventana contigua (las cajas encajan)
+    const cantoOculto = (nId) => DEFS[nId].opaque ||
+        (puerta ? esPuertaId(nId) : nId === id);
+
+    if (grosorEnX) {
+        // grosor en x: caras grandes mirando a ±x
+        const x0 = x + off, x1 = x + off + grosor;
         for (const xc of [x0, x1]) {
             const l = luz(0.6);
             quad([xc, y, z, u0, v1, l], [xc, y, z + 1, u1, v1, l],
@@ -157,8 +197,8 @@ function emitPanel(out, world, x, y, z, def) {
         return;
     }
 
-    // clásico: grosor en z, caras grandes mirando a ±z
-    const z0 = z + PANEL_Z0, z1 = z + PANEL_Z1;
+    // grosor en z: caras grandes mirando a ±z
+    const z0 = z + off, z1 = z + off + grosor;
     for (const zc of [z0, z1]) {
         const l = luz(0.8);
         quad([x, y, zc, u0, v1, l], [x + 1, y, zc, u1, v1, l],
@@ -282,7 +322,7 @@ export function meshChunk(world, cx, cz) {
                 }
 
                 if (def.panel) {
-                    emitPanel(solid, world, x, y, z, def);
+                    emitPanel(solid, world, x, y, z, id, def);
                     continue;
                 }
 

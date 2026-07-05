@@ -103,8 +103,8 @@ ghast: membrana 0-1.
 | Id | Bloque | Téselas | Función |
 |---|---|---|---|
 | 63 | Horno | side 99, frente 100, top 101 | interfaz de fundición (clic der) |
-| 64 | Puerta, hoja inferior (cerrada) | 102 (paneles y bisagras), canto 103 | clic derecho abre el PAR; colisiona |
-| 65 | Puerta, hoja inferior (abierta) | 102 girada (panel en x), canto 103 | clic derecho cierra el par; se atraviesa |
+| 64 | Puerta, hoja inferior (cerrada) | 102 (paneles y bisagras), canto 103 | clic derecho abre el PAR; colisiona; se alinea con el muro que la enmarca |
+| 65 | Puerta, hoja inferior (abierta) | 102 girada 90°, canto 103 | clic derecho cierra el par; se atraviesa; gira PEGADA a su jamba (bisagra) |
 | 66 | Valla | 104 | 3D: poste + travesaños hacia vallas y muros vecinos; colisiona |
 | 67 | Ventana | 105 | cristal con marco de madera |
 | 68 | Antorcha | 106 (cross) | brilla con luz propia (decorativa) |

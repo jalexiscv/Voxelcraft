@@ -318,6 +318,11 @@ console.log('== Puertas y vallas ==');
     }
     wm.set(2, 10, 2, B.DOOR_CLOSED);              // panel clásico en z
     wm.set(7, 10, 7, B.DOOR_OPEN);                // hoja girada: panel en x
+    wm.set(2, 10, 7, B.DOOR_CLOSED);              // cerrada con jambas en ±z…
+    wm.set(2, 10, 6, B.STONE);                    // …muro a lo largo de z:
+    wm.set(2, 10, 8, B.STONE);                    // …la hoja gira al eje x
+    wm.set(12, 10, 4, B.DOOR_OPEN);               // abierta con jamba en x+…
+    wm.set(13, 10, 4, B.STONE);                   // …bisagra pegada a x+
     wm.set(12, 10, 2, B.FENCE);                   // valla sola (sin vecinos)
     wm.set(4, 10, 12, B.FENCE);                   // pareja de vallas conectadas…
     wm.set(5, 10, 12, B.FENCE);                   // …travesaños entre ambas
@@ -341,10 +346,29 @@ console.log('== Puertas y vallas ==');
         vCerrada.length > 0 &&
         vCerrada.every(([, , z]) => z >= 2.4 - eps && z <= 2.6 + eps) &&
         vCerrada.some(([x]) => x < 2.05) && vCerrada.some(([x]) => x > 2.95));
-    check('la hoja abierta GIRA: panel fino en x (hoja a lo ancho de z)',
+    check('la hoja abierta GIRA y se pega a su bisagra (x− sin jambas)',
         vAbierta.length > 0 &&
-        vAbierta.every(([x]) => x >= 7.4 - eps && x <= 7.6 + eps) &&
+        vAbierta.every(([x]) => x >= 7.04 - eps && x <= 7.24 + eps) &&
         vAbierta.some(([, , z]) => z < 7.05) && vAbierta.some(([, , z]) => z > 7.95));
+
+    // orientación por jambas: el muro que enmarca la puerta manda. Las caras
+    // de las jambas caen en los planos frontera de la celda con x entera:
+    // filtrando por x fraccionaria quedan solo los vértices de la hoja
+    const vMuroZ = vertsCelda(mm, 2, 10, 7).filter(([x]) => x % 1 !== 0);
+    check('cerrada entre jambas ±z: la hoja gira al plano del muro (grosor en x)',
+        vMuroZ.length > 0 &&
+        vMuroZ.every(([x]) => x >= 2.4 - eps && x <= 2.6 + eps) &&
+        vMuroZ.some(([, , z]) => z < 7.05) && vMuroZ.some(([, , z]) => z > 7.95));
+    const vBisagra = vertsCelda(mm, 12, 10, 4).filter(([x]) => x % 1 !== 0);
+    check('abierta con jamba en x+: la hoja se pega a esa bisagra',
+        vBisagra.length > 0 &&
+        vBisagra.every(([x]) => x >= 12.76 - eps && x <= 12.96 + eps));
+
+    // el raycast golpea la hoja abierta (panel no sólido): sin esto la
+    // puerta abierta sería intocable y no podría volver a cerrarse
+    const rayo = raycast(wm, [7.5, 10.5, 5.5], [0, 0, 1], 4);
+    check('el raycast golpea la hoja abierta y la puerta puede cerrarse',
+        !!rayo && rayo.id === B.DOOR_OPEN && rayo.x === 7 && rayo.z === 7);
 
     // valla 3D: poste siempre; travesaños SOLO hacia vecinos conectables
     const vSola = vertsCelda(mm, 12, 10, 2);

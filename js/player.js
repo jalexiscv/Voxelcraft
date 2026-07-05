@@ -214,7 +214,9 @@ export function raycast(world, origin, dir, maxDist = 5) {
     while (dist <= maxDist) {
         const id = world.get(x, y, z);
         const def = DEFS[id];
-        if (id !== B.AIR && (def.solid || def.cross)) {
+        // los paneles no sólidos (la hoja abierta de la puerta) también son
+        // objetivo: si el rayo los atravesara, la puerta no podría cerrarse
+        if (id !== B.AIR && (def.solid || def.cross || def.panel)) {
             return { x, y, z, id, nx: normal[0], ny: normal[1], nz: normal[2] };
         }
         // avanzar al siguiente cruce de celda
