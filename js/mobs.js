@@ -78,6 +78,16 @@ export class Mob {
         this.inspectTarget = null;
         this.inspectT = 0;
         this.inspectCd = 0;
+        // antidron kamikaze: despega bajo su IA (vuelo por-instancia) y
+        // arremete contra un dron; jitterT tambalea su rumbo en la embestida.
+        // cruiseY = techo de ascenso, fijado al detectar (doble de la altura
+        // del dron sobre el suelo EN ESE INSTANTE).
+        this.airborne = false;
+        this.strikeTarget = null;
+        this.cruiseY = 0;
+        this.swooping = false;       // ya en fase de picado sobre el dron
+        this.jitterT = 0;
+        this.jitterYaw = 0;
     }
 
     dying() { return this.dieT >= 0; }
@@ -180,7 +190,8 @@ export class MobSystem {
 
         m.angerT = Math.max(0, m.angerT - dt);
         // en modo creativo los hostiles ignoran al jugador (deambulan como pasivos)
-        if (m.def.behavior && m.def.behavior.guardian) this.guardianAI(m, dt, ctx, dist);
+        if (m.def.behavior && m.def.behavior.antidron) this.antidronAI(m, dt, ctx, dist);
+        else if (m.def.behavior && m.def.behavior.guardian) this.guardianAI(m, dt, ctx, dist);
         else if ((m.def.hostile || m.angerT > 0) && !ctx.creative) this.hostileAI(m, dt, ctx, dist);
         else this.passiveAI(m, dt, ctx, dist);
 
@@ -220,6 +231,96 @@ export class MobSystem {
         }
         // mirada: al jugador si está cerca, si no al frente
         this.lookAt(m, dist < 8 ? ctx.eye : null);
+    }
+
+    /**
+     * IA del antidrón kamikaze (behavior.antidron): reposa QUIETO en el
+     * suelo (mob terrestre, con gravedad) hasta detectar un dron en
+     * `detectRadius`. Entonces DESPEGA (`airborne`: vuelo por-instancia),
+     * asciende hasta el DOBLE de la altura del dron sobre el suelo y
+     * arremete contra él a alta velocidad con rumbo TAMBALEANTE (jitter),
+     * hasta tocarlo: entonces EXPLOTA y ambos se destruyen a la vez.
+     */
+    antidronAI(m, dt, ctx, dist) {
+        const b = m.def.behavior;
+        m.jitterT -= dt;
+
+        // ¿sigue vivo y a la vista el objetivo? si no, busca otro dron
+        let objetivo = m.strikeTarget;
+        const vivoYcerca = objetivo && !objetivo.dying() && this.mobs.includes(objetivo) &&
+            Math.hypot(objetivo.pos[0] - m.pos[0], objetivo.pos[1] - m.pos[1], objetivo.pos[2] - m.pos[2])
+                < (b.detectRadius || 20) * 1.5;
+        if (!vivoYcerca) {
+            objetivo = null; m.strikeTarget = null;
+            let mejor = Infinity;
+            for (const otro of this.mobs) {
+                if (otro === m || otro.dying()) continue;
+                // un dron: cualquier mob guardián (marca de «es un dron»)
+                if (!(otro.def.behavior && otro.def.behavior.guardian)) continue;
+                const d = Math.hypot(otro.pos[0] - m.pos[0], otro.pos[1] - m.pos[1], otro.pos[2] - m.pos[2]);
+                if (d < (b.detectRadius || 20) && d < mejor) { mejor = d; objetivo = otro; }
+            }
+            m.strikeTarget = objetivo;
+            // al FIJAR el objetivo, congela el techo de ascenso: el doble de
+            // la altura del dron sobre el suelo EN ESTE INSTANTE (el dron
+            // puede moverse luego; el enunciado mide la altura de detección)
+            if (objetivo) {
+                const suelo = this.world.hasChunk(Math.floor(objetivo.pos[0]) >> 4, Math.floor(objetivo.pos[2]) >> 4)
+                    ? this.world.surfaceY(Math.floor(objetivo.pos[0]), Math.floor(objetivo.pos[2])) + 1
+                    : 0;
+                const alturaDron = Math.max(0, objetivo.pos[1] - suelo);
+                m.cruiseY = suelo + alturaDron * 2;
+                m.swooping = false;
+            }
+        }
+
+        // sin objetivo: reposa quieto en el suelo (aterriza si venía volando)
+        if (!objetivo) {
+            m.airborne = false;
+            m.swooping = false;
+            m.speed = 0;
+            m.state = 'idle';
+            this.lookAt(m, null);
+            return;
+        }
+
+        // objetivo detectado: despega y embiste
+        m.airborne = true;
+        m.state = 'chase';
+
+        // maniobra vertical en dos fases:
+        //  - ASCENSO: sube hacia el techo congelado (doble de la altura de
+        //    detección) para ganar ventaja de altura, mientras no rebase al
+        //    dron ni toque el techo.
+        //  - PICADO: una vez arriba (o ya por encima del dron), apunta a la
+        //    altura del dron y cae sobre él.
+        // El flag `swooping` se pega una vez iniciado el picado para no
+        // oscilar entre subir y bajar cerca del objetivo.
+        if (!m.swooping && (m.pos[1] >= m.cruiseY - 1 || m.pos[1] > objetivo.pos[1] + 1)) {
+            m.swooping = true;
+        }
+        m.targetY = m.swooping ? objetivo.pos[1] : m.cruiseY;
+
+        // rumbo hacia el dron con TAMBALEO: cada poco tiempo se sortea una
+        // desviación del rumbo, así la trayectoria zigzaguea a alta
+        // velocidad. El tambaleo se ATENÚA al acercarse (dentro de ~4
+        // bloques) para asegurar el golpe final: el zigzag es de la
+        // aproximación, no debe impedir el impacto.
+        const toObj = Math.atan2(-(objetivo.pos[0] - m.pos[0]), -(objetivo.pos[2] - m.pos[2]));
+        const d3 = Math.hypot(objetivo.pos[0] - m.pos[0], objetivo.pos[1] - m.pos[1], objetivo.pos[2] - m.pos[2]);
+        if (m.jitterT <= 0) {
+            m.jitterT = 0.12 + this.rng.float() * 0.18;
+            m.jitterYaw = (this.rng.float() * 2 - 1) * (b.wobble || 0.6);
+        }
+        m.yaw = toObj + m.jitterYaw * clamp(d3 / 4, 0, 1);
+        m.speed = m.def.flySpeed || m.def.speed;
+        this.lookAt(m, objetivo.pos);
+
+        // impacto: al tocar al dron, EXPLOTA (mata a ambos a la vez)
+        if (d3 < (b.hitRange || 1.2)) {
+            this.hurt(objetivo, 999, this.dirTo(m.pos, objetivo.pos)); // destruye el dron
+            this.explode(m, ctx);                                       // y a sí mismo
+        }
     }
 
     /**
@@ -528,17 +629,23 @@ export class MobSystem {
                 }
             }
         } else {
-            m.vel[0] = approach(m.vel[0], wishX, ACCEL * dt);
-            m.vel[2] = approach(m.vel[2], wishZ, ACCEL * dt);
+            // el antidron embiste con aceleración alta (dashAccel) para
+            // cerrar sobre el dron pese al zigzag; el resto usa ACCEL
+            const acc = (m.airborne && m.def.dashAccel) || ACCEL;
+            m.vel[0] = approach(m.vel[0], wishX, acc * dt);
+            m.vel[2] = approach(m.vel[2], wishZ, acc * dt);
         }
 
-        // eje vertical según el modo de locomoción
-        if (m.def.flying) {
+        // eje vertical según el modo de locomoción. `airborne` es un vuelo
+        // por-instancia (el antidron, terrestre en reposo, despega bajo su
+        // IA): mientras esté activo se comporta como volador.
+        if (m.def.flying || m.airborne) {
             // los voladores solo ajustan altitud al desplazarse; el guardián
-            // (hover) sostiene su altura objetivo también planeando quieto
-            const ajusta = m.speed > 0 || m.def.hover;
-            const wishY = ajusta ? clamp((m.targetY - m.pos[1]) * 1.5, -m.def.speed, m.def.speed) : 0;
-            m.vel[1] = approach(m.vel[1], wishY, 22 * dt);
+            // (hover) y el antidron lanzado sostienen su altura objetivo
+            const ajusta = m.speed > 0 || m.def.hover || m.airborne;
+            const vMax = m.def.flySpeed || m.def.speed;
+            const wishY = ajusta ? clamp((m.targetY - m.pos[1]) * 1.5, -vMax, vMax) : 0;
+            m.vel[1] = approach(m.vel[1], wishY, (m.def.climbAccel || 22) * dt);
         } else if (m.def.aquatic && m.inWater) {
             const wishY = clamp((m.targetY - m.pos[1]) * 1.2, -1.5, 1.5);
             m.vel[1] = approach(m.vel[1], wishY, 18 * dt);

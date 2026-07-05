@@ -579,6 +579,95 @@ class LakeWorld extends MockWorld {
     check('el dron no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
 }
 
+/* ==== Antidron kamikaze ==== */
+console.log('== Antidron kamikaze ==');
+{
+    const antidron = (await import('../js/mobs/antidron.js')).default;
+    const dron = (await import('../js/mobs/dron.js')).default;
+    const ctx = { pos: [40, 11, 40], eye: [40, 12.62, 40], day: 1 }; // jugador lejos
+
+    // sin drones cerca: reposa QUIETO en el suelo (con gravedad, sin volar)
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const a = new Mob(antidron, 0.5, 15, 0.5); // cae desde el aire
+        s.mobs.push(a);
+        simulate(s, 3, ctx);
+        check('el antidron reposa en el suelo sin drones (aterriza y se queda quieto)',
+            a.onGround && Math.abs(a.pos[1] - 11) < 0.2 && !a.airborne &&
+            Math.hypot(a.pos[0] - 0.5, a.pos[2] - 0.5) < 1);
+    }
+
+    // detecta un dron y DESPEGA: sube por encima de su posición de reposo
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const a = new Mob(antidron, 0.5, 11, 0.5);
+        const d = new Mob(dron, 6.5, 19, 0.5); // dron volando a 8 bloques de altura
+        s.mobs.push(a, d);
+        let yMax = a.pos[1];
+        for (let t = 0; t < 3; t += DT) { s.update(DT, ctx); yMax = Math.max(yMax, a.pos[1]); }
+        check('al detectar un dron el antidron despega (asciende)', a.airborne && yMax > 13);
+    }
+
+    // techo de ascenso: el DOBLE de la altura del dron sobre el suelo,
+    // congelado al detectar. Con el dron a 8 bloques (y=19, suelo=11), la
+    // altura es 8 y el techo objetivo ≈ y=27 (11 + 8·2)
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const a = new Mob(antidron, 0.5, 11, 0.5);
+        const d = new Mob(dron, 20.5, 19, 0.5); // lejos en XZ
+        s.mobs.push(a, d);
+        s.update(DT, ctx); // un tick: detecta y congela el techo
+        check('el techo de ascenso es el doble de la altura del dron (≈y 27)',
+            Math.abs(a.cruiseY - 27) < 1.5);
+        // y en el aire asciende claramente por encima de su reposo antes de
+        // iniciar el picado
+        let yMax = a.pos[1];
+        for (let t = 0; t < 2; t += DT) { s.update(DT, ctx); yMax = Math.max(yMax, a.pos[1]); }
+        check('gana altura sobre su reposo al despegar (asciende varios bloques)', yMax > 16);
+    }
+
+    // EMBESTIDA kamikaze: alcanza al dron, EXPLOTA y AMBOS mueren a la vez
+    {
+        const hooks = silentHooks();
+        const s = new MobSystem({}, new MockWorld(), hooks, 7);
+        const a = new Mob(antidron, 0.5, 11, 0.5);
+        const d = new Mob(dron, 5.5, 16, 0.5);
+        s.mobs.push(a, d);
+        let explotó = false;
+        for (let t = 0; t < 8 && !explotó; t += DT) {
+            s.update(DT, ctx);
+            if (hooks.calls.explosions > 0) explotó = true;
+        }
+        check('el antidron impacta y explota', explotó);
+        // tras el desenlace, ambos acaban muriendo (dieT ≥ 0 o ya eliminados)
+        simulate(s, 1, ctx);
+        check('la embestida destruye al dron y al antidron a la vez', s.count() === 0);
+    }
+
+    // trayectoria TAMBALEANTE: el rumbo no apunta siempre recto al dron
+    {
+        const s = new MobSystem({}, new MockWorld(), silentHooks(), 7);
+        const a = new Mob(antidron, 0.5, 11, 0.5);
+        const d = new Mob(dron, 18.5, 20, 0.5);
+        s.mobs.push(a, d);
+        const desvios = [];
+        for (let t = 0; t < 2.5; t += DT) {
+            s.update(DT, ctx);
+            const recto = Math.atan2(-(d.pos[0] - a.pos[0]), -(d.pos[2] - a.pos[2]));
+            let rel = a.yaw - recto;
+            rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+            desvios.push(Math.abs(rel));
+        }
+        check('la embestida tambalea (el rumbo se desvía del recto a rachas)',
+            Math.max(...desvios) > 0.25);
+    }
+
+    // no aparece de forma natural (summonOnly)
+    const salvaje = new MobSystem({ antidron }, new MockWorld(40), silentHooks(), 3);
+    simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
+    check('el antidron no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
+}
+
 /* ==== Contrato de las 68 definiciones (elenco oficial del Overworld) ==== */
 console.log('== Definiciones de mobs ==');
 {
@@ -618,8 +707,8 @@ console.log('== Definiciones de mobs ==');
     }
 
     // mobs PROPIOS de la casa (no vanilla): mismo contrato validable, con
-    // la anim 'rotor' de las hélices del dron
-    const PROPIOS = ['dron'];
+    // la anim 'rotor' de las hélices del dron y el antidron
+    const PROPIOS = ['dron', 'antidron'];
     for (const id of PROPIOS) {
         const def = (await import(`../js/mobs/${id}.js`)).default;
         const { errors } = validate(def, id);

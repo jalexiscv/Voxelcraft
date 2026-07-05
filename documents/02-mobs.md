@@ -56,6 +56,19 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   continuo en Y que aplica el render). Funciona igual en creativo, donde
   los hostiles ignoran al jugador pero el dron los sigue cazando.
 
+- **Antidron** (`antidron`) — interceptor KAMIKAZE (IA `behavior.antidron`).
+  Es un mob **terrestre** que **reposa quieto en el suelo** (con gravedad)
+  hasta detectar un dron en `detectRadius`. Entonces **despega** (vuelo
+  por-instancia `airborne`, sin ser `flying` en la def), **asciende hasta
+  el doble de la altura del dron sobre el suelo** (techo congelado al
+  detectar) y **arremete** contra él a alta velocidad (`flySpeed`,
+  `dashAccel`) con **rumbo tambaleante** (`wobble`, que se atenúa al
+  acercarse para asegurar el golpe); al tocarlo **explota** y **ambos se
+  destruyen a la vez** (radio de explosión pequeño: impacto aéreo, no
+  cráter). Modelo de la foto de referencia: chasis vertical alargado con
+  gimbal de cámara colgando, LEDs de batería y cuatro rotores hacia
+  arriba-fuera (dos claros y dos oscuros) que giran con `rotor`.
+
 ## Arquitectura
 
 ```
