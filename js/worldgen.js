@@ -23,6 +23,7 @@ import { PRNG, Fractal2D, hashSeed } from './noise.js';
 import { B } from './blocks.js';
 import { BiomeMap } from './biomes/map.js';
 import { aplicarAldeas } from './villages/build.js';
+import { aplicarTemplo } from './templo.js';
 
 export const CHUNK = 16;
 export const SY = 64;
@@ -251,6 +252,11 @@ export class Generator {
 
         /* ---- 6. Aldeas: piezas de la celda propia y las 8 vecinas (villages/build.js) ---- */
         aplicarAldeas(this, blocks, cx, cz, heightAt);
+
+        /* ---- 7. Templo del origen: monumento fijo en el punto de aparición ---- */
+        // después de las aldeas: si una alcanzara el origen, el templo
+        // reescribe sus columnas y siempre gana (misma costura pura)
+        aplicarTemplo(this, blocks, cx, cz, heightAt);
 
         return blocks;
     }

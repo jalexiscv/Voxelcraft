@@ -1160,5 +1160,91 @@ console.log('== Modelos geo ==');
         caballo.includes('EarL') && !caballo.includes('MuleEarL'));
 }
 
+/* ==== Templo del origen: monumento fijo en el punto de aparición ==== */
+console.log('== Templo del origen ==');
+{
+    const { nivelBaseTemplo, TEMPLO } = await import(base + 'templo.js');
+
+    // la base 31×31 centrada en el origen cae exactamente en 4 chunks; se
+    // generan en DOS órdenes distintos con generadores frescos (el segundo
+    // además "ensucia" sus cachés con un chunk lejano) ⇒ byte a byte igual
+    const cobertura = [[-1, -1], [-1, 0], [0, -1], [0, 0]];
+    const gA = new Generator(12345), gB = new Generator(12345);
+    const bufA = new Map(), bufB = new Map();
+    for (const [cx, cz] of cobertura) bufA.set(cx + ',' + cz, gA.generateChunk(cx, cz));
+    gB.generateChunk(4, -2); // otro orden Y otro historial de generación
+    for (const [cx, cz] of [...cobertura].reverse()) bufB.set(cx + ',' + cz, gB.generateChunk(cx, cz));
+    check('dos órdenes de generación ⇒ chunks byte a byte idénticos',
+        cobertura.every(([cx, cz]) => Buffer.from(bufA.get(cx + ',' + cz))
+            .equals(Buffer.from(bufB.get(cx + ',' + cz)))));
+
+    const en = (x, y, z) => {
+        const cx = Math.floor(x / 16), cz = Math.floor(z / 16);
+        return bufA.get(cx + ',' + cz)[(y * 16 + (z - cz * 16)) * 16 + (x - cx * 16)];
+    };
+    // cotas de la geometría: y0 es función pura, idéntica desde todo chunk
+    const y0 = nivelBaseTemplo((x, z) => gA.surfaceHeight(x, z));
+    const yP = y0 + TEMPLO.ALTO_PLATAFORMA;                    // plaza
+    const yC = yP + TEMPLO.ALTO_CUERPO;                        // cima
+    check('la base acota la cima a ≤61 y las torres a ≤62',
+        yC + 1 <= 61 && y0 + TEMPLO.ALTO_TORRES <= 62);
+
+    // recuento SOLO en la huella (|x|,|z| ≤ 15) por encima del relleno:
+    // todo lo que queda ahí lo escribió el templo (su corte vació el resto)
+    const n = {};
+    let sobre62 = 0;
+    for (let x = -TEMPLO.SEMI; x <= TEMPLO.SEMI; x++) {
+        for (let z = -TEMPLO.SEMI; z <= TEMPLO.SEMI; z++) {
+            for (let y = 1; y < 64; y++) {
+                const b = en(x, y, z);
+                if (y > 62 && b !== B.AIR) sobre62++;
+                if (y > y0 && b !== B.AIR) n[b] = (n[b] || 0) + 1;
+            }
+        }
+    }
+    check('cuerpo de STONE y gradas/contrafuertes de COBBLE en masa',
+        n[B.STONE] > 1000 && n[B.COBBLE] > 1000);
+    check('acentos deterministas de adoquín musgoso', (n[B.MOSSY_COBBLE] || 0) > 10);
+    check('claraboya de GLASS 5×5 a ras de la cima (y nada más de cristal)',
+        n[B.GLASS] === 25 && en(0, yC, 0) === B.GLASS && en(-2, yC, 2) === B.GLASS &&
+        en(3, yC, 0) === B.STONE);
+    check('cámara iluminada: exactamente 4 antorchas interiores', n[B.TORCH] === 4);
+    check('kit de inicio exacto: 1 cofre + 1 mesa + 1 horno + 1 cama',
+        n[B.CHEST] === 1 && n[B.CRAFTING_TABLE] === 1 &&
+        n[B.FURNACE] === 1 && n[B.BED] === 1);
+    check('la cámara es hueca bajo la claraboya (aire en su centro)',
+        en(0, yP + 1, 0) === B.AIR && en(0, yP + 3, 0) === B.AIR &&
+        en(0, yP + 5, 0) === B.AIR && en(3, yP + 2, -3) === B.AIR);
+    check('el corredor de 3×4 perfora la fachada sur hasta la cámara',
+        en(0, yP + 1, -7) === B.AIR && en(1, yP + 4, -9) === B.AIR &&
+        en(0, yP, -7) === B.STONE && en(2, yP + 1, -7) !== B.AIR);
+    check('torres gemelas 5×5 flanqueando la entrada, más altas que el cuerpo',
+        en(-6, yP + 11, -9) === B.STONE && en(6, yP + 11, -9) === B.STONE &&
+        en(6, yP + 12, -9) === B.AIR && yP + 11 > yC + 1);
+    check('parapeto perimetral de 1 de alto en la cima',
+        en(6, yC + 1, 0) === B.STONE && en(-6, yC + 1, 3) === B.STONE &&
+        en(5, yC + 1, 0) === B.AIR);
+    check('contrafuertes de COBBLE en las 4 esquinas',
+        [[10, 10], [-10, 10], [10, -10], [-10, -10]].every(([x, z]) => {
+            const b = en(x, yP + 3, z);
+            return b === B.COBBLE || b === B.MOSSY_COBBLE;
+        }));
+    check('nada del templo por encima de y=62', sobre62 === 0);
+
+    // la superficie del origen ES el templo: la lógica de spawn de siempre
+    // deja al jugador de pie sobre la claraboya de la cima
+    check('la columna del origen culmina en la cima (spawn sobre el templo)',
+        world.surfaceY(0, 0) === yC && world.get(0, yC, 0) === B.GLASS);
+
+    // un chunk lejano ni contiene templo ni se contamina por generarlo antes
+    const lejosFresco = new Generator(12345).generateChunk(40, 40);
+    const lejosTras = gA.generateChunk(40, 40); // gA ya generó el templo entero
+    check('chunk lejano (40,40) idéntico se genere o no el templo antes',
+        Buffer.from(lejosFresco).equals(Buffer.from(lejosTras)));
+    check('el chunk lejano no contiene bloques del templo',
+        [B.GLASS, B.TORCH, B.CHEST, B.CRAFTING_TABLE, B.FURNACE, B.BED,
+            B.COBBLE, B.MOSSY_COBBLE].every((id) => !lejosFresco.includes(id)));
+}
+
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);
 process.exit(fail ? 1 : 0);
