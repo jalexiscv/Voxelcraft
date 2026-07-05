@@ -25,7 +25,8 @@ Minecraft/ (raíz del proyecto)
     ├── renderer.js          <-- WebGL2: shaders, niebla, día/noche, nubes, selección
     ├── sky.js               <-- Sol y luna: arco celeste, fases y crepúsculos
     ├── player.js            <-- Física AABB, natación, vuelo y raycast DDA
-    ├── audio.js             <-- Sonido, voces de mobs y música generativa (WebAudio)
+    ├── audio.js             <-- Sonido: catálogo declarativo de eventos, voces de mobs y música generativa (WebAudio)
+    ├── soundpack.js         <-- Pack de audio LOCAL opcional (sounds/, gitignored; cae al sintetizador)
     ├── inventory.js         <-- Inventario de supervivencia (puro, testeable)
     ├── items.js             <-- Herramientas y recetas de crafteo (puro)
     ├── drops.js             <-- Drops: cubitos flotantes de bloques rotos (puro)
@@ -47,7 +48,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 *   **Mundo infinito por chunks**: mapa disperso de chunks de 16×16×64 generados bajo demanda alrededor del jugador (distancia de render 4/6/8 + 1 de margen), mallados cuando su vecindario 3×3 está completo, y descargados al alejarse (las mallas primero; los datos no editados después — se regeneran de la semilla). Los chunks no generados actúan como barrera física y la niebla oculta el borde de generación. Coordenadas ilimitadas, negativos incluidos (`x >> 4`, `x & 15`).
 *   **Determinismo independiente del orden**: el terreno es una función global pura de (semilla, x, z) y las features usan RNG sembrado por posición (`hashSeed(semilla, cx, cz, sal)`); las cuevas y árboles que cruzan bordes se re-simulan desde los chunks vecinos escribiendo solo la porción local — el mismo chunk es idéntico se genere cuando se genere (verificado en la suite).
 *   **Iluminación**: sombreado por cara + sombra de columna (luz solar) + **oclusión ambiental por vértice** — todo precalculado en el mallado, sin coste por fotograma.
-*   **Assets procedurales**: cada tésela de 16×16 se pinta píxel a píxel con el PRNG determinista; los pasos y la música (acordes pentatónicos suaves) se sintetizan con WebAudio. Cero archivos binarios.
+*   **Assets procedurales**: cada tésela de 16×16 se pinta píxel a píxel con el PRNG determinista; los pasos y la música (acordes pentatónicos suaves) se sintetizan con WebAudio. Cero archivos binarios. El sonido es **declarativo**: catálogo `EVENTOS` por evento (comer, puertas, cofres, horno, agricultura, campana…) y voz por mob (`def.voice`), con un **paquete de recursos LOCAL opcional** en `sounds/` — gitignored y jamás distribuido: el repo solo contiene el sintetizador original — que se sondea en tiempo de ejecución y cae a la síntesis si falta el archivo.
 *   **Generación en Web Worker** (~2–11 ms por chunk). El mapa de alturas usa el modelo paramétrico del Minecraft moderno (1.18): un ruido de **continentalidad** (~120 bloques) decide el tipo de terreno mediante una spline (océano → playa → llanura → altiplano) y regula la amplitud del relieve (montañas solo tierra adentro), con distorsión de dominio en bloques (±6). Las features clásicas del género — cuevas por gusanos, vetas, playas, flora y árboles — se generan por chunk con RNG sembrado por posición; el agua se llena por columna hasta el nivel del mar (un mundo infinito no tiene bordes desde los que inundar). Criterios de calidad en la suite: Δh medio < 0,6 y sin costuras entre chunks.
 *   **Persistencia en IndexedDB**: solo se guardan los chunks editados por el jugador (RLE ~4 % del bruto) más los metadatos; el resto del mundo se regenera de la semilla al volver a explorar.
 
@@ -60,7 +61,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Romper/colocar bloques, selector, hotbar, rueda del ratón, clic central para copiar | ✅ |
 | Física, salto, natación, sprint y vuelo | ✅ |
 | Agua/lava, cuevas, menas, árboles, flores | ✅ |
-| Sonidos de pasos/bloques y música generativa (sintetizados, sin archivos) | ✅ |
+| Sonido declarativo: catálogo por evento (comer, puertas, cofres, horno, agricultura…), voz por mob y música generativa — con pack local opcional en `sounds/` (gitignored) | ✅ |
 | Guardar/cargar mundo (IndexedDB, solo chunks editados) | ✅ |
 | Ciclo día/noche, niebla, nubes, oclusión ambiental | ✅ |
 | Sol y luna con fases y resplandor crepuscular | ✅ |

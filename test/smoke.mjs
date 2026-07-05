@@ -640,5 +640,47 @@ console.log('== Cultivos ==');
     }
 }
 
+/* ==== Sonidos: catálogo declarativo de eventos y pack local opcional ==== */
+console.log('== Sonidos ==');
+{
+    // ambos módulos deben importarse sin DOM (nada de window/document arriba)
+    const audio = await import(base + 'audio.js');
+    const pack = await import(base + 'soundpack.js');
+    check('audio.js y soundpack.js se importan sin DOM',
+        typeof audio.SoundEngine === 'function' && typeof pack.resolver === 'function' &&
+        typeof pack.obtener === 'function' && typeof pack.variantes === 'function');
+
+    const { EVENTOS } = audio;
+    const nuevos = ['comer', 'puerta_abrir', 'puerta_cerrar', 'cofre_abrir', 'cofre_cerrar',
+        'fundir', 'labrar', 'sembrar', 'cosechar', 'campana'];
+    check('el catálogo trae los eventos nuevos y cada receta es función',
+        nuevos.every((id) => typeof EVENTOS[id] === 'function'));
+    check('los efectos clásicos siguen en el catálogo',
+        ['splash', 'fuse', 'explosion', 'arrow', 'player_hurt', 'click']
+            .every((id) => typeof EVENTOS[id] === 'function'));
+
+    // sin AudioContext registrado el pack no sondea nada ni toca la red
+    check('sin contexto, resolver/obtener devuelven null sin sondear',
+        (await pack.resolver('grass1')) === null && pack.obtener('grass1') === null);
+
+    // convención de nombres: todo sondeo va a sounds/<id>.mp3 (fetch simulado;
+    // con la respuesta «no existe» jamás se llega a decodeAudioData)
+    const urls = [];
+    const fetchReal = globalThis.fetch;
+    globalThis.fetch = (url) => { urls.push(String(url)); return Promise.resolve({ ok: false }); };
+    pack.init({});
+    await pack.resolver('evento.campana');
+    await Promise.all([1, 2, 3, 4].map((i) => pack.resolver('stone' + i)));
+    pack.variantes('mob.zombi.idle', 2);
+    globalThis.fetch = fetchReal;
+    check('toda ruta del pack cae bajo sounds/ y termina en .mp3',
+        urls.length >= 7 && urls.every((u) => u.startsWith('sounds/') && u.endsWith('.mp3')));
+    check('la convención cubre evento.<nombre>, familias y voces de mob',
+        urls.includes('sounds/evento.campana.mp3') && urls.includes('sounds/stone3.mp3') &&
+        urls.includes('sounds/mob.zombi.idle1.mp3'));
+    check('el sondeo fallido queda cacheado como null (sin repetir el fetch)',
+        pack.obtener('evento.campana') === null && (await pack.resolver('evento.campana')) === null);
+}
+
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);
 process.exit(fail ? 1 : 0);

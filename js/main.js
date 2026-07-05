@@ -22,7 +22,7 @@ import { MobSystem } from './mobs.js';
 import { Inventory } from './inventory.js';
 import { DropSystem } from './drops.js';
 import { ITEM_DEFS, ITEMS, isItem } from './items.js';
-import { esCultivo, cosechaDe, plantaDe, tickCultivos } from './farming.js';
+import { esCultivo, cosechaDe, plantaDe, maduro, tickCultivos } from './farming.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { SoundEngine } from './audio.js';
@@ -194,7 +194,7 @@ function boot() {
             const gain = clamp(1 - d / 26, 0, 1);
             if (kind === 'fuse') sound.fuse();
             else if (kind === 'shoot') sound.arrow();
-            else sound.mobSay(m.def.voice[kind], gain);
+            else sound.mobSay(m.def.voice[kind], gain, m.def.id, kind);
         },
         damagePlayer: (dmg, dir) => damagePlayer(dmg, dir),
         explosion: () => sound.explosion(),
@@ -532,6 +532,8 @@ function boot() {
 
     hud.onPick = () => canvas.requestPointerLock();
     hud.onCraftDone = () => sound.place('wood');
+    hud.onSmelt = () => sound.evento('fundir');          // fundición exitosa en el horno
+    hud.onChestClose = () => sound.evento('cofre_cerrar'); // la tapa al cerrar el overlay
 
     /* ---- Interacción con bloques ---- */
 
@@ -565,7 +567,7 @@ function boot() {
                 game.hunger = Math.min(20, game.hunger + it.food);
                 hud.setHunger(game.hunger);
                 hud.refreshCounts();
-                sound.place('cloth');
+                sound.evento('comer');
                 return;
             }
         }
@@ -610,6 +612,7 @@ function boot() {
                 if (esCultivo(hit.id)) {
                     // cosechar: maduro suelta el botín completo; inmaduro,
                     // solo lo sembrado (las tablas viven en farming.js)
+                    if (maduro(hit.id)) sound.evento('cosechar');
                     for (const { id, n } of cosechaDe(hit.id)) {
                         for (let k = 0; k < n; k++) game.drops.spawn(id, hit.x, hit.y, hit.z);
                     }
@@ -647,6 +650,7 @@ function boot() {
                     leer: () => game.world.getBlockData(cx, cy, cz),
                     escribir: (data) => { game.world.setBlockData(cx, cy, cz, data); },
                 });
+                sound.evento('cofre_abrir');
                 document.exitPointerLock();
                 return;
             }
@@ -654,7 +658,7 @@ function boot() {
             if (hit.id === B.DOOR_CLOSED || hit.id === B.DOOR_OPEN) {
                 game.world.set(hit.x, hit.y, hit.z,
                     hit.id === B.DOOR_CLOSED ? B.DOOR_OPEN : B.DOOR_CLOSED);
-                sound.place('wood');
+                sound.evento(hit.id === B.DOOR_CLOSED ? 'puerta_abrir' : 'puerta_cerrar');
                 return;
             }
             // la cama salta la noche: al usarla de noche, amanece
@@ -672,7 +676,7 @@ function boot() {
                 (hit.id === B.GRASS || hit.id === B.DIRT || hit.id === B.SNOWY_GRASS) &&
                 game.world.get(hit.x, hit.y + 1, hit.z) === B.AIR) {
                 game.world.set(hit.x, hit.y, hit.z, B.FARMLAND);
-                sound.dig('grass');
+                sound.evento('labrar');
                 return;
             }
             // sembrar: un ítem plantable sobre tierra labrada con hueco libre
@@ -685,7 +689,7 @@ function boot() {
                     hud.refreshCounts();
                 }
                 game.world.set(hit.x, hit.y + 1, hit.z, brote);
-                sound.place('grass');
+                sound.evento('sembrar');
                 return;
             }
             const [tx, ty, tz] = [hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz];

@@ -3,6 +3,9 @@
 /example/
 /assets/
 
+# Override local de audio (mp3 propios del usuario): jamás se distribuye con el repo.
+/sounds/
+
 # Herramientas internas de agentes y protocolos de trabajo (no se publican)
 /.claude/
 /CLAUDE.md

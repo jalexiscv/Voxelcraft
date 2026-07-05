@@ -553,6 +553,7 @@ export class HUD {
         st.usos--;
         const out = fundir(inv, st.entrada);
         if (out) st.salida.set(out, (st.salida.get(out) || 0) + 1);
+        if (out && this.onSmelt) this.onSmelt(out); // fundición exitosa: main.js pone el sonido
         if (inv.count(st.entrada) === 0) st.entrada = 0;          // entrada agotada
         if (st.comb && inv.count(st.comb) === 0) st.comb = 0;     // combustible agotado
         this.refreshCounts();
@@ -634,6 +635,7 @@ export class HUD {
         this.tooltip(null);
         this.els.chest.classList.add('hidden');
         this.refreshCounts();
+        if (this.onChestClose) this.onChestClose(); // main.js pone el sonido de la tapa
     }
 
     chestOpen() { return !this.els.chest.classList.contains('hidden'); }

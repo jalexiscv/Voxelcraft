@@ -104,3 +104,4 @@
 | 100 | 2026-07-04 | [Interfaz del cofre: transferencia por clic con persistencia inmediata](2026-07-04_cofre_ui.md) |
 | 101 | 2026-07-04 | [Agricultura: labranza, cultivos con etapas, cosecha y cocina](2026-07-04_agricultura.md) |
 | 102 | 2026-07-04 | [Aldeas procedurales: estudio, 8 arquetipos y generación por celdas](2026-07-04_aldeas.md) |
+| 103 | 2026-07-04 | [Sonido declarativo: catálogo por evento, voz por mob y pack local opcional](2026-07-04_sonidos.md) |
