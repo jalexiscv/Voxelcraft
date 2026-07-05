@@ -15,7 +15,7 @@ Minecraft/ (raíz del proyecto)
     ├── main.js              <-- Integración y bucle de juego (rAF)
     ├── math.js              <-- Matrices 4×4 y utilidades (column-major, WebGL)
     ├── noise.js             <-- PRNG Park–Miller, Perlin 2D, fractal, distorsión
-    ├── blocks.js            <-- Registro de 63 tipos de bloque (fuente de verdad)
+    ├── blocks.js            <-- Registro de 84 tipos de bloque (fuente de verdad)
     ├── atlas.js             <-- Atlas de texturas procedural (Canvas 2D) + nubes
     ├── world.js             <-- Mundo infinito: mapa disperso de chunks + alturas de luz
     ├── worldgen.js          <-- Generator por chunk (módulo puro, testeable)
@@ -29,11 +29,14 @@ Minecraft/ (raíz del proyecto)
     ├── inventory.js         <-- Inventario de supervivencia (puro, testeable)
     ├── items.js             <-- Herramientas y recetas de crafteo (puro)
     ├── drops.js             <-- Drops: cubitos flotantes de bloques rotos (puro)
+    ├── farming.js           <-- Agricultura: etapas, siembra, cosecha y crecimiento (puro)
     ├── hud.js               <-- Hotbar, selector, corazones de salud, depuración
     ├── mobs.js              <-- Mobs: IA, física, aparición, flechas y explosiones
     ├── mobrender.js         <-- Render WebGL de mobs (partes-caja animadas)
     ├── mobs/                <-- Contrato (model/skin/registry) + 68 definiciones
-    └── biomes/              <-- Contrato (model/map/registry) + 14 biomas
+    ├── biomes/              <-- Contrato (model/map/registry) + 14 biomas
+    └── villages/            <-- Aldeas: contrato, trazador, materializador + 8 planos
+
 ```
 
 Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← `atlas` ← `noise`; `mesher` ← `blocks`/`world`; `worldgen` ← `noise`/`blocks`. `worldgen.js`, `noise.js`, `world.js`, `mesher.js`, `player.js` y `math.js` son puros (sin DOM) y se prueban en Node.
@@ -70,13 +73,15 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Botín de los mobs al morir, espadas por niveles y herramientas de hierro | ✅ (ver [04-items.md](04-items.md)) |
 | Horno con fundición (lingotes, cristal, comida) y sistema de hambre con alimentos | ✅ |
 | Luz real de antorchas y lava, puertas y ventanas como paneles finos, valla, cama y cofres | ✅ |
+| Aldeas procedurales: pozo, caminos, parcelas y 8 edificios con paleta por bioma | ✅ (ver [05-aldeas.md](05-aldeas.md)) |
+| Agricultura: labrar con azada, sembrar trigo/zanahoria/patata, crecimiento con riego, pan y patata asada | ✅ (ver [04-items.md](04-items.md)) |
 | Depuración (F3), reaparición (R) | ✅ |
 | Mobs (68 criaturas con IA), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |
 | Multijugador | ❌ (ver «Futuro») |
 
 ## Verificación
 
-Tres suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 122 comprobaciones; ver [02-mobs.md](02-mobs.md)) y `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)). La de humo (103 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
+Cuatro suites en Node desde la raíz del proyecto: `node test/smoke.mjs` (motor), `node test/mobs.mjs` (mobs, 122 comprobaciones; ver [02-mobs.md](02-mobs.md)), `node test/biomes.mjs` (biomas, 42 comprobaciones; ver [03-biomas.md](03-biomas.md)) y `node test/villages.mjs` (aldeas, 62 comprobaciones; ver [05-aldeas.md](05-aldeas.md)). La de humo (136 comprobaciones, todas en verde el 2026-07-04) cubre: determinismo por chunk e **independencia del orden de generación**, coordenadas negativas, distribución de bloques (hierba/agua/menas/árboles/cuevas), coherencia del terreno **a través de bordes de chunk** (sin costuras), barrera física de chunks no generados, invariantes del mallado, raycast, física (aterrizaje, salto 1–1,5 bloques) y RLE por chunk. Los módulos con dependencia de navegador se validan por importación. La experiencia visual/jugable se prueba manualmente en `http://minecraft.local/`.
 
 ## Futuro
 

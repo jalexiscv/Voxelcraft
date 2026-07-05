@@ -30,7 +30,8 @@ Minecraft/
 | 01 | [VoxelCraft](documents/01-voxelcraft.md) | Arquitectura del motor, decisiones técnicas, verificación |
 | 02 | [Sistema de mobs](documents/02-mobs.md) | Elenco de 68 mobs: contrato, IA, hábitats, salud del jugador |
 | 03 | [Sistema de biomas](documents/03-biomas.md) | 14 biomas: clima, materiales, vegetación y mobs por bioma |
-| 04 | [Items y drops](documents/04-items.md) | Botín de los mobs, horno y fundición, herramientas, bloques funcionales |
+| 04 | [Items y drops](documents/04-items.md) | Botín de los mobs, horno y fundición, herramientas, bloques funcionales, agricultura |
+| 05 | [Aldeas](documents/05-aldeas.md) | Generación procedural de aldeas: algoritmo por celdas, 8 arquetipos, paletas por bioma |
 
 ## Historial de cambios
 

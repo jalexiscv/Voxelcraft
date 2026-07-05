@@ -22,6 +22,7 @@
 import { PRNG, Fractal2D, hashSeed } from './noise.js';
 import { B } from './blocks.js';
 import { BiomeMap } from './biomes/map.js';
+import { aplicarAldeas } from './villages/build.js';
 
 export const CHUNK = 16;
 export const SY = 64;
@@ -247,6 +248,9 @@ export class Generator {
                 blocks[li(lx, h + 1, lz)] = B[planta];
             }
         }
+
+        /* ---- 6. Aldeas: piezas de la celda propia y las 8 vecinas (villages/build.js) ---- */
+        aplicarAldeas(this, blocks, cx, cz, heightAt);
 
         return blocks;
     }
