@@ -87,6 +87,40 @@ export function filtrarAtrezo(partes, mobId) {
     return partes.filter((p) => !ATREZO.test(p.name) && !(propio && propio.test(p.name)));
 }
 
+const G = Math.PI / 180;
+
+/**
+ * POSE por especie: rotaciones estáticas adicionales por hueso (grados
+ * [x, y, z]) que se SUMAN a la rot convertida. Cubre lo que el formato geo
+ * deja a la animación de runtime del juego original (que no viene en los
+ * archivos): la araña, por ejemplo, trae las 8 patas como cajas rectas
+ * apiladas hacia ±x y el abanico clásico lo pone Molang — aquí se hornea.
+ * Pares = lado −x, impares = lado +x; traseras (leg0/1) hacia atrás,
+ * delanteras (leg6/7) hacia delante, con las puntas caídas al suelo.
+ */
+const ABANICO_ARANA = {
+    leg0: [0, 40, 15], leg1: [0, -40, -15],
+    leg2: [0, 15, 12], leg3: [0, -15, -12],
+    leg4: [0, -15, 12], leg5: [0, 15, -12],
+    leg6: [0, -40, 15], leg7: [0, 40, -15],
+};
+export const POSE_MOB = {
+    spider: ABANICO_ARANA,
+    cave_spider: ABANICO_ARANA,
+};
+
+/** Suma la pose de la especie (si la hay) a las partes convertidas. */
+export function aplicarPose(partes, mobId) {
+    const pose = POSE_MOB[mobId];
+    if (!pose) return partes;
+    return partes.map((p) => {
+        const extra = pose[String(p.name).toLowerCase()];
+        if (!extra) return p;
+        const rot = p.rot || [0, 0, 0];
+        return { ...p, rot: [rot[0] + extra[0] * G, rot[1] + extra[1] * G, rot[2] + extra[2] * G] };
+    });
+}
+
 /**
  * Clave geometry.* preferida en archivos con varias geometrías (si no está,
  * se elige la primera con partes). La oveja y la bruja son las versiones con
@@ -273,7 +307,7 @@ export function modeloDe(mobId) {
         // sin el atrezo la lista puede quedar vacía: entonces no hay modelo
         const modelo = bruto && (() => {
             const partes = filtrarAtrezo(bruto.partes, mobId);
-            return partes.length ? { ...bruto, partes } : null;
+            return partes.length ? { ...bruto, partes: aplicarPose(partes, mobId) } : null;
         })();
         cacheModelos.set(mobId, modelo || null);
         pendModelos.delete(mobId);

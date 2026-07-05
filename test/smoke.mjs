@@ -1158,6 +1158,20 @@ console.log('== Modelos geo ==');
     check('cada especie muestra solo sus orejas (burro: mula; caballo: caballo)',
         burro.includes('MuleEarL') && !burro.includes('EarL') &&
         caballo.includes('EarL') && !caballo.includes('MuleEarL'));
+
+    // pose por especie: el geo de la araña trae las 8 patas rectas apiladas
+    // (el abanico lo pone la animación de runtime del juego original, que
+    // no viene en los archivos); aplicarPose lo hornea como rot estática
+    const { aplicarPose } = await import(base + 'modelpack.js');
+    const patas = ['body0', 'leg0', 'leg1', 'leg2', 'leg6', 'leg7'].map((name) => ({ name }));
+    const arana = aplicarPose(patas, 'spider');
+    const rotY = (n) => { const p = arana.find((q) => q.name === n); return p.rot ? p.rot[1] : 0; };
+    check('la araña recibe el abanico de patas (rot distintas por lado y posición)',
+        !arana.find((p) => p.name === 'body0').rot &&
+        rotY('leg0') > 0 && rotY('leg1') < 0 && rotY('leg0') !== rotY('leg2') &&
+        Math.abs(rotY('leg6') + rotY('leg0')) < 1e-9 && Math.abs(rotY('leg7') + rotY('leg1')) < 1e-9);
+    check('la pose por especie no toca a los demás mobs',
+        aplicarPose(patas, 'cow').every((p) => !p.rot));
 }
 
 /* ==== Templo del origen: monumento fijo en el punto de aparición ==== */

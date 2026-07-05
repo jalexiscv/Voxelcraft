@@ -115,3 +115,4 @@
 | 111 | 2026-07-04 | [Corrección de modelos geo: tortuga descuadrada (bind_pose no se hereda)](2026-07-04_tortuga_descuadrada.md) |
 | 112 | 2026-07-04 | [Audio: fin de la tormenta de 404 — el respaldo plano espera al árbol](2026-07-04_tormenta_404.md) |
 | 113 | 2026-07-04 | [Templo del origen: pirámide monumental en el punto de inicio](2026-07-04_templo_origen.md) |
+| 114 | 2026-07-05 | [Corrección de modelos geo: araña deforme (pose de abanico horneada)](2026-07-05_arana_pose.md) |
