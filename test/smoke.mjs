@@ -38,7 +38,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('71 tipos definidos', DEFS.length === 71 && DEFS.every(d => d));
+check('84 tipos definidos', DEFS.length === 84 && DEFS.every(d => d));
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -483,6 +483,161 @@ console.log('== Cofres ==');
     const P = B.PLANKS;
     check('el cofre se fabrica con el anillo de 8 tablones',
         (matchGrid([P, P, P, P, 0, P, P, P, P], 3) || {}).name === 'Cofre');
+}
+
+/* ==== Cultivos: bloques, agricultura, recetas y botín ==== */
+console.log('== Cultivos ==');
+{
+    const { TILE } = await import(base + 'atlas.js');
+    const { esCultivo, etapaDe, maduro, siguienteEtapa, plantaDe, cosechaDe, tickCultivos } =
+        await import(base + 'farming.js');
+    const { ITEMS, ITEM_DEFS, RECIPES, matchGrid, craft, fundir, isItem } = await import(base + 'items.js');
+    const { Inventory } = await import(base + 'inventory.js');
+    const receta = (nombre) => RECIPES.find((r) => r.name === nombre);
+
+    // ids fijos del plan (documents/04-items.md): la etapa ES el id de bloque
+    check('ids fijos del plan: FARMLAND 71 y cultivos 72..83',
+        B.FARMLAND === 71 && B.TRIGO_0 === 72 && B.TRIGO_3 === 75 &&
+        B.ZANAHORIA_0 === 76 && B.ZANAHORIA_3 === 79 &&
+        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 84);
+    check('items de agricultura con ids fijos 231..239',
+        ITEMS.SEMILLAS_TRIGO === 231 && ITEMS.TRIGO === 232 && ITEMS.PAN === 233 &&
+        ITEMS.ZANAHORIA === 234 && ITEMS.PATATA === 235 && ITEMS.PATATA_ASADA === 236 &&
+        ITEMS.AZADA_MADERA === 237 && ITEMS.AZADA_PIEDRA === 238 && ITEMS.AZADA_HIERRO === 239);
+
+    // flags de bloque: toda etapa es una planta en X que no estorba ni tapa luz
+    const etapas = [];
+    for (let id = B.TRIGO_0; id <= B.PATATA_3; id++) etapas.push(DEFS[id]);
+    check('toda etapa es planta: cross, ni sólida ni opaca, de un golpe',
+        etapas.every((d) => d.cross && !d.solid && !d.opaque && d.hardness === 1));
+    check('ni etapas ni tierra labrada aparecen en el selector',
+        etapas.every((d) => !d.placeable) && !DEFS[B.FARMLAND].placeable &&
+        PLACEABLE.every((id) => id < B.FARMLAND || id > B.PATATA_3));
+    check('la tierra labrada es sólida y opaca con tapa propia',
+        DEFS[B.FARMLAND].solid && DEFS[B.FARMLAND].opaque &&
+        DEFS[B.FARMLAND].top === TILE.FARMLAND_TOP &&
+        DEFS[B.FARMLAND].top !== DEFS[B.FARMLAND].side &&
+        typeof painters[DEFS[B.FARMLAND].top] === 'function');
+
+    // clasificación y etapas: esCultivo cubre exactamente 72..83
+    check('esCultivo acierta en todo el rango de ids',
+        DEFS.every((d, id) => esCultivo(id) === (id >= B.TRIGO_0 && id <= B.PATATA_3)));
+    check('etapaDe lee la etapa dentro de cada familia',
+        etapaDe(B.TRIGO_0) === 0 && etapaDe(B.TRIGO_2) === 2 &&
+        etapaDe(B.ZANAHORIA_1) === 1 && etapaDe(B.PATATA_3) === 3 && etapaDe(B.STONE) === -1);
+    check('maduro solo en la etapa final',
+        maduro(B.TRIGO_3) && maduro(B.ZANAHORIA_3) && maduro(B.PATATA_3) &&
+        !maduro(B.TRIGO_2) && !maduro(B.ZANAHORIA_0) && !maduro(B.FARMLAND));
+    check('siguienteEtapa avanza sin saltar de familia',
+        siguienteEtapa(B.TRIGO_0) === B.TRIGO_1 && siguienteEtapa(B.TRIGO_3) === B.TRIGO_3 &&
+        siguienteEtapa(B.ZANAHORIA_3) === B.ZANAHORIA_3 && siguienteEtapa(B.STONE) === B.STONE);
+
+    // siembra: cada ítem plantable produce la etapa 0 de su familia
+    check('plantaDe siembra semillas, zanahoria y patata',
+        plantaDe(ITEMS.SEMILLAS_TRIGO) === B.TRIGO_0 && plantaDe(ITEMS.ZANAHORIA) === B.ZANAHORIA_0 &&
+        plantaDe(ITEMS.PATATA) === B.PATATA_0 &&
+        plantaDe(ITEMS.TRIGO) === null && plantaDe(ITEMS.PAN) === null && plantaDe(B.DIRT) === null);
+    check('cosechar inmaduro devuelve solo lo sembrado (replantable)',
+        [B.TRIGO_0, B.ZANAHORIA_0, B.PATATA_0].every((etapa0) => [0, 1, 2].every((e) => {
+            const botin = cosechaDe(etapa0 + e, () => 0);
+            return botin.length === 1 && botin[0].n === 1 && plantaDe(botin[0].id) === etapa0;
+        })));
+    check('trigo maduro: 1 trigo + 1-2 semillas según el azar',
+        JSON.stringify(cosechaDe(B.TRIGO_3, () => 0)) ===
+            JSON.stringify([{ id: ITEMS.TRIGO, n: 1 }, { id: ITEMS.SEMILLAS_TRIGO, n: 1 }]) &&
+        JSON.stringify(cosechaDe(B.TRIGO_3, () => 0.999)) ===
+            JSON.stringify([{ id: ITEMS.TRIGO, n: 1 }, { id: ITEMS.SEMILLAS_TRIGO, n: 2 }]));
+    check('zanahoria madura 2-3 y patata madura 1-3',
+        cosechaDe(B.ZANAHORIA_3, () => 0)[0].n === 2 && cosechaDe(B.ZANAHORIA_3, () => 0.999)[0].n === 3 &&
+        cosechaDe(B.PATATA_3, () => 0)[0].n === 1 && cosechaDe(B.PATATA_3, () => 0.999)[0].n === 3);
+    check('lo que no es cultivo no da botín', cosechaDe(B.STONE).length === 0 && cosechaDe(B.AIR).length === 0);
+
+    // crecimiento por muestreo: sobre tierra labrada madura; sobre tierra no
+    const wf = new World(4);
+    wf.addChunk(0, 0, flatChunk());
+    wf.set(8, 8, 8, B.FARMLAND);
+    wf.set(8, 9, 8, B.TRIGO_0);   // sembrado sobre tierra labrada
+    wf.set(4, 8, 4, B.DIRT);
+    wf.set(4, 9, 4, B.TRIGO_0);   // sembrado «en secano» sobre tierra rota
+    const rngF = new PRNG(7);
+    let pasadas = 0;
+    while (wf.get(8, 9, 8) !== B.TRIGO_3 && pasadas < 4000) {
+        tickCultivos(wf, 3, () => rngF.float()); // dt = PERIODO: una pasada por llamada
+        pasadas++;
+    }
+    check('el trigo sobre tierra labrada madura con los ticks', wf.get(8, 9, 8) === B.TRIGO_3);
+    tickCultivos(wf, 3, () => rngF.float());
+    check('el cultivo maduro se queda como está', wf.get(8, 9, 8) === B.TRIGO_3);
+    check('sin tierra labrada debajo no crece', wf.get(4, 9, 4) === B.TRIGO_0);
+
+    // recetas: pan en fila, con forma de verdad (la columna no vale)
+    const T = ITEMS.TRIGO;
+    check('el pan se fabrica con 3 trigos en fila',
+        (matchGrid([T, T, T, 0, 0, 0, 0, 0, 0], 3) || {}).name === 'Pan');
+    check('3 trigos en columna NO hacen pan',
+        (matchGrid([T, 0, 0, T, 0, 0, T, 0, 0], 3) || {}).name !== 'Pan');
+    {
+        const inv = new Inventory();
+        inv.add(T, 3);
+        check('hornear pan consume el trigo y da comida (food 5)',
+            craft(inv, receta('Pan')) && inv.count(ITEMS.PAN) === 1 && inv.count(T) === 0 &&
+            ITEM_DEFS[ITEMS.PAN].food === 5);
+    }
+
+    // horno: la patata cruda se asa
+    {
+        const horno = new Inventory();
+        horno.add(ITEMS.PATATA, 2);
+        check('fundir patata da patata asada y consume la cruda',
+            fundir(horno, ITEMS.PATATA) === ITEMS.PATATA_ASADA &&
+            horno.count(ITEMS.PATATA) === 1 && horno.count(ITEMS.PATATA_ASADA) === 1);
+    }
+
+    // azadas: recetas con forma (y su espejo) en los tres materiales
+    const P = B.PLANKS, S = ITEMS.PALO;
+    check('la azada de madera casa en la mesa 3×3 (y su espejo)',
+        (matchGrid([P, P, 0, 0, S, 0, 0, S, 0], 3) || {}).name === 'Azada de madera' &&
+        (matchGrid([P, P, 0, S, 0, 0, S, 0, 0], 3) || {}).name === 'Azada de madera');
+    check('hay azadas de los tres materiales con salida correcta',
+        receta('Azada de madera').out.id === ITEMS.AZADA_MADERA &&
+        receta('Azada de piedra').out.id === ITEMS.AZADA_PIEDRA &&
+        receta('Azada de hierro').out.id === ITEMS.AZADA_HIERRO);
+    {
+        const inv = new Inventory();
+        inv.add(P, 2); inv.add(S, 2);
+        check('la azada de madera se fabrica con 2 tablones y 2 palos',
+            craft(inv, receta('Azada de madera')) && inv.count(ITEMS.AZADA_MADERA) === 1);
+    }
+    check('las azadas son herramientas de tipo azada con factor creciente',
+        ITEM_DEFS[ITEMS.AZADA_MADERA].tool.tipo === 'azada' &&
+        ITEM_DEFS[ITEMS.AZADA_PIEDRA].tool.tipo === 'azada' &&
+        ITEM_DEFS[ITEMS.AZADA_HIERRO].tool.tipo === 'azada' &&
+        ITEM_DEFS[ITEMS.AZADA_MADERA].tool.factor < ITEM_DEFS[ITEMS.AZADA_PIEDRA].tool.factor &&
+        ITEM_DEFS[ITEMS.AZADA_PIEDRA].tool.factor < ITEM_DEFS[ITEMS.AZADA_HIERRO].tool.factor);
+
+    // ITEM_DEFS nuevos: tésela pintable dentro del atlas y comida correcta
+    const nuevos = [ITEMS.SEMILLAS_TRIGO, ITEMS.TRIGO, ITEMS.PAN, ITEMS.ZANAHORIA,
+        ITEMS.PATATA, ITEMS.PATATA_ASADA, ITEMS.AZADA_MADERA, ITEMS.AZADA_PIEDRA, ITEMS.AZADA_HIERRO];
+    check('los 9 items nuevos existen con nombre y tésela pintable',
+        nuevos.every((id) => isItem(id) && ITEM_DEFS[id] && ITEM_DEFS[id].name &&
+            ITEM_DEFS[id].tile >= 0 && ITEM_DEFS[id].tile < ATLAS_GRID * ATLAS_GRID &&
+            typeof painters[ITEM_DEFS[id].tile] === 'function'));
+    check('valores de comida del plan: pan 5, zanahoria 3, patata 1, asada 5',
+        ITEM_DEFS[ITEMS.PAN].food === 5 && ITEM_DEFS[ITEMS.ZANAHORIA].food === 3 &&
+        ITEM_DEFS[ITEMS.PATATA].food === 1 && ITEM_DEFS[ITEMS.PATATA_ASADA].food === 5 &&
+        ITEM_DEFS[ITEMS.SEMILLAS_TRIGO].food === undefined && ITEM_DEFS[ITEMS.TRIGO].food === undefined);
+
+    // botín de no-muertos: la hortaliza rara que arranca la agricultura
+    const { validate } = await import(new URL('./validate-mob.mjs', import.meta.url).href);
+    for (const id of ['zombi', 'husk', 'ahogado']) {
+        const def = (await import(base + `mobs/${id}.js`)).default;
+        const { errors } = validate(def, id);
+        check(`contrato válido tras el botín nuevo: ${id}${errors.length ? ` → ${errors[0]}` : ''}`,
+            errors.length === 0);
+        check(`${id} suelta zanahoria y patata (raras, chance válida)`,
+            [ITEMS.ZANAHORIA, ITEMS.PATATA].every((it) =>
+                def.drops.some((d) => d.id === it && d.chance > 0 && d.chance <= 1)));
+    }
 }
 
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);

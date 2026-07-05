@@ -22,6 +22,7 @@ import { MobSystem } from './mobs.js';
 import { Inventory } from './inventory.js';
 import { DropSystem } from './drops.js';
 import { ITEM_DEFS, ITEMS, isItem } from './items.js';
+import { esCultivo, cosechaDe, plantaDe, tickCultivos } from './farming.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { SoundEngine } from './audio.js';
@@ -546,13 +547,20 @@ function boot() {
                 return;
             }
         }
+        // el rayo se lanza ya aquí: sembrar necesita saber si se apunta a
+        // tierra labrada ANTES de decidir si se come (ver la excepción abajo)
+        const hit = raycast(game.world, player.eye(), lookDir(player.yaw, player.pitch), REACH);
         // comer: con un alimento en mano, «usar» lo consume ANTES de cualquier
         // intento de colocar (y sin exigir apuntar a un bloque: se puede comer
-        // mirando al cielo); con el hambre llena no se gasta nada
+        // mirando al cielo); con el hambre llena no se gasta nada. EXCEPCIÓN:
+        // zanahoria y patata son comida Y semilla — apuntando a tierra labrada
+        // con hueco libre gana sembrar (el bloque de siembra de más abajo)
         if (button === 2 && game.mode === 'supervivencia') {
             const id = hud.activeBlock();
             const it = ITEM_DEFS[id];
-            if (it && it.food && game.hunger < 20 && game.inventory.count(id) > 0) {
+            const sembrando = hit && hit.id === B.FARMLAND && plantaDe(id) !== null &&
+                game.world.get(hit.x, hit.y + 1, hit.z) === B.AIR;
+            if (!sembrando && it && it.food && game.hunger < 20 && game.inventory.count(id) > 0) {
                 game.inventory.take(id, 1);
                 game.hunger = Math.min(20, game.hunger + it.food);
                 hud.setHunger(game.hunger);
@@ -561,7 +569,6 @@ function boot() {
                 return;
             }
         }
-        const hit = raycast(game.world, player.eye(), lookDir(player.yaw, player.pitch), REACH);
         if (!hit) return;
         const def = DEFS[hit.id];
 
@@ -600,8 +607,20 @@ function boot() {
                 }
                 game.world.set(hit.x, hit.y, hit.z, B.AIR);
                 game.breaking = null;
-                // el bloque roto queda flotando como cubito (drop)
-                if (def.placeable) game.drops.spawn(dropDe(hit.id), hit.x, hit.y, hit.z);
+                if (esCultivo(hit.id)) {
+                    // cosechar: maduro suelta el botín completo; inmaduro,
+                    // solo lo sembrado (las tablas viven en farming.js)
+                    for (const { id, n } of cosechaDe(hit.id)) {
+                        for (let k = 0; k < n; k++) game.drops.spawn(id, hit.x, hit.y, hit.z);
+                    }
+                } else if (hit.id === B.TALL_GRASS) {
+                    // la hierba alta esconde semillas de trigo a veces
+                    // (antes se soltaba a sí misma, sin utilidad alguna)
+                    if (Math.random() < 0.4) game.drops.spawn(ITEMS.SEMILLAS_TRIGO, hit.x, hit.y, hit.z);
+                } else if (def.placeable || hit.id === B.FARMLAND) {
+                    // el bloque roto queda flotando como cubito (drop)
+                    game.drops.spawn(dropDe(hit.id), hit.x, hit.y, hit.z);
+                }
             }
         } else if (button === 1 && def.placeable) {    // copiar
             // en supervivencia solo se puede elegir lo que se tiene
@@ -646,6 +665,29 @@ function boot() {
                 }
                 return;
             }
+            // la azada labra el suelo: tierra/hierba con aire encima pasa a
+            // tierra labrada (no se gasta: aquí no existe la durabilidad)
+            const enMano = ITEM_DEFS[hud.activeBlock()];
+            if (enMano && enMano.tool && enMano.tool.tipo === 'azada' &&
+                (hit.id === B.GRASS || hit.id === B.DIRT || hit.id === B.SNOWY_GRASS) &&
+                game.world.get(hit.x, hit.y + 1, hit.z) === B.AIR) {
+                game.world.set(hit.x, hit.y, hit.z, B.FARMLAND);
+                sound.dig('grass');
+                return;
+            }
+            // sembrar: un ítem plantable sobre tierra labrada con hueco libre
+            // coloca su etapa 0 y consume una unidad del inventario
+            const brote = plantaDe(hud.activeBlock());
+            if (brote !== null && hit.id === B.FARMLAND &&
+                game.world.get(hit.x, hit.y + 1, hit.z) === B.AIR) {
+                if (game.mode === 'supervivencia') {
+                    if (!game.inventory.take(hud.activeBlock())) return; // sin existencias
+                    hud.refreshCounts();
+                }
+                game.world.set(hit.x, hit.y + 1, hit.z, brote);
+                sound.place('grass');
+                return;
+            }
             const [tx, ty, tz] = [hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz];
             const target = game.world.get(tx, ty, tz);
             const replaceable = target === B.AIR || DEFS[target].liquid || DEFS[target].cross;
@@ -672,6 +714,7 @@ function boot() {
     function dropDe(id) {
         if (id === B.STONE) return B.COBBLE;
         if (id === B.GRASS || id === B.SNOWY_GRASS || id === B.MYCELIUM || id === B.PODZOL) return B.DIRT;
+        if (id === B.FARMLAND) return B.DIRT; // la tierra labrada vuelve a ser tierra
         if (id === B.COAL_ORE) return ITEMS.CARBON;
         if (id === B.DOOR_OPEN) return B.DOOR_CLOSED; // la puerta se recoge cerrada
         return id;
@@ -743,6 +786,9 @@ function boot() {
             hud.refreshCounts();
             sound.place('cloth');
         });
+
+        // cultivos: crecimiento por muestreo aleatorio en los chunks cargados
+        tickCultivos(game.world, dt);
 
         // el picado a medias se olvida si se deja de golpear un rato
         if (game.breaking) {

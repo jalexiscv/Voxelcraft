@@ -32,8 +32,13 @@ export default {
     speed: 1.5,
     noBurn: true,                       // el sol del desierto ya no le hace nada
     spawn: { cap: 3, group: 2, block: 'SAND' },
-    // botín: carne podrida curtida al sol, como todo zombi
-    drops: [{ id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 }],
+    // botín: carne podrida curtida al sol, como todo zombi; muy rara vez
+    // suelta la hortaliza que llevaba encima (fuente inicial de cultivos)
+    drops: [
+        { id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 },
+        { id: ITEMS.ZANAHORIA, min: 1, max: 1, chance: 0.05 },
+        { id: ITEMS.PATATA, min: 1, max: 1, chance: 0.05 },
+    ],
 
     /** Persecución cuerpo a cuerpo lenta pero insistente, como el zombi. */
     behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1.2 },

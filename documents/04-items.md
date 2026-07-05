@@ -70,11 +70,12 @@ ajolote: nada · delfin: pez 0-1 · nautilus: escama 1.
 **Lote 5** — nautilus_zombi: escama 0-1 + carne_podrida 0-1 · lobo: nada ·
 cabra: cuero 0-1 · panda: nada · oso_polar: pez 0-1 + carne 0-1 ·
 golem_hierro: lingote_hierro 1-2 · llama: cuero 0-1 · enderman: perla 0-1
-(50 %) · zombi: carne_podrida 0-2.
+(50 %) · zombi: carne_podrida 0-2 + zanahoria 1 (5 %) + patata 1 (5 %).
 
 **Lote 6** — esqueleto: hueso 0-2 · creeper: pólvora 0-2 · arana: hilo 0-2
-· arana_cueva: hilo 0-2 · ahogado: carne_podrida 0-2 · husk: carne_podrida
-0-2 · stray: hueso 0-2 · parched: hueso 0-2 · bogged: hueso 0-2.
+· arana_cueva: hilo 0-2 · ahogado: carne_podrida 0-2 + zanahoria 1 (5 %) +
+patata 1 (5 %) · husk: carne_podrida 0-2 + zanahoria 1 (5 %) + patata 1
+(5 %) · stray: hueso 0-2 · parched: hueso 0-2 · bogged: hueso 0-2.
 
 **Lote 7** — zombi_aldeano: carne_podrida 0-2 · bruja: pólvora 0-2 + PALO
 0-2 · saqueador: nada · vindicador: nada · evocador: perla 0-1 (25 %) ·
@@ -93,7 +94,7 @@ fantasma: membrana 0-1.
 *   **Fundiciones** (`FUNDICIONES` en items.js): mena de hierro → lingote de
     hierro · mena de oro → lingote de oro · arena → cristal · adoquín →
     roca · tronco → carbón · carne cruda → carne asada · pez crudo → pez
-    asado.
+    asado · patata → patata asada.
 *   **Combustibles** (`COMBUSTIBLES`, usos por unidad): carbón ×4 ·
     tronco ×2 · tablones ×1 · palo ×1.
 
@@ -115,6 +116,50 @@ de cristal → 2) · antorcha (carbón sobre palo → 4) · cama (lana sobre
 tablones: `WWW`/`PPP`) · espadas (material ×2 sobre palo, en columna) ·
 picos/hachas/palas de hierro (como las de piedra con lingotes).
 
+## Agricultura (bloques 71-83, items 231-239, téselas 110-131)
+
+Sistema completo de cultivo construido por un workflow de 5 agentes en 4
+fases (bloques/atlas → items/recetas → mecánica + botín → verificación).
+
+### Bloques (la etapa es el id: la persistencia sale gratis)
+
+| Id | Bloque | Nota |
+|---|---|---|
+| 71 | Tierra labrada (`FARMLAND`) | sólida, top con surcos húmedos (tésela 110); solo la crea la azada |
+| 72-75 | Trigo etapas 0-3 | cross, brotes verdes → espigas doradas (téselas 111-114) |
+| 76-79 | Zanahoria etapas 0-3 | cross, hojas con puntas naranjas asomando (115-118) |
+| 80-83 | Patata etapas 0-3 | cross, matas que amarillean al madurar (119-122) |
+
+### Items
+
+| Id | Item | Tésela | Nota |
+|---|---|---|---|
+| 231 | Semillas de trigo | 123 | de la hierba alta (40 %) y de cosechar |
+| 232 | Trigo | 124 | cosecha madura |
+| 233 | Pan | 125 | alimento 5 · receta: 3 trigos en fila |
+| 234 | Zanahoria | 126 | alimento 3 **y** plantable |
+| 235 | Patata | 127 | alimento 1 **y** plantable |
+| 236 | Patata asada | 128 | alimento 5 · horno |
+| 237-239 | Azadas (madera/piedra/hierro) | 129-131 | labran; receta clásica (2 material + 2 palos) |
+
+### Mecánica (`js/farming.js` + integración en `main.js`)
+
+*   **Labrar**: clic derecho con azada sobre hierba/tierra con aire encima
+    → tierra labrada (sin durabilidad: las herramientas no se gastan).
+*   **Sembrar**: clic derecho con semillas/zanahoria/patata sobre tierra
+    labrada → etapa 0 (consume 1). Zanahoria y patata son comida y semilla:
+    **plantar tiene prioridad sobre comer** cuando se apunta a un bancal.
+*   **Crecer** (`tickCultivos`): cada ~3 s se muestrean columnas al azar por
+    chunk cargado; un cultivo sobre tierra labrada avanza de etapa con
+    probabilidad ~1/12 por muestreo, **×2 con agua a ≤4 bloques** (riego).
+    Sin tierra labrada debajo no crece.
+*   **Cosechar**: romper maduro → botín completo (trigo 1 + semillas 1-2 ·
+    zanahorias 2-3 · patatas 1-3); inmaduro → solo la unidad replantable.
+    Romper tierra labrada suelta tierra.
+*   **Fuentes iniciales**: la hierba alta suelta semillas de trigo (40 %);
+    zanahoria y patata salen del botín raro de zombi/husk/ahogado (5 %) y
+    de las granjas de las aldeas (ver [05-aldeas.md](05-aldeas.md)).
+
 ## Pendientes del análisis — estado
 
 *   **Cofres** — ✅ implementado: estado persistente por posición
@@ -132,7 +177,9 @@ picos/hachas/palas de hierro (como las de piedra con lingotes).
 
 ## Verificación
 
-*   `node test/smoke.mjs` — fundiciones/combustibles/recetas nuevas y
-    contrato de items.
+*   `node test/smoke.mjs` — fundiciones/combustibles/recetas nuevas,
+    contrato de items y tanda «Cultivos» (33 comprobaciones: ids y flags,
+    lógica de farming.js, crecimiento real sobre un mundo de prueba,
+    receta del pan, fundición de la patata y azadas).
 *   `node test/mobs.mjs` — drops al morir (roll determinista con el PRNG del
     sistema) y contrato `drops` de las 68 definiciones (validador).

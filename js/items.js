@@ -35,6 +35,10 @@ export const ITEMS = {
     CARBON: 222, LINGOTE_HIERRO: 223, LINGOTE_ORO: 224,
     PICO_HIERRO: 225, HACHA_HIERRO: 226, PALA_HIERRO: 227,
     ESPADA_MADERA: 228, ESPADA_PIEDRA: 229, ESPADA_HIERRO: 230,
+    // agricultura: cultivos, comida y azadas (diseño en documents/04-items.md)
+    SEMILLAS_TRIGO: 231, TRIGO: 232, PAN: 233, ZANAHORIA: 234,
+    PATATA: 235, PATATA_ASADA: 236,
+    AZADA_MADERA: 237, AZADA_PIEDRA: 238, AZADA_HIERRO: 239,
 };
 
 /** Definiciones de item por id: nombre, tésela del sprite y herramienta. */
@@ -70,6 +74,16 @@ export const ITEM_DEFS = {
     [ITEMS.ESPADA_MADERA]: { name: 'Espada de madera', tile: TILE.ESPADA_MADERA, sword: 5 },
     [ITEMS.ESPADA_PIEDRA]: { name: 'Espada de piedra', tile: TILE.ESPADA_PIEDRA, sword: 6 },
     [ITEMS.ESPADA_HIERRO]: { name: 'Espada de hierro', tile: TILE.ESPADA_HIERRO, sword: 8 },
+    [ITEMS.SEMILLAS_TRIGO]: { name: 'Semillas de trigo', tile: TILE.IT_SEMILLAS },
+    [ITEMS.TRIGO]:         { name: 'Trigo', tile: TILE.IT_TRIGO },
+    [ITEMS.PAN]:           { name: 'Pan', tile: TILE.IT_PAN, food: 5 },
+    [ITEMS.ZANAHORIA]:     { name: 'Zanahoria', tile: TILE.IT_ZANAHORIA, food: 3 },
+    [ITEMS.PATATA]:        { name: 'Patata', tile: TILE.IT_PATATA, food: 1 },
+    [ITEMS.PATATA_ASADA]:  { name: 'Patata asada', tile: TILE.IT_PATATA_ASADA, food: 5 },
+    // la azada no acelera picado alguno: su oficio es labrar tierra (main.js)
+    [ITEMS.AZADA_MADERA]:  { name: 'Azada de madera', tile: TILE.IT_AZADA_MADERA, tool: { tipo: 'azada', factor: 2 } },
+    [ITEMS.AZADA_PIEDRA]:  { name: 'Azada de piedra', tile: TILE.IT_AZADA_PIEDRA, tool: { tipo: 'azada', factor: 3 } },
+    [ITEMS.AZADA_HIERRO]:  { name: 'Azada de hierro', tile: TILE.IT_AZADA_HIERRO, tool: { tipo: 'azada', factor: 4 } },
 };
 
 /**
@@ -85,6 +99,7 @@ export const FUNDICIONES = [
     { in: B.LOG, out: ITEMS.CARBON },          // carbón vegetal
     { in: ITEMS.CARNE_CRUDA, out: ITEMS.CARNE_ASADA },
     { in: ITEMS.PEZ_CRUDO, out: ITEMS.PEZ_ASADO },
+    { in: ITEMS.PATATA, out: ITEMS.PATATA_ASADA },
 ];
 
 export const COMBUSTIBLES = {
@@ -155,6 +170,14 @@ export const RECIPES = [
         pattern: ['WWW', 'PPP'], keys: { W: B.WOOL0, P: B.PLANKS } },
     { name: 'Librería', out: { id: B.BOOKSHELF, n: 1 }, in: [{ id: B.PLANKS, n: 6 }] },
     { name: 'Cristal', out: { id: B.GLASS, n: 1 }, in: [{ id: B.SAND, n: 2 }] },
+    { name: 'Pan', out: { id: ITEMS.PAN, n: 1 },
+        pattern: ['TTT'], keys: { T: ITEMS.TRIGO } },
+    { name: 'Azada de madera', out: { id: ITEMS.AZADA_MADERA, n: 1 },
+        pattern: ['PP', ' S', ' S'], keys: { P: B.PLANKS, S: ITEMS.PALO } },
+    { name: 'Azada de piedra', out: { id: ITEMS.AZADA_PIEDRA, n: 1 },
+        pattern: ['CC', ' S', ' S'], keys: { C: B.COBBLE, S: ITEMS.PALO } },
+    { name: 'Azada de hierro', out: { id: ITEMS.AZADA_HIERRO, n: 1 },
+        pattern: ['HH', ' S', ' S'], keys: { H: ITEMS.LINGOTE_HIERRO, S: ITEMS.PALO } },
 ];
 
 // Deriva `in` (cantidades) de las recetas con forma: el recetario y

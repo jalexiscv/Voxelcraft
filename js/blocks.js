@@ -29,6 +29,11 @@ export const B = {
     TORCH: 68,          // brilla con luz propia (decorativa)
     BED: 69,            // clic derecho de noche → amanece
     CHEST: 70,          // cofre: su contenido viaja en world.blockData
+    // sistema de cultivos (documents/04-items.md, ids fijos 71..83)
+    FARMLAND: 71,       // tierra labrada: la crea la azada; la etapa del cultivo es el id
+    TRIGO_0: 72, TRIGO_1: 73, TRIGO_2: 74, TRIGO_3: 75,
+    ZANAHORIA_0: 76, ZANAHORIA_1: 77, ZANAHORIA_2: 78, ZANAHORIA_3: 79,
+    PATATA_0: 80, PATATA_1: 81, PATATA_2: 82, PATATA_3: 83,
 };
 
 /**
@@ -138,6 +143,21 @@ DEFS[B.WINDOW]      = def('Ventana', TILE.WINDOW_T, { opaque: false, hideSame: t
 DEFS[B.TORCH]       = def('Antorcha', TILE.TORCH_T, { cross: true, solid: false, opaque: false, bright: true, sound: 'wood', hardness: 1, tool: null });
 DEFS[B.BED]         = def('Cama', TILE.PLANKS, { top: TILE.BED_TOP, sound: 'cloth', hardness: 2 });
 DEFS[B.CHEST]       = def('Cofre', TILE.CHEST_SIDE, { top: TILE.CHEST_TOP, bottom: TILE.PLANKS, sound: 'wood', hardness: 3 });
+
+/* ---- Sistema de cultivos (documents/04-items.md) ---- */
+// La etapa de crecimiento es el propio id de bloque (72..83), así el byte por
+// celda del mundo la persiste gratis. Nada de esto aparece en el selector:
+// la tierra labrada la crea la azada y los cultivos se siembran con clic derecho.
+const cultivo = (name, tile) =>
+    def(name, tile, { solid: false, opaque: false, cross: true, sound: 'grass', hardness: 1, tool: null, placeable: false });
+
+DEFS[B.FARMLAND] = def('Tierra labrada', TILE.DIRT, { top: TILE.FARMLAND_TOP, bottom: TILE.DIRT, sound: 'grass', hardness: 1, tool: 'pala', placeable: false });
+const NOMBRES_ETAPA = ['(brote)', '(creciendo)', '(casi maduro)', '(maduro)'];
+for (const [clave, nombre] of [['TRIGO', 'Trigo'], ['ZANAHORIA', 'Zanahoria'], ['PATATA', 'Patata']]) {
+    for (let e = 0; e < 4; e++) {
+        DEFS[B[`${clave}_${e}`]] = cultivo(`${nombre} ${NOMBRES_ETAPA[e]}`, TILE[`${clave}_ET${e}`]);
+    }
+}
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */
 export const PLACEABLE = DEFS

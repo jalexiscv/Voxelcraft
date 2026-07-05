@@ -42,6 +42,15 @@ export const TILE = {
     DOOR_T: 102, DOOR_OPEN_T: 103, FENCE_T: 104, WINDOW_T: 105,
     TORCH_T: 106, BED_TOP: 107,
     CHEST_SIDE: 108, CHEST_TOP: 109,
+    // sistema de cultivos (documents/04-items.md): bloques por etapa…
+    FARMLAND_TOP: 110,
+    TRIGO_ET0: 111, TRIGO_ET1: 112, TRIGO_ET2: 113, TRIGO_ET3: 114,
+    ZANAHORIA_ET0: 115, ZANAHORIA_ET1: 116, ZANAHORIA_ET2: 117, ZANAHORIA_ET3: 118,
+    PATATA_ET0: 119, PATATA_ET1: 120, PATATA_ET2: 121, PATATA_ET3: 122,
+    // …y sus items (sprites planos; las defs de item van en js/items.js)
+    IT_SEMILLAS: 123, IT_TRIGO: 124, IT_PAN: 125, IT_ZANAHORIA: 126,
+    IT_PATATA: 127, IT_PATATA_ASADA: 128,
+    IT_AZADA_MADERA: 129, IT_AZADA_PIEDRA: 130, IT_AZADA_HIERRO: 131,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -733,6 +742,139 @@ painters[TILE.CHEST_TOP] = (t) => {
         t.px(x, 10, 168, 170, 176); t.px(x, 11, 148, 150, 156); t.px(x, 12, 104, 106, 112);
     }
 };
+
+/* ---- Sistema de cultivos (documents/04-items.md) ---- */
+
+painters[TILE.FARMLAND_TOP] = (t) => {
+    // tierra labrada: base parda oscura y húmeda con surcos horizontales
+    t.noiseFill([110, 76, 50], 10);
+    for (let y = 1; y < TILE_PX; y += 4) {
+        for (let x = 0; x < TILE_PX; x++) {
+            const d = t.rng.int(7) - 3;
+            t.px(x, y, 66 + d, 44 + d, 28 + d);             // fondo húmedo del surco
+            t.px(x, y + 1, 84 + d, 58 + d, 36 + d);         // pared en sombra
+        }
+    }
+    t.speckle(8, [140, 100, 64]);                            // terrones sueltos
+};
+
+/** Trigo: hileras de tallos que crecen y se doran; espigas en la etapa 3. */
+const trigoTile = (etapa) => (t) => {
+    const alto = [3, 6, 9, 12][etapa];                       // altura de los tallos
+    const base = [[92, 168, 60], [104, 168, 56], [156, 160, 52], [212, 172, 60]][etapa];
+    for (const x of [2, 5, 8, 11, 14]) {                     // hileras regulares de siembra
+        const top = 15 - alto + t.rng.int(2);
+        for (let y = top; y <= 14; y++) {
+            const d = t.rng.int(15) - 7;
+            t.px(x, y, base[0] + d, base[1] + d, base[2] + d);
+        }
+        if (etapa === 3) {                                   // espiga dorada en la punta
+            t.px(x, top - 1, 232, 196, 92);
+            t.px(x - 1, top, 224, 184, 76); t.px(x + 1, top + 1, 224, 184, 76);
+        }
+    }
+};
+for (let e = 0; e < 4; e++) painters[TILE.TRIGO_ET0 + e] = trigoTile(e);
+
+/** Zanahoria: matas de hojas plumosas; la raíz naranja asoma cada vez más. */
+const zanahoriaTile = (etapa) => (t) => {
+    const alto = [2, 4, 6, 8][etapa];
+    for (const x of [3, 7, 11]) {                            // tres matas
+        for (let i = 0; i < 3 + etapa * 2; i++) {            // hojas plumosas
+            const hx = x + t.rng.int(3) - 1;
+            const hy = 14 - t.rng.int(alto + 1);
+            const d = t.rng.int(19) - 9;
+            t.px(hx, hy, 62 + d, 150 + d, 52 + d);
+        }
+        for (let y = 15 - alto; y <= 14; y++) t.px(x, y, 56, 138, 46); // tallo central
+        if (etapa >= 1) {                                    // hombro naranja asomando
+            for (let dx = -Math.floor((etapa - 1) / 2); dx <= Math.ceil((etapa - 1) / 2); dx++) {
+                t.px(x + dx, 15, 226, 118, 32);
+            }
+            if (etapa === 3) t.px(x, 14, 236, 140, 48);      // brillo de la raíz gorda
+        }
+    }
+};
+for (let e = 0; e < 4; e++) painters[TILE.ZANAHORIA_ET0 + e] = zanahoriaTile(e);
+
+/** Patata: matas frondosas que amarillean al madurar (etapa 3). */
+const patataTile = (etapa) => (t) => {
+    const alto = [2, 4, 6, 7][etapa];
+    const base = etapa === 3 ? [168, 168, 62] : [70, 146, 52];
+    for (const x of [4, 10]) {                               // dos matas anchas
+        for (let i = 0; i < 8 + etapa * 4; i++) {            // follaje redondeado
+            const hx = x + t.rng.int(5) - 2;
+            const hy = 14 - t.rng.int(alto + 1);
+            if (Math.abs(hx - x) + (14 - hy) > alto + 2) continue; // recorte en copa
+            const d = t.rng.int(17) - 8;
+            t.px(hx, hy, base[0] + d, base[1] + d, base[2] + d);
+        }
+        for (let y = 15 - alto; y <= 14; y++) t.px(x, y, 54, 112, 42); // tallo
+    }
+    if (etapa === 3) { t.px(4, 14, 122, 150, 56); t.px(10, 14, 122, 150, 56); } // hojas mustias
+};
+for (let e = 0; e < 4; e++) painters[TILE.PATATA_ET0 + e] = patataTile(e);
+
+painters[TILE.IT_SEMILLAS] = (t) => {
+    for (let i = 0; i < 9; i++) {                            // puñado de semillas
+        const x = 4 + t.rng.int(8), y = 4 + t.rng.int(8);
+        t.px(x, y, 118, 178, 76); t.px(x + 1, y, 86, 140, 54);
+    }
+};
+
+painters[TILE.IT_TRIGO] = (t) => {
+    for (const x of [6, 8, 10]) {                            // haz de tres espigas
+        for (let y = 6; y <= 13; y++) t.px(x, y, 200, 162, 66);
+        for (let y = 2; y <= 5; y++) {                       // espiga granada
+            t.px(x, y, 232, 196, 92);
+            t.px(x - 1, y + (x % 2), 216, 178, 74);
+        }
+    }
+    for (let x = 5; x <= 11; x++) t.px(x, 10, 150, 110, 48); // atadura del haz
+};
+
+painters[TILE.IT_PAN] = (t) => {
+    for (let y = 6; y <= 11; y++) {                          // hogaza alargada
+        for (let x = 2; x <= 13; x++) {
+            const corteza = x === 2 || x === 13 || y === 11;
+            t.px(x, y, ...(corteza ? [150, 96, 44] : y === 6 ? [222, 168, 92] : [196, 138, 66]));
+        }
+    }
+    for (const x of [5, 8, 11]) t.px(x, 7, 240, 200, 130);   // cortes de la corteza
+};
+
+painters[TILE.IT_ZANAHORIA] = (t) => {
+    for (let y = 5; y <= 13; y++) {                          // raíz cónica
+        const half = Math.max(0, Math.round(2 - (y - 5) * 0.25));
+        for (let x = 8 - half; x <= 8 + half; x++) {
+            t.px(x, y, ...(x < 8 ? [238, 140, 48] : [206, 104, 26]));
+        }
+    }
+    t.px(8, 4, 74, 152, 56); t.px(7, 3, 74, 152, 56); t.px(9, 3, 74, 152, 56); // rabillo verde
+    t.px(8, 2, 96, 172, 66);
+};
+
+painters[TILE.IT_PATATA] = (t) => {
+    manchaTile([198, 160, 96], [160, 126, 70], [222, 190, 128])(t);
+    t.px(6, 8, 134, 104, 58); t.px(9, 6, 134, 104, 58); t.px(8, 10, 134, 104, 58); // ojos del tubérculo
+};
+
+painters[TILE.IT_PATATA_ASADA] = (t) => {
+    manchaTile([196, 138, 66], [140, 92, 40], [232, 190, 110])(t);
+    t.px(7, 7, 252, 236, 180); t.px(8, 7, 252, 236, 180);    // interior abierto y esponjoso
+    t.px(8, 3, 220, 220, 220, 150); t.px(7, 2, 228, 228, 228, 110); // vaho
+};
+
+/** Azada: mango de palo y hoja en L del material, doblada hacia abajo. */
+const azadaTile = (cabeza, brillo) => (t) => {
+    mangoDiagonal(t);
+    t.px(12, 3, ...cabeza);                                  // cuello que une mango y hoja
+    for (let x = 7; x <= 13; x++) { t.px(x, 1, ...brillo); t.px(x, 2, ...cabeza); } // tramo horizontal de la L
+    for (let y = 3; y <= 6; y++) t.px(7, y, ...(y === 3 ? brillo : cabeza));        // filo caído de la L
+};
+painters[TILE.IT_AZADA_MADERA] = azadaTile(CABEZA_MADERA, BRILLO_MADERA);
+painters[TILE.IT_AZADA_PIEDRA] = azadaTile(CABEZA_PIEDRA, BRILLO_PIEDRA);
+painters[TILE.IT_AZADA_HIERRO] = azadaTile(CABEZA_HIERRO, BRILLO_HIERRO);
 
 /**
  * Construye el atlas completo. Devuelve el canvas (para subirlo como textura

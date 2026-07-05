@@ -35,8 +35,13 @@ export default {
     hp: 20,
     speed: 1.5,
     spawn: { cap: 3, group: 2, water: true },
-    // botín: carne podrida macerada por el agua, como todo zombi
-    drops: [{ id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 }],
+    // botín: carne podrida macerada por el agua, como todo zombi; muy rara
+    // vez suelta la hortaliza que llevaba encima (fuente inicial de cultivos)
+    drops: [
+        { id: ITEMS.CARNE_PODRIDA, min: 0, max: 2 },
+        { id: ITEMS.ZANAHORIA, min: 1, max: 1, chance: 0.05 },
+        { id: ITEMS.PATATA, min: 1, max: 1, chance: 0.05 },
+    ],
 
     /** Persecución cuerpo a cuerpo, calcada del zombi de superficie. */
     behavior: { aggro: 16, attackRange: 1.7, damage: 3, cooldown: 1.2 },
