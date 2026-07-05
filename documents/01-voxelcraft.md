@@ -71,7 +71,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Sol y luna con fases y resplandor crepuscular | ✅ |
 | 14 biomas climáticos (materiales, vegetación y mobs por bioma) | ✅ (ver [03-biomas.md](03-biomas.md)) |
 | Modos de juego (Supervivencia/Creativo) y dificultad (Normal/Pacífica) elegidos al crear el mundo | ✅ |
-| Inventario de supervivencia (romper recolecta, colocar consume) y acceso total en Creativo | ✅ |
+| Inventario de supervivencia (romper recolecta, colocar consume) y acceso total en Creativo: todos los bloques, todos los items (herramientas, espadas, comida, materiales) y huevos de aparición de los 68 mobs | ✅ |
 | Dureza por material: los bloques exigen uno o varios golpes (instantáneo en Creativo) | ✅ |
 | Drops: los bloques rotos flotan como cubitos 3D y se recogen al acercarse | ✅ |
 | Crafteo clásico por cuadrícula: inventario 2×2 (E), mesa de crafteo colocable 3×3, recetas con forma y recetario con autocolocado | ✅ |

@@ -582,6 +582,33 @@ console.log('== Inventario ==');
         JSON.stringify([`${B.STONE}:3`, `${B.SAND}:64`, `${B.SAND}:64`, `${B.SAND}:2`]));
 }
 
+/* ==== Huevos de aparición (selector del creativo) ==== */
+console.log('== Huevos de aparición ==');
+{
+    const { EGG_BASE, EGG_IDS, esHuevo, mobDeHuevo, nombreHuevo, coloresHuevo }
+        = await import(base + 'eggs.js');
+    const { MOBS } = await import(base + 'mobs/registry.js');
+    const { ITEM_DEFS } = await import(base + 'items.js');
+
+    const maxItem = Math.max(...Object.keys(ITEM_DEFS).map(Number));
+    check('un huevo por mob del registro, con ids consecutivos desde EGG_BASE',
+        EGG_IDS.length === Object.keys(MOBS).length &&
+        EGG_IDS[0] === EGG_BASE && EGG_IDS[EGG_IDS.length - 1] === EGG_BASE + EGG_IDS.length - 1);
+    check('los ids de huevo no chocan con los de item (EGG_BASE por encima)',
+        maxItem < EGG_BASE && !esHuevo(maxItem) && !esHuevo(EGG_BASE - 1));
+    check('cada huevo apunta a su mob y se nombra por él',
+        EGG_IDS.every((id) => MOBS[mobDeHuevo(id)] !== undefined) &&
+        nombreHuevo(EGG_BASE + Object.keys(MOBS).indexOf('cow')) === 'Huevo de Vaca');
+    const idCerdo = EGG_BASE + Object.keys(MOBS).indexOf('pig');
+    const idCreeper = EGG_BASE + Object.keys(MOBS).indexOf('creeper');
+    const cerdo = coloresHuevo(idCerdo), creeper = coloresHuevo(idCreeper);
+    check('el cascarón hereda la paleta del mob (cerdo rosado, creeper verdoso)',
+        cerdo.base[0] > cerdo.base[1] && creeper.base[1] > creeper.base[0] &&
+        JSON.stringify(cerdo.base) !== JSON.stringify(creeper.base) &&
+        (cerdo.mota[0] + cerdo.mota[1] + cerdo.mota[2]) <
+        (cerdo.base[0] + cerdo.base[1] + cerdo.base[2]));
+}
+
 /* ==== Dureza, crafteo y drops ==== */
 console.log('== Dureza, crafteo y drops ==');
 {

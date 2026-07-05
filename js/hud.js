@@ -5,6 +5,7 @@
 import { DEFS, PLACEABLE, B } from './blocks.js';
 import { TILE_PX, ATLAS_GRID } from './atlas.js';
 import { ITEM_DEFS, isItem, RECIPES, matchGrid, autoColocar, FUNDICIONES, COMBUSTIBLES, fundir } from './items.js';
+import { EGG_IDS, esHuevo, nombreHuevo, coloresHuevo } from './eggs.js';
 import { Inventory } from './inventory.js';
 
 const ICON = 36;  // lado del canvas de icono
@@ -151,6 +152,24 @@ export class HUD {
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, ICON, ICON);
+        if (esHuevo(blockId)) { // cascarón moteado con la paleta del mob
+            const { base, mota } = coloresHuevo(blockId);
+            const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+            ctx.fillStyle = rgb(base);
+            ctx.beginPath();
+            ctx.ellipse(ICON / 2, ICON / 2 + 2, 9, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.fillStyle = rgb(mota);
+            for (const [mx, my, r] of [[13, 12, 2.2], [22, 16, 2.8], [15, 24, 2.4], [21, 26, 1.8], [17, 17, 1.6]]) {
+                ctx.beginPath();
+                ctx.arc(mx, my + 2, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            return;
+        }
         if (isItem(blockId)) { // sprite plano del item (palos, herramientas)
             const it = ITEM_DEFS[blockId];
             if (it) ctx.drawImage(this.shadedTile(it.tile, 1), 2, 2, ICON - 4, ICON - 4);
@@ -263,11 +282,13 @@ export class HUD {
 
     buildPicker() {
         this.els.pickerGrid.innerHTML = '';
-        // creativo: todos los materiales; supervivencia: lo recolectado
+        // creativo: TODO el catálogo — bloques colocables, todos los items
+        // (herramientas, espadas, comida, materiales; sin cantidades) y los
+        // huevos de aparición de los mobs; supervivencia: lo recolectado
         // (bloques colocables y herramientas fabricadas)
         const ids = this.inventory
             ? this.inventory.ids().filter((id) => isItem(id) || (DEFS[id] && DEFS[id].placeable))
-            : PLACEABLE;
+            : [...PLACEABLE, ...Object.keys(ITEM_DEFS).map(Number), ...EGG_IDS];
         if (ids.length === 0) {
             const vacio = document.createElement('p');
             vacio.className = 'hint';
@@ -304,8 +325,9 @@ export class HUD {
 
     /* ---- Pantalla de inventario y crafteo (cuadrícula clásica) ---- */
 
-    /** Nombre legible de un id, sea bloque o item. */
+    /** Nombre legible de un id, sea bloque, item o huevo de aparición. */
     nombreDe(id) {
+        if (esHuevo(id)) return nombreHuevo(id);
         return isItem(id) ? (ITEM_DEFS[id] ? ITEM_DEFS[id].name : '?') : DEFS[id].name;
     }
 

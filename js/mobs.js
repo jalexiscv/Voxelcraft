@@ -32,7 +32,8 @@ const DESPAWN_RADIUS = 80;
 const SPAWN_MIN = 24;          // los mobs nunca aparecen más cerca
 const SPAWN_MAX = 48;
 const SPAWN_INTERVAL = 2;      // s entre tandas de intentos de aparición
-const GLOBAL_CAP = 32;         // mobs simultáneos máximos
+const GLOBAL_CAP = 32;         // mobs simultáneos máximos (aparición natural)
+const EGG_CAP = 128;           // tope duro con huevos de aparición (creativo)
 const ANGER_TIME = 20;         // s de hostilidad de un neutral herido
 const NIGHT = 0.35;            // factor de día por debajo del cual es de noche
 const ARROW_SPEED = 20;
@@ -101,6 +102,27 @@ export class MobSystem {
     count() { return this.mobs.length; }
 
     countOf(id) { return this.mobs.reduce((n, m) => n + (m.def.id === id ? 1 : 0), 0); }
+
+    /**
+     * Aparición FORZADA de un tipo en una celda (el huevo de aparición del
+     * modo creativo): sin sorteo de hábitat ni topes por tipo — solo un
+     * tope duro que protege al render — y con la tonalidad sorteada como
+     * en la aparición natural (fija del bioma si la define). El mob saluda
+     * con su voz al nacer. Devuelve el mob creado, o null (tipo
+     * desconocido o tope alcanzado).
+     */
+    spawnAt(id, x, y, z) {
+        const def = this.defs[id];
+        if (!def || this.mobs.length >= EGG_CAP) return null;
+        const m = new Mob(def, x + 0.5, y + 0.01, z + 0.5, this.rng.float() * Math.PI * 2);
+        if (def.variants > 1) {
+            const fija = def.variantBiome && def.variantBiome[this.biomeAt(x, z).id];
+            m.variant = fija !== undefined ? fija : this.rng.int(def.variants);
+        }
+        this.mobs.push(m);
+        this.hooks.sound('say', m);
+        return m;
+    }
 
     /* ---- Bucle ---- */
 

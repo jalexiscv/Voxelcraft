@@ -24,6 +24,7 @@ import { DropSystem } from './drops.js';
 import { ITEM_DEFS, ITEMS, isItem } from './items.js';
 import { esCultivo, cosechaDe, plantaDe, maduro, tickCultivos } from './farming.js';
 import { esPuerta, esAbierta, colocarPuerta, alternarPuerta, romperPuerta } from './doors.js';
+import { esHuevo, mobDeHuevo } from './eggs.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { CamaraSystem, CAMARA_DEF } from './camaras.js';
@@ -736,6 +737,15 @@ function boot() {
                 viewmodel.swing();
                 return;
             }
+            // huevo de aparición (solo creativo): hace aparecer su mob en la
+            // celda adyacente a la cara pulsada, con su voz de saludo
+            if (esHuevo(hud.activeBlock())) {
+                if (game.mode !== 'creativo') return;
+                const m = game.mobs.spawnAt(mobDeHuevo(hud.activeBlock()),
+                    hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz);
+                if (m) viewmodel.swing();
+                return;
+            }
             const [tx, ty, tz] = [hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz];
             const target = game.world.get(tx, ty, tz);
             const replaceable = target === B.AIR || DEFS[target].liquid || DEFS[target].cross;
@@ -777,6 +787,7 @@ function boot() {
     function enManoActual() {
         const id = hud.activeBlock();
         if (!id) return 0;
+        if (esHuevo(id)) return 0; // el huevo se sostiene con la mano vacía
         if (game.mode === 'supervivencia' && game.inventory.count(id) === 0) return 0;
         return id;
     }

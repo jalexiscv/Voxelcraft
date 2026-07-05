@@ -256,6 +256,24 @@ console.log('== Puntería y aparición ==');
     simulate(tonos, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('los conejos aparecen con tonalidad válida (variants)',
         tonos.count() > 0 && tonos.mobs.every((m) => m.variant >= 0 && m.variant < rabbit.variants));
+
+    // aparición forzada (huevo de aparición del creativo): sin sorteos ni
+    // topes por tipo, en la celda pedida, con saludo de voz y tonalidad
+    const huevos = silentHooks();
+    const granja = new MobSystem({ pig, rabbit }, world, huevos, 5);
+    const cerdo = granja.spawnAt('pig', 8, 41, 8);
+    check('spawnAt hace aparecer el tipo pedido en la celda',
+        cerdo !== null && granja.count() === 1 && cerdo.def.id === 'pig' &&
+        cerdo.pos[0] === 8.5 && cerdo.pos[2] === 8.5 &&
+        huevos.calls.sounds.includes('say'));
+    check('spawnAt con tonalidades sortea una variante válida', (() => {
+        const conejo = granja.spawnAt('rabbit', 9, 41, 9);
+        return conejo && conejo.variant >= 0 && conejo.variant < rabbit.variants;
+    })());
+    check('spawnAt rechaza tipos desconocidos', granja.spawnAt('warden_falso', 8, 41, 8) === null);
+    let nacidos = 0;
+    while (granja.spawnAt('pig', 8, 41, 8)) nacidos++;
+    check('spawnAt respeta el tope duro de 128 mobs', granja.count() === 128 && nacidos === 126);
 }
 
 /* ==== Comportamientos ampliados ==== */

@@ -61,6 +61,18 @@ El formato completo está en el docblock de [model.js](../js/mobs/model.js). **A
 
 Cada tanda sortea un hábitat: **superficie** (de día los pasivos del bioma sobre su suelo natural —hierba, arena, micelio…— o el bloque de su `spawn.block`; de noche los hostiles de la lista nocturna del bioma), **agua** (columna sobre el lecho, a media profundidad; solo los acuáticos que el bioma lista) o **cueva** (hueco sin luz solar bajo tierra; global, sin bioma — salvo los que un bioma saca a la superficie de noche, como el slime en el pantano). Qué mobs habitan cada bioma está en [03-biomas.md](03-biomas.md). En **dificultad pacífica** no aparecen hostiles, y en **modo creativo** los hostiles ignoran al jugador (deambulan como pasivos). Topes: 1-4 por tipo y 32 en total; nunca a menos de 24 bloques del jugador; desaparición a >80. Las explosiones marcan los chunks como editados, así que los cráteres **se guardan**.
 
+### Huevos de aparición (modo creativo)
+
+El selector del creativo ofrece un **huevo por cada mob del registro**
+(`js/eggs.js`: ids numéricos estables desde 300, por encima de los items,
+con el cascarón del icono pintado con la paleta procedural del propio
+mob). Usarlo sobre la cara de un bloque hace aparecer el mob en la celda
+adyacente (`MobSystem.spawnAt`): sin sorteo de hábitat ni topes por tipo
+— solo un tope duro de 128 mobs simultáneos que protege al render — con
+la tonalidad sorteada como en la aparición natural y su voz de saludo.
+Los huevos solo existen en el creativo: jamás entran al inventario de
+supervivencia ni se escriben en el mundo.
+
 ## Adaptaciones respecto al juego oficial
 
 Sin sistema de objetos, domesticación, monturas, crías ni comercio, algunos mobs se adaptan: todos los proyectiles son la misma flecha con el daño del tirador (escupitajo de llama, poción de bruja, ráfaga del breeze, láser del guardián), y las flechas que fallan quedan clavadas en el bloque unos 30 s antes de desvanecerse; cada mob habita los biomas de su tabla en [03-biomas.md](03-biomas.md); el warden y el creaking son mortales pero no invulnerables; el happy ghast está a escala reducida (2,4 bloques); el ahogado camina además de nadar. En la clasificación, cinco mobs difieren de la categoría oficial del wiki porque no existen los mecanismos que la condicionan: la araña y la araña de cueva (neutrales con luz), el ahogado (pasivo de día fuera del agua) y el nautilus zombi (neutral sin domar) son aquí hostiles siempre, y el zorro (neutral oficial) es aquí pasivo y asustadizo.
