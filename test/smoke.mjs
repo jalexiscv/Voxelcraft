@@ -820,8 +820,8 @@ console.log('== Sonidos ==');
     check('sin contexto, resolver/obtener devuelven null sin sondear',
         (await pack.resolver('grass1')) === null && pack.obtener('grass1') === null);
 
-    // convención de nombres: todo sondeo va a sounds/<id>.mp3 (fetch simulado;
-    // con la respuesta «no existe» jamás se llega a decodeAudioData)
+    // convención de nombres: cada id sondea sounds/<id>.mp3 y luego .fsb
+    // (fetch simulado; con «no existe» jamás se llega a decodeAudioData)
     const urls = [];
     const fetchReal = globalThis.fetch;
     globalThis.fetch = (url) => { urls.push(String(url)); return Promise.resolve({ ok: false }); };
@@ -830,13 +830,60 @@ console.log('== Sonidos ==');
     await Promise.all([1, 2, 3, 4].map((i) => pack.resolver('stone' + i)));
     pack.variantes('mob.zombi.idle', 2);
     globalThis.fetch = fetchReal;
-    check('toda ruta del pack cae bajo sounds/ y termina en .mp3',
-        urls.length >= 7 && urls.every((u) => u.startsWith('sounds/') && u.endsWith('.mp3')));
+    check('toda ruta del pack cae bajo sounds/ con extensión aceptada',
+        urls.length >= 7 && urls.every((u) => u.startsWith('sounds/') &&
+            (u.endsWith('.mp3') || u.endsWith('.fsb'))));
+    check('cada id sondea .mp3 primero y .fsb después',
+        JSON.stringify(pack.rutasDe('stone1')) ===
+            JSON.stringify(['sounds/stone1.mp3', 'sounds/stone1.fsb']) &&
+        urls.indexOf('sounds/evento.campana.mp3') < urls.indexOf('sounds/evento.campana.fsb'));
     check('la convención cubre evento.<nombre>, familias y voces de mob',
-        urls.includes('sounds/evento.campana.mp3') && urls.includes('sounds/stone3.mp3') &&
+        urls.includes('sounds/evento.campana.mp3') && urls.includes('sounds/stone3.fsb') &&
         urls.includes('sounds/mob.zombi.idle1.mp3'));
     check('el sondeo fallido queda cacheado como null (sin repetir el fetch)',
         pack.obtener('evento.campana') === null && (await pack.resolver('evento.campana')) === null);
+}
+
+/* ==== FSB5: parser puro de bancos FMOD para el pack local ==== */
+console.log('== FSB5 ==');
+{
+    const { parseFSB5, pcm16ToWav, sampleAWav } = await import(base + 'fsb5.js');
+
+    // banco sintético: cabecera de 60 bytes + 1 sample PCM16 mono 44100
+    const N = 100;                                     // muestras de audio
+    const datos = new Uint8Array(60 + 8 + N * 2);
+    const v = new DataView(datos.buffer);
+    datos.set([0x46, 0x53, 0x42, 0x35], 0);            // "FSB5"
+    v.setUint32(4, 1, true);                           // versión 1 (cabecera 60)
+    v.setUint32(8, 1, true);                           // 1 sample
+    v.setUint32(12, 8, true);                          // cabeceras de sample: 8 B
+    v.setUint32(16, 0, true);                          // sin tabla de nombres
+    v.setUint32(20, N * 2, true);                      // datos: N muestras PCM16
+    v.setUint32(24, 2, true);                          // modo 2 = PCM16
+    // uint64 empaquetado: sampleCount<<34 | dataOffset<<6 | (canales-1)<<5 | freq<<1
+    v.setBigUint64(60, (BigInt(N) << 34n) | (8n << 1n), true); // 44100 Hz, mono
+    for (let i = 0; i < N; i++) {                      // onda dientes de sierra
+        v.setInt16(60 + 8 + i * 2, ((i * 655) % 65536) - 32768, true);
+    }
+
+    const { header, samples } = parseFSB5(datos);
+    check('el banco sintético se parsea (códec, frecuencia, canales)',
+        header.codec === 'PCM16' && header.numSamples === 1 &&
+        samples[0].frequency === 44100 && samples[0].channels === 1);
+    check('los datos del sample se recortan exactos', samples[0].data.length === N * 2);
+
+    const wav = pcm16ToWav(samples[0]);
+    const w = new DataView(wav.buffer);
+    check('pcm16ToWav produce un WAV canónico (RIFF/WAVE, 44100 Hz, 16 bits)',
+        wav.length === 44 + N * 2 &&
+        String.fromCharCode(wav[0], wav[1], wav[2], wav[3]) === 'RIFF' &&
+        String.fromCharCode(wav[8], wav[9], wav[10], wav[11]) === 'WAVE' &&
+        w.getUint32(24, true) === 44100 && w.getUint16(34, true) === 16);
+    check('sampleAWav rechaza códecs no PCM y acepta PCMFLOAT',
+        sampleAWav(samples[0], 'VORBIS') === null &&
+        sampleAWav(samples[0], 'PCMFLOAT')?.length === 44 + N * 2);
+    check('un archivo que no es FSB5 lanza un error claro',
+        (() => { try { parseFSB5(new Uint8Array(16)); return false; } catch (e) { return /FSB5/.test(e.message); } })());
 }
 
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);

@@ -3,12 +3,18 @@
  *
  * VoxelCraft es 100 % procedural y el repo NO distribuye archivos de audio:
  * este módulo solo sondea en tiempo de ejecución el directorio `sounds/` de
- * la raíz por si el usuario ha colocado ahí sus propios mp3 como override
- * personal. Ese directorio vive únicamente en la copia local (está en
- * .gitignore) y jamás forma parte del repo; si un archivo no existe, el
+ * la raíz por si el usuario ha colocado ahí sus propios archivos como
+ * override personal. Ese directorio vive únicamente en la copia local (está
+ * en .gitignore) y jamás forma parte del repo; si un archivo no existe, el
  * motor sintetiza con WebAudio como siempre.
  *
- * Convención de nombres (todo bajo sounds/ en la raíz):
+ * Formatos aceptados, por id y en este orden: `.mp3` (decodeAudioData
+ * nativo) y `.fsb` (bancos FMOD FSB5 vía js/fsb5.js: códecs PCM* envueltos
+ * en WAV y MPEG como frames mp3 crudos; VORBIS y demás no son
+ * decodificables y caen al sintetizador con un aviso).
+ *
+ * Convención de nombres (todo bajo sounds/ en la raíz; se muestra .mp3
+ * pero cada id acepta también .fsb):
  *   - Familias de material, variantes numeradas 1..4 (step/dig/place las
  *     comparten con distinto volumen):
  *       grass1.mp3 .. grass4.mp3     stone1.mp3 .. stone4.mp3
@@ -32,6 +38,8 @@
  *                      si ninguna está disponible (sondea las que falten).
  */
 
+import { parseFSB5, sampleAWav } from './fsb5.js';
+
 const BASE = 'sounds/';
 
 /** id -> AudioBuffer | null (resultado definitivo del sondeo). */
@@ -47,25 +55,70 @@ export function init(audioCtx) {
     ctx = audioCtx;
 }
 
+/** Extensiones aceptadas, en orden de sondeo. */
+const EXTS = ['.mp3', '.fsb'];
+
+/** Rutas que sondearía un id, en orden (expuesto para las pruebas). */
+export function rutasDe(id) {
+    return EXTS.map((ext) => BASE + id + ext);
+}
+
+/** Códecs FSB5 sin soporte ya avisados (un warn por códec, no por archivo). */
+const codecsAvisados = new Set();
+
 /**
- * Sondea `sounds/<id>.mp3` una única vez y devuelve una Promise del
- * AudioBuffer decodificado, o null si no existe o no decodifica. El
- * resultado (incluido el null del 404) queda cacheado para siempre.
+ * Decodifica un banco FSB5: los códecs PCM se envuelven en WAV y MPEG son
+ * frames mp3 crudos que WebAudio entiende tal cual. Otros códecs (VORBIS,
+ * ADPCM…) no son decodificables aquí: se avisa una vez y se devuelve null
+ * (el sintetizador cubre el sonido).
+ */
+async function decodificarFSB(datos) {
+    const { header, samples } = parseFSB5(datos);
+    const sample = samples[0];
+    if (!sample || !sample.data.length) return null;
+    if (header.codec.startsWith('PCM')) {
+        const wav = sampleAWav(sample, header.codec);
+        return wav ? ctx.decodeAudioData(wav.buffer) : null;
+    }
+    if (header.codec === 'MPEG') {
+        return ctx.decodeAudioData(sample.data.slice().buffer);
+    }
+    if (!codecsAvisados.has(header.codec)) {
+        codecsAvisados.add(header.codec);
+        console.warn(`[soundpack] códec FSB5 sin soporte: ${header.codec} (se usa el sintetizador)`);
+    }
+    return null;
+}
+
+/**
+ * Sondea `sounds/<id>.mp3` y después `sounds/<id>.fsb`, una única vez por
+ * id, y devuelve una Promise del AudioBuffer decodificado, o null si no
+ * existe o no decodifica. El resultado (incluido el null del 404) queda
+ * cacheado para siempre.
  */
 export function resolver(id) {
     if (cache.has(id)) return Promise.resolve(cache.get(id));
     if (pendientes.has(id)) return pendientes.get(id);
     if (!ctx) return Promise.resolve(null); // sin contexto aún: no se cachea
 
-    const p = fetch(BASE + id + '.mp3')
-        .then((res) => (res.ok ? res.arrayBuffer() : null))
-        .then((datos) => (datos ? ctx.decodeAudioData(datos) : null))
-        .catch(() => null) // 404, red o decodificación: silencio, sin throw
-        .then((buffer) => {
-            cache.set(id, buffer || null);
-            pendientes.delete(id);
-            return buffer || null;
-        });
+    const p = (async () => {
+        for (const ext of EXTS) {
+            try {
+                const res = await fetch(BASE + id + ext);
+                if (!res.ok) continue;
+                const datos = await res.arrayBuffer();
+                const buffer = ext === '.fsb'
+                    ? await decodificarFSB(datos)
+                    : await ctx.decodeAudioData(datos);
+                if (buffer) return buffer;
+            } catch { /* 404, red o decodificación: probar la siguiente */ }
+        }
+        return null;
+    })().then((buffer) => {
+        cache.set(id, buffer || null);
+        pendientes.delete(id);
+        return buffer || null;
+    });
     pendientes.set(id, p);
     return p;
 }

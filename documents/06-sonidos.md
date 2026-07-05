@@ -96,7 +96,12 @@ vex · creaking · breeze · warden · guardian
 
 ## Notas
 
-*   Formato: mp3 (se decodifica con WebAudio; cualquier tasa razonable).
+*   Formatos: **mp3** y **fsb** (bancos FMOD FSB5). Cada id sondea primero
+    `<id>.mp3` y después `<id>.fsb`. De los FSB se reproducen los códecs
+    PCM (8/16/24/32/float, envueltos en WAV) y MPEG (frames mp3 crudos);
+    los bancos VORBIS/ADPCM no son decodificables con WebAudio: avisan una
+    vez en consola y ese sonido lo cubre el sintetizador. Parser propio en
+    `js/fsb5.js` (aportado por el usuario, probado en la suite).
 *   Un archivo mal nombrado simplemente no se encuentra: no hay error, el
     sintetizador cubre ese sonido.
 *   El sondeo se cachea (incluidos los que no existen): si añades archivos
