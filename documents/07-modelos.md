@@ -140,9 +140,21 @@ variante que el render).
     (`leg0`/`leg3` ↔ `leg1`/`leg2`, o `front`/`back` + `left`/`right`);
     `leftarm`/`rightarm` en contrafase; alas a `flapL`/`flapR`; el resto
     queda rígido.
-*   Limitación: jerarquías de 2+ niveles (puntas de ala del murciélago…)
-    se posan bien pero no heredan la animación del padre (queda anotado
+*   **Rotaciones ancestrales horneadas**: en Bedrock un hijo hereda la
+    rotación del padre alrededor del pivote del padre (el cuello a −30°
+    del caballo arrastra cabeza, hocico, crin y orejas). Al aplanar, la
+    parte hija recibe esa rotación y el **pivote del ancestro rotado**,
+    reproduciendo la pose estática exacta; con varias rotaciones en la
+    cadena o pivotes en conflicto se suma por eje (aproximación anotada
     en `avisos`).
+*   **Filtro de atrezo** (`filtrarAtrezo` en `js/modelpack.js`): los
+    huesos de equipamiento que el juego original muestra por estado
+    (silla, bridas, bocado, riendas, alforjas, armaduras, alfombras…) se
+    descartan siempre — un burro salvaje no lleva silla — y `OCULTOS_MOB`
+    resuelve las variantes por especie (el geo del caballo trae los dos
+    juegos de orejas: el caballo enseña `Ear*` y el burro `MuleEar*`).
+*   Limitación: jerarquías de 2+ niveles se posan bien pero no heredan la
+    animación del padre (queda anotado en `avisos`).
 
 ## Notas
 

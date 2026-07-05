@@ -111,3 +111,4 @@
 | 107 | 2026-07-04 | [Decodificador FADPCM en JS puro y conversión del pack a mp3](2026-07-04_fadpcm.md) |
 | 108 | 2026-07-04 | [Mobs con ids en inglés y sonidos del árbol Bedrock: manifest y voz por criatura](2026-07-04_sonidos_arbol.md) |
 | 109 | 2026-07-04 | [Modelos geo: parser de geometrías .geo.json y override local con auto-piel](2026-07-04_modelos_geo.md) |
+| 110 | 2026-07-04 | [Corrección de modelos geo: burro deforme (atrezo y rotación del cuello)](2026-07-04_burro_deforme.md) |

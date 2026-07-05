@@ -1084,6 +1084,39 @@ console.log('== Modelos geo ==');
     const alfa = (x, y) => piel.data[(y * piel.w + x) * 4 + 3];
     check('la auto-piel pinta el desplegado del geo en su lienzo (y solo eso)',
         piel.w === 128 && piel.h === 64 && alfa(25, 11) === 255 && alfa(127, 63) === 0);
+
+    // horneado de rotaciones ancestrales: el hijo de un padre rotado hereda
+    // rot y pivote del padre (el cuello del caballo arrastra la cabeza)
+    const geoCadena = parseGeo({
+        format_version: '1.8.0',
+        'geometry.cadena': {
+            texturewidth: 32, textureheight: 32,
+            bones: [
+                { name: 'body', pivot: [0, 10, 0], cubes: [{ origin: [-2, 4, -2], size: [4, 6, 4], uv: [0, 0] }] },
+                { name: 'neck', parent: 'body', pivot: [0, 10, -2], rotation: [30, 0, 0], cubes: [{ origin: [-1, 10, -4], size: [2, 6, 3], uv: [0, 10] }] },
+                { name: 'head', parent: 'neck', pivot: [0, 16, -3], cubes: [{ origin: [-2, 16, -6], size: [4, 4, 4], uv: [0, 19] }] },
+            ],
+        },
+    })['geometry.cadena'];
+    const cabeza = geoCadena.partes.find((p) => p.name === 'head');
+    check('la rotación del ancestro se hornea en el hijo (rot y pivote heredados)',
+        !!cabeza && !!cabeza.rot && Math.abs(cabeza.rot[0] - (-30 * Math.PI / 180)) < 1e-9 &&
+        cabeza.pivot[0] === 0 && cabeza.pivot[1] === 10 && cabeza.pivot[2] === -2 &&
+        cabeza.origin[1] === 6 && cabeza.origin[2] === -4);
+
+    // filtro de atrezo por especie (modelpack): equipamiento fuera siempre;
+    // el burro conserva las orejas de mula y descarta las de caballo
+    const { filtrarAtrezo } = await import(base + 'modelpack.js');
+    const partesPrueba = ['Body', 'Saddle', 'ReinsL', 'Bridle_0', 'BitR', 'BagL', 'EarL', 'MuleEarL']
+        .map((name) => ({ name }));
+    const burro = filtrarAtrezo(partesPrueba, 'donkey').map((p) => p.name);
+    const caballo = filtrarAtrezo(partesPrueba, 'horse').map((p) => p.name);
+    check('el atrezo (silla, bridas, riendas, alforjas) se filtra siempre',
+        !burro.includes('Saddle') && !burro.includes('ReinsL') && !burro.includes('Bridle_0') &&
+        !burro.includes('BitR') && !burro.includes('BagL') && burro.includes('Body'));
+    check('cada especie muestra solo sus orejas (burro: mula; caballo: caballo)',
+        burro.includes('MuleEarL') && !burro.includes('EarL') &&
+        caballo.includes('EarL') && !caballo.includes('MuleEarL'));
 }
 
 console.log(`\nResultado: ${pass} OK, ${fail} FALLAN`);

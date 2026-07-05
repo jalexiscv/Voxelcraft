@@ -122,21 +122,47 @@ function convertirBones(bones, texW, texH) {
     for (const b of bones || []) porNombre.set(String(b.name).toLowerCase(), b);
 
     for (const hueso of bones || []) {
-        // diagnóstico de jerarquía: profundidad y rotaciones en ancestros
-        let prof = 0, rotAncestro = false;
+        // Cadena de ancestros: en Bedrock un hijo hereda la rotación del
+        // padre alrededor del pivote del padre (el cuello inclinado del
+        // caballo arrastra cabeza, hocico y orejas). Al aplanar, esa
+        // rotación se HORNEA en la parte: se acumulan las rotaciones
+        // ancestrales y el pivote efectivo pasa a ser el del ancestro
+        // rotado más cercano.
+        let prof = 0, rotAncestral = null, pivotAncestral = null, ancestrosRotados = 0;
         for (let p = hueso; p && p.parent && prof < 8; prof++) {
             p = porNombre.get(String(p.parent).toLowerCase());
-            if (p && convRot(p.bind_pose_rotation || p.rotation)) rotAncestro = true;
+            const r = p && convRot(p.bind_pose_rotation || p.rotation);
+            if (r) {
+                ancestrosRotados++;
+                if (!rotAncestral) {
+                    rotAncestral = [r[0], r[1], r[2]];
+                    pivotAncestral = p.pivot || [0, 0, 0];
+                } else {
+                    // varias rotaciones en la cadena: suma por eje (aprox.)
+                    rotAncestral = rotAncestral.map((v, i) => v + r[i]);
+                }
+            }
         }
         if (hueso.neverRender || !Array.isArray(hueso.cubes) || !hueso.cubes.length) continue;
-        if (prof >= 2) {
-            avisos.push(`hueso «${hueso.name}»: cadena de ${prof + 1} niveles`
-                + (rotAncestro ? ' con rotación en un ancestro' : '')
-                + '; la pose plana es correcta pero no seguirá la animación del padre');
+        if (prof >= 2 && !rotAncestral) {
+            avisos.push(`hueso «${hueso.name}»: cadena de ${prof + 1} niveles; `
+                + 'la pose plana es correcta pero no seguirá la animación del padre');
         }
 
-        const pivote = hueso.pivot || [0, 0, 0];
-        const rot = convRot(hueso.bind_pose_rotation || hueso.rotation);
+        const pivotePropio = hueso.pivot || [0, 0, 0];
+        const rotPropia = convRot(hueso.bind_pose_rotation || hueso.rotation);
+        // pivote efectivo: el del ancestro rotado (si lo hay) para que la
+        // rotación horneada gire la caja hacia su pose real
+        const pivote = rotAncestral ? pivotAncestral : pivotePropio;
+        let rot = rotPropia;
+        if (rotAncestral) {
+            rot = rotPropia ? rotPropia.map((v, i) => v + rotAncestral[i]) : rotAncestral;
+            if (ancestrosRotados > 1 || (rotPropia
+                && (pivotePropio[0] !== pivote[0] || pivotePropio[1] !== pivote[1] || pivotePropio[2] !== pivote[2]))) {
+                avisos.push(`hueso «${hueso.name}»: rotaciones compuestas con pivotes `
+                    + 'distintos; pose horneada aproximada (suma por eje)');
+            }
+        }
         const anim = animForBone(hueso.name);
         const varios = hueso.cubes.length > 1;
 

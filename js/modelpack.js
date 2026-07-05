@@ -64,6 +64,30 @@ export const ARCHIVO_MOB = {
 };
 
 /**
+ * Huesos de ATREZO: equipamiento que el juego original muestra u oculta por
+ * estado (silla, bridas, bocado, riendas, alforjas, armaduras, alfombras…).
+ * Nuestro render dibuja todas las partes, así que se filtran siempre — un
+ * burro salvaje no lleva silla. Se compara contra el nombre de la parte
+ * (que conserva el del hueso, con sufijo _n en huesos multi-cubo).
+ */
+export const ATREZO = /^(saddle|bridle|bit[lr]?|rein|bag[lr]?|harness|rope|leash|armor|carpet|decor)/i;
+
+/**
+ * Huesos ocultos POR ESPECIE: el geo del caballo trae los dos juegos de
+ * orejas (caballo y mula) y cada variante enseña el suyo.
+ */
+export const OCULTOS_MOB = {
+    horse: /^muleear/i,
+    donkey: /^ear/i, // conserva MuleEar*: /^ear/ no casa «muleear»
+};
+
+/** Filtra el atrezo (y los ocultos de la especie) de una lista de partes. */
+export function filtrarAtrezo(partes, mobId) {
+    const propio = OCULTOS_MOB[mobId];
+    return partes.filter((p) => !ATREZO.test(p.name) && !(propio && propio.test(p.name)));
+}
+
+/**
  * Clave geometry.* preferida en archivos con varias geometrías (si no está,
  * se elige la primera con partes). La oveja y la bruja son las versiones con
  * herencia (lana / sombrero); el pez globo, la talla grande clásica.
@@ -245,7 +269,12 @@ export function modeloDe(mobId) {
             }
         }
         return null;
-    })().then((modelo) => {
+    })().then((bruto) => {
+        // sin el atrezo la lista puede quedar vacía: entonces no hay modelo
+        const modelo = bruto && (() => {
+            const partes = filtrarAtrezo(bruto.partes, mobId);
+            return partes.length ? { ...bruto, partes } : null;
+        })();
         cacheModelos.set(mobId, modelo || null);
         pendModelos.delete(mobId);
         return modelo || null;
