@@ -72,16 +72,19 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
 - **Dron escapista** (`dron_escapista`) — dron de PRÁCTICA (IA
   `behavior.evasive`). Vuela como un **mosquito**: SIEMPRE a máxima
   velocidad (`flySpeed` **hasta 3× la de un dron**), con quiebres BRUSCOS
-  de rumbo y altura cada `dartFast`/`dartSlow` s — cambios de dirección
-  casi instantáneos («ángulos imposibles») que **no frenan la marcha**,
-  porque con `snapTurn` la velocidad salta al rumbo nuevo en vez de
-  reorientarse poco a poco. Sobre ese zigzag corre una **patrulla de largo
-  alcance**: se aleja del jugador hasta `roamRadius` (**≈6× lo que orbita
-  un dron**) subiendo hasta `roamCeil` (**≈6× más alto**), luego REGRESA a
-  probar el perímetro cercano (`nearRadius`) y vuelve a alejarse, así en
-  ciclo. Si un cazador (dron/antidron) entra en su `alertRadius`, la
-  evasión (huir en dirección opuesta, quebrando más a menudo) tiene
-  prioridad sobre la fase. Es una **presa de práctica**
+  de rumbo y altura — cambios de dirección casi instantáneos («ángulos
+  imposibles») que **no frenan la marcha**, porque con `snapTurn` la
+  velocidad salta al rumbo nuevo en vez de reorientarse poco a poco. Sin
+  cazadores cerca corre una **patrulla de largo alcance**: se aleja del
+  jugador hasta `roamRadius` (**≈6× lo que orbita un dron**) subiendo hasta
+  `roamCeil` (**≈6× más alto**), luego REGRESA a probar el perímetro
+  cercano (`nearRadius`) y vuelve a alejarse, así en ciclo. Cuando un
+  cazador (dron/antidron) entra en su `alertRadius`, cambia a un **salto
+  evasivo con pausa** (`evadeHop`): alterna una ráfaga de desplazamiento y
+  una breve PAUSA quieto (`hopPause`), y la distancia de cada salto es el
+  **DOBLE de lo que el cazador recorre durante esa pausa** (su velocidad ×
+  `hopPause` × 2), así gana una ventaja neta prudente cada vez y el salto
+  escala con lo rápido que sea el perseguidor. Es una **presa de práctica**
   (`behavior.quarry`): **drones y antidrones lo persiguen de inmediato** —
   el guardián lo caza sin inspección (prioridad sobre todo lo demás) y el
   antidron lo detecta como objetivo igual que a un dron. No ataca a nadie.

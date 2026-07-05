@@ -106,6 +106,14 @@ export class Mob {
         this.roamPhase = 'out';
         this.roamRadius = 0;
         this.roamCeil = 0;
+        // salto evasivo del escapista al ser perseguido: alterna fase de
+        // SALTO (ráfaga a máxima velocidad) y PAUSA (quieto un instante).
+        // hopEvadeT cuenta la fase actual y hopDist lo que resta del salto.
+        this.hopEvadePhase = 'idle'; // 'idle' | 'leap' | 'pause'
+        this.hopEvadeT = 0;
+        this.hopStartX = 0;
+        this.hopStartZ = 0;
+        this.hopDist = 0;
     }
 
     dying() { return this.dieT >= 0; }
@@ -283,6 +291,11 @@ export class MobSystem {
             if (d < (b.alertRadius || 24) && d < mejor) { mejor = d; caza = otro; }
         }
 
+        // PERSEGUIDO: salta a una distancia prudente y hace una breve pausa
+        // (ver evadeHop). Es una máquina aparte del zigzag de patrulla.
+        if (caza) { this.evadeHop(m, dt, ctx, caza); return; }
+        m.hopEvadePhase = 'idle'; // sin cazador: se cancela cualquier salto
+
         // patrulla de largo alcance: distancia horizontal al jugador y a qué
         // fase pertenece. Al llegar al extremo de la fase, cambia de fase y
         // sortea nuevos objetivos (radio/altura) para la siguiente.
@@ -298,27 +311,17 @@ export class MobSystem {
             this.nuevoRoam(m, maxRadius, maxCeil);
         }
 
-        // quiebre de mosquito: cada intervalo (más corto si lo persiguen)
-        // reescribe el rumbo y la altura objetivo DE GOLPE — el giro es
-        // discontinuo. Un choque de pared fuerza otro.
-        const periodo = caza ? (b.dartFast || 0.28) : (b.dartSlow || 0.6);
+        // quiebre de mosquito: cada intervalo reescribe el rumbo y la altura
+        // objetivo DE GOLPE — el giro es discontinuo. Un choque de pared
+        // fuerza otro.
         if (m.dartT <= 0 || m.hitWall) {
-            m.dartT = periodo * (0.6 + this.rng.float() * 0.8);
-            let base;
-            if (caza) {
-                // PRIORIDAD: huir del cazador, rumbo opuesto ± abanico ancho
-                const away = Math.atan2(-(m.pos[0] - caza.pos[0]), -(m.pos[2] - caza.pos[2])) + Math.PI;
-                base = away + (this.rng.float() * 2 - 1) * (b.evadeSpread || 1.6);
-            } else {
-                // sin cazador: el rumbo base sigue la FASE (alejarse del
-                // jugador u orientarse hacia él) con un abanico de zigzag
-                const haciaJ = Math.atan2(-(ctx.pos[0] - m.pos[0]), -(ctx.pos[2] - m.pos[2]));
-                const objetivo = m.roamPhase === 'out' ? haciaJ + Math.PI : haciaJ;
-                base = objetivo + (this.rng.float() * 2 - 1) * (b.roamSpread || 1.1);
-            }
-            m.dartYaw = base;
+            m.dartT = (b.dartSlow || 0.6) * (0.6 + this.rng.float() * 0.8);
+            // el rumbo base sigue la FASE (alejarse del jugador u orientarse
+            // hacia él) con un abanico de zigzag
+            const haciaJ = Math.atan2(-(ctx.pos[0] - m.pos[0]), -(ctx.pos[2] - m.pos[2]));
+            const objetivo = m.roamPhase === 'out' ? haciaJ + Math.PI : haciaJ;
+            m.dartYaw = objetivo + (this.rng.float() * 2 - 1) * (b.roamSpread || 1.1);
             // altura: en 'out' sube hacia el techo de la ronda; en 'in' baja
-            // cerca de la altura del jugador; siempre con brincos aleatorios
             const suelo = this.world.hasChunk(Math.floor(m.pos[0]) >> 4, Math.floor(m.pos[2]) >> 4)
                 ? this.world.surfaceY(Math.floor(m.pos[0]), Math.floor(m.pos[2])) + 1 : m.pos[1];
             const techo = m.roamPhase === 'out' ? m.roamCeil : (b.ceiling || 9) * 0.5;
@@ -331,6 +334,58 @@ export class MobSystem {
         m.speed = m.def.flySpeed || m.def.speed;
         // mira hacia donde vuela (da sensación de reacción nerviosa)
         this.lookAt(m, [m.pos[0] - Math.sin(m.yaw) * 4, m.pos[1], m.pos[2] - Math.cos(m.yaw) * 4]);
+    }
+
+    /**
+     * Salto EVASIVO del escapista al ser perseguido: alterna una ráfaga de
+     * desplazamiento (fase 'leap', a máxima velocidad) con una breve PAUSA
+     * quieto (fase 'pause'). La distancia de cada salto se fija en el DOBLE
+     * de lo que el cazador puede recorrer durante esa pausa (su velocidad ×
+     * duración de la pausa), así el escapista gana ventaja neta cada vez —
+     * una distancia «prudente» y una evasión realista. El rumbo del salto
+     * huye del cazador con un abanico ancho (impredecible).
+     */
+    evadeHop(m, dt, ctx, caza) {
+        const b = m.def.behavior;
+        const pausa = b.hopPause || 0.35;         // duración de la pausa (s)
+        const velCaza = caza.def.flySpeed || caza.def.speed || 4.5;
+        // distancia prudente: 2× lo que el cazador avanza durante la pausa
+        const distObjetivo = 2 * velCaza * pausa;
+
+        // arranca en fase de salto si venía de la patrulla
+        if (m.hopEvadePhase === 'idle') m.hopEvadePhase = 'leap';
+        m.hopEvadeT -= dt;
+
+        if (m.hopEvadePhase === 'leap') {
+            // ¿recién iniciado el salto? fija rumbo de huida y su distancia
+            if (m.hopEvadeT <= 0 && m.hopDist <= 0) {
+                const away = Math.atan2(-(m.pos[0] - caza.pos[0]), -(m.pos[2] - caza.pos[2])) + Math.PI;
+                m.dartYaw = away + (this.rng.float() * 2 - 1) * (b.evadeSpread || 1.6);
+                m.hopStartX = m.pos[0]; m.hopStartZ = m.pos[2];
+                m.hopDist = distObjetivo;
+                // altura del salto: brinco aleatorio dentro de la banda
+                const suelo = this.world.hasChunk(Math.floor(m.pos[0]) >> 4, Math.floor(m.pos[2]) >> 4)
+                    ? this.world.surfaceY(Math.floor(m.pos[0]), Math.floor(m.pos[2])) + 1 : m.pos[1];
+                m.dartY = suelo + 3 + this.rng.float() * (b.ceiling || 9);
+            }
+            // vuela a máxima velocidad en el rumbo del salto
+            m.yaw = m.dartYaw;
+            m.targetY = m.dartY;
+            m.speed = m.def.flySpeed || m.def.speed;
+            // ¿ya recorrió la distancia del salto (o chocó)? → pausa
+            const avanzado = Math.hypot(m.pos[0] - m.hopStartX, m.pos[2] - m.hopStartZ);
+            if (avanzado >= m.hopDist || m.hitWall) {
+                m.hopEvadePhase = 'pause';
+                m.hopEvadeT = pausa;
+                m.hopDist = 0;
+            }
+        } else { // 'pause': quieto en su sitio un instante (flota inmóvil)
+            m.speed = 0;
+            m.targetY = m.pos[1];                 // mantiene la altura, sin subir
+            if (m.hopEvadeT <= 0) m.hopEvadePhase = 'leap'; // pausa cumplida: otro salto
+        }
+        // mira al cazador durante la maniobra (vigilándolo mientras evade)
+        this.lookAt(m, [caza.pos[0], caza.pos[1] + 0.3, caza.pos[2]]);
     }
 
     /** Sortea el radio y el techo de la próxima salida de la patrulla. */

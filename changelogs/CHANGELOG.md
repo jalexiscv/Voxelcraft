@@ -135,3 +135,4 @@
 | 131 | 2026-07-05 | [Dron escapista: presa de práctica veloz con vuelo errático de mosquito](2026-07-05_dron_escapista.md) |
 | 132 | 2026-07-05 | [Dron escapista: patrulla de largo alcance (aleja ×6, sube ×6 y regresa)](2026-07-05_escapista_patrulla_larga.md) |
 | 133 | 2026-07-05 | [Desatasco por ascenso: los voladores atascados en el suelo se elevan](2026-07-05_desatasco_voladores.md) |
+| 134 | 2026-07-05 | [Dron escapista: salto evasivo con pausa (distancia = 2× el recorrido del cazador)](2026-07-05_escapista_salto_evasivo.md) |
