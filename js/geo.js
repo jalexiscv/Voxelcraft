@@ -122,16 +122,18 @@ function convertirBones(bones, texW, texH) {
     for (const b of bones || []) porNombre.set(String(b.name).toLowerCase(), b);
 
     for (const hueso of bones || []) {
-        // Cadena de ancestros: en Bedrock un hijo hereda la rotación del
+        // Cadena de ancestros: en Bedrock un hijo hereda la `rotation` del
         // padre alrededor del pivote del padre (el cuello inclinado del
         // caballo arrastra cabeza, hocico y orejas). Al aplanar, esa
         // rotación se HORNEA en la parte: se acumulan las rotaciones
         // ancestrales y el pivote efectivo pasa a ser el del ancestro
-        // rotado más cercano.
+        // rotado más cercano. OJO: `bind_pose_rotation` (legacy 1.8, la
+        // vaca o la tortuga) NO se hereda — solo posa el propio hueso; sus
+        // hijos ya traen las coordenadas en pose final.
         let prof = 0, rotAncestral = null, pivotAncestral = null, ancestrosRotados = 0;
         for (let p = hueso; p && p.parent && prof < 8; prof++) {
             p = porNombre.get(String(p.parent).toLowerCase());
-            const r = p && convRot(p.bind_pose_rotation || p.rotation);
+            const r = p && convRot(p.rotation);
             if (r) {
                 ancestrosRotados++;
                 if (!rotAncestral) {

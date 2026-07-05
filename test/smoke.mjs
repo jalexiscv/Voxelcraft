@@ -1104,6 +1104,26 @@ console.log('== Modelos geo ==');
         cabeza.pivot[0] === 0 && cabeza.pivot[1] === 10 && cabeza.pivot[2] === -2 &&
         cabeza.origin[1] === 6 && cabeza.origin[2] === -4);
 
+    // bind_pose_rotation (legacy 1.8) posa SOLO al propio hueso: los hijos
+    // traen coordenadas finales y NO la heredan (vaca, tortuga)
+    const geoLegacy = parseGeo({
+        format_version: '1.8.0',
+        'geometry.legacy': {
+            texturewidth: 32, textureheight: 32,
+            bones: [
+                { name: 'body', pivot: [0, 12, 0], bind_pose_rotation: [90, 0, 0],
+                  cubes: [{ origin: [-3, 6, -4], size: [6, 10, 8], uv: [0, 0] }] },
+                { name: 'head', parent: 'body', pivot: [0, 14, -5],
+                  cubes: [{ origin: [-2, 12, -9], size: [4, 4, 4], uv: [0, 18] }] },
+            ],
+        },
+    })['geometry.legacy'];
+    const cuerpoLegacy = geoLegacy.partes.find((p) => p.name === 'body');
+    const cabezaLegacy = geoLegacy.partes.find((p) => p.name === 'head');
+    check('bind_pose ancestral NO se hereda (el hijo queda sin rot y con su pivote)',
+        !!cuerpoLegacy.rot && !cabezaLegacy.rot &&
+        cabezaLegacy.pivot[1] === 14 && cabezaLegacy.pivot[2] === -5);
+
     // filtro de atrezo por especie (modelpack): equipamiento fuera siempre;
     // el burro conserva las orejas de mula y descarta las de caballo
     const { filtrarAtrezo } = await import(base + 'modelpack.js');
