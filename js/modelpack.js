@@ -90,34 +90,52 @@ export function filtrarAtrezo(partes, mobId) {
 const G = Math.PI / 180;
 
 /**
- * POSE por especie: rotaciones estáticas adicionales por hueso (grados
- * [x, y, z]) que se SUMAN a la rot convertida. Cubre lo que el formato geo
- * deja a la animación de runtime del juego original (que no viene en los
- * archivos): la araña, por ejemplo, trae las 8 patas como cajas rectas
- * apiladas hacia ±x y el abanico clásico lo pone Molang — aquí se hornea.
- * Pares = lado −x, impares = lado +x; traseras (leg0/1) hacia atrás,
- * delanteras (leg6/7) hacia delante, con las puntas caídas al suelo.
+ * POSE por especie: ajustes estáticos por hueso que se SUMAN a la
+ * conversión — `rot` en grados [x, y, z] y/o `mov` en px [x, y, z]
+ * (traslada el pivote; la caja, relativa a él, viaja entera y la
+ * animación gira alrededor del pivote nuevo). Cubre lo que el formato geo
+ * deja al código/animación de runtime del juego original (que no viene en
+ * los archivos):
+ * - La araña trae las 8 patas como cajas rectas apiladas hacia ±x y el
+ *   abanico clásico lo pone Molang: pares = lado −x, impares = +x;
+ *   traseras (leg0/1) hacia atrás, delanteras (leg6/7) hacia delante,
+ *   puntas caídas al suelo.
+ * - El enderman legacy trae la cabeza incrustada en el torso (y 24-32,
+ *   con la capucha flotando en su sitio real) y las piernas 4 px bajo el
+ *   suelo: el renderer original las recolocaba por código.
  */
 const ABANICO_ARANA = {
-    leg0: [0, 40, 15], leg1: [0, -40, -15],
-    leg2: [0, 15, 12], leg3: [0, -15, -12],
-    leg4: [0, -15, 12], leg5: [0, 15, -12],
-    leg6: [0, -40, 15], leg7: [0, 40, -15],
+    leg0: { rot: [0, 40, 15] }, leg1: { rot: [0, -40, -15] },
+    leg2: { rot: [0, 15, 12] }, leg3: { rot: [0, -15, -12] },
+    leg4: { rot: [0, -15, 12] }, leg5: { rot: [0, 15, -12] },
+    leg6: { rot: [0, -40, 15] }, leg7: { rot: [0, 40, -15] },
 };
 export const POSE_MOB = {
     spider: ABANICO_ARANA,
     cave_spider: ABANICO_ARANA,
+    enderman: {
+        head: { mov: [0, 14, 0] },     // 24..32 → 38..46, sobre el torso
+        rightleg: { mov: [0, 4, 0] },  // −4..26 → 0..30: pies a ras
+        leftleg: { mov: [0, 4, 0] },
+    },
 };
 
-/** Suma la pose de la especie (si la hay) a las partes convertidas. */
+/** Aplica la pose de la especie (si la hay) a las partes convertidas. */
 export function aplicarPose(partes, mobId) {
     const pose = POSE_MOB[mobId];
     if (!pose) return partes;
     return partes.map((p) => {
         const extra = pose[String(p.name).toLowerCase()];
         if (!extra) return p;
-        const rot = p.rot || [0, 0, 0];
-        return { ...p, rot: [rot[0] + extra[0] * G, rot[1] + extra[1] * G, rot[2] + extra[2] * G] };
+        const ajustada = { ...p };
+        if (extra.rot) {
+            const rot = p.rot || [0, 0, 0];
+            ajustada.rot = [rot[0] + extra.rot[0] * G, rot[1] + extra.rot[1] * G, rot[2] + extra.rot[2] * G];
+        }
+        if (extra.mov) {
+            ajustada.pivot = [p.pivot[0] + extra.mov[0], p.pivot[1] + extra.mov[1], p.pivot[2] + extra.mov[2]];
+        }
+        return ajustada;
     });
 }
 

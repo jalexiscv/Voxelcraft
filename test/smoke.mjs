@@ -1172,6 +1172,22 @@ console.log('== Modelos geo ==');
         Math.abs(rotY('leg6') + rotY('leg0')) < 1e-9 && Math.abs(rotY('leg7') + rotY('leg1')) < 1e-9);
     check('la pose por especie no toca a los demás mobs',
         aplicarPose(patas, 'cow').every((p) => !p.rot));
+
+    // traslados de pose: el enderman legacy trae la cabeza incrustada en el
+    // torso y los pies 4 px bajo tierra; mov desplaza el pivote (la caja,
+    // relativa a él, viaja entera) sin añadir rotación
+    const huesos = [
+        { name: 'head', pivot: [0, 24, 0], origin: [-4, 0, -4] },
+        { name: 'rightLeg', pivot: [-2, 26, 0], origin: [-1, -30, -1] },
+        { name: 'body', pivot: [0, 38, 0], origin: [-4, -12, -2] },
+    ];
+    const ender = aplicarPose(huesos, 'enderman');
+    check('el enderman recoloca cabeza y piernas por traslado de pivote',
+        ender.find((p) => p.name === 'head').pivot[1] === 38 &&
+        ender.find((p) => p.name === 'rightLeg').pivot[1] === 30 &&
+        ender.find((p) => p.name === 'body').pivot[1] === 38 &&
+        ender.every((p) => !p.rot) &&
+        ender.find((p) => p.name === 'head').origin[1] === 0);
 }
 
 /* ==== Templo del origen: monumento fijo en el punto de aparición ==== */
