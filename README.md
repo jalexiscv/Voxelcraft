@@ -32,6 +32,7 @@ Minecraft/
 | 03 | [Sistema de biomas](documents/03-biomas.md) | 14 biomas: clima, materiales, vegetación y mobs por bioma |
 | 04 | [Items y drops](documents/04-items.md) | Botín de los mobs, horno y fundición, herramientas, bloques funcionales, agricultura |
 | 05 | [Aldeas](documents/05-aldeas.md) | Generación procedural de aldeas: algoritmo por celdas, 8 arquetipos, paletas por bioma |
+| 06 | [Sonidos](documents/06-sonidos.md) | Catálogo de eventos y voces, y nombres de archivo del pack local opcional |
 
 ## Historial de cambios
 
