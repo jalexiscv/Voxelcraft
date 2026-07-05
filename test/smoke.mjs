@@ -494,6 +494,54 @@ check('altura de salto ≈ 1–1.5 bloques', maxY - yRest > 0.9 && maxY - yRest 
     check('una pared alta no catapulta fuera del agua', muro.pos[1] < 13);
 }
 
+console.log('== Reaparición en la superficie ==');
+{
+    // morir lejos del origen: unloadFar descarga los chunks del origen, así
+    // que la búsqueda debe caer a la zona de la muerte (siempre cargada) y
+    // no dejar al jugador enterrado en y≈1 bajo la barrera (bug corregido)
+    const meseta = () => {
+        const b = new Uint8Array(CHUNK * 64 * CHUNK);
+        b.fill(B.STONE, 0, 40 * CHUNK * CHUNK); // superficie en y=39, sobre el mar
+        return b;
+    };
+    const wLejos = new World(7);
+    for (let cx = 30; cx <= 32; cx++) {
+        for (let cz = 30; cz <= 32; cz++) wLejos.addChunk(cx, cz, meseta());
+    }
+    const viajero = new Player();
+    viajero.pos = [500.5, 45, 500.5];
+    viajero.spawn(wLejos);
+    check('reaparición lejos del origen: en la superficie de la zona cargada',
+        viajero.pos[0] === 500.5 && viajero.pos[2] === 500.5 &&
+        Math.abs(viajero.pos[1] - 40.01) < 1e-9);
+
+    // en pleno océano (ninguna columna seca): se flota en la superficie del
+    // agua, no se aparece en el fondo marino
+    const oceano = () => {
+        const b = new Uint8Array(CHUNK * 64 * CHUNK);
+        b.fill(B.STONE, 0, 8 * CHUNK * CHUNK);
+        b.fill(B.WATER, 8 * CHUNK * CHUNK, 31 * CHUNK * CHUNK); // agua hasta y=30
+        return b;
+    };
+    const wMar = new World(8);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wMar.addChunk(cx, cz, oceano());
+    }
+    const naufrago = new Player();
+    naufrago.pos = [4.5, 20, 4.5];
+    naufrago.spawn(wMar);
+    check('reaparición en el océano: flotando en la superficie del agua',
+        Math.abs(naufrago.pos[1] - 31.01) < 1e-9);
+
+    // sin ningún chunk cargado (caso límite): desde el techo del mundo se
+    // cae sobre la barrera de chunks, nunca bajo ella
+    const perdido = new Player();
+    perdido.pos = [900.5, 10, 900.5];
+    perdido.spawn(new World(9));
+    check('sin chunks cargados se reaparece en el techo del mundo, no bajo la barrera',
+        perdido.pos[1] > 60);
+}
+
 console.log('== Guardado RLE por chunk ==');
 const chunk00 = world.chunks.get('0,0').blocks;
 const enc = rleEncode(chunk00);

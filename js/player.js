@@ -37,26 +37,21 @@ export class Player {
     }
 
     /**
-     * Coloca al jugador sobre tierra firme cerca del origen: busca en anillos
-     * crecientes la primera columna generada, seca y sobre el nivel del mar.
-     * `radius` limita la búsqueda al área ya cargada.
+     * Coloca al jugador sobre la SUPERFICIE: busca en anillos crecientes la
+     * primera columna generada, seca y sobre el nivel del mar, primero
+     * alrededor del origen (el punto de aparición del mundo) y, si su zona
+     * no está generada (los chunks lejanos se descargan al viajar y las
+     * partidas guardadas arrancan lejos de él), alrededor de la posición
+     * actual — el terreno donde se acaba de morir siempre está cargado.
+     * Última red: la cima de la columna actual (agua incluida), que jamás
+     * deja al jugador enterrado. `radius` limita cada búsqueda.
      */
     spawn(world, radius = 64) {
-        let sx = 0, sz = 0;
-        outer:
-        for (let r = 0; r < radius; r++) {
-            for (let dx = -r; dx <= r; dx++) {
-                for (let dz = -r; dz <= r; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue; // solo el anillo
-                    const y = world.surfaceY(dx, dz);
-                    if (y >= 1 && y + 1 >= world.sy / 2 && world.get(dx, y + 1, dz) !== B.WATER) {
-                        sx = dx; sz = dz;
-                        break outer;
-                    }
-                }
-            }
-        }
-        this.pos = [sx + 0.5, world.surfaceY(sx, sz) + 1.01, sz + 0.5];
+        const [px, pz] = [Math.floor(this.pos[0]), Math.floor(this.pos[2])];
+        const sitio = buscarSuperficie(world, 0, 0, radius)
+            || buscarSuperficie(world, px, pz, radius)
+            || cimaColumna(world, px, pz);
+        this.pos = [sitio[0] + 0.5, sitio[1] + 1.01, sitio[2] + 0.5];
         this.vel = [0, 0, 0];
         this.yaw = 0;
         this.pitch = 0;
@@ -187,6 +182,44 @@ export class Player {
     groundBlock(world) {
         return world.get(Math.floor(this.pos[0]), Math.floor(this.pos[1] - 0.5), Math.floor(this.pos[2]));
     }
+}
+
+/**
+ * Primera columna generada, seca y sobre el nivel del mar en anillos
+ * crecientes alrededor de (cx, cz): [x, y, z] con y su superficie sólida,
+ * o null si no la hay dentro de `radius`.
+ */
+function buscarSuperficie(world, cx, cz, radius) {
+    for (let r = 0; r < radius; r++) {
+        for (let dx = -r; dx <= r; dx++) {
+            for (let dz = -r; dz <= r; dz++) {
+                if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue; // solo el anillo
+                const x = cx + dx, z = cz + dz;
+                if (!world.hasChunk(x >> 4, z >> 4)) continue; // sin generar: no hay superficie
+                const y = world.surfaceY(x, z);
+                if (y >= 1 && y + 1 >= world.sy / 2 && world.get(x, y + 1, z) !== B.WATER) {
+                    return [x, y, z];
+                }
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Cima de la columna (el bloque no-aire más alto, agua incluida), red de
+ * seguridad final del spawn: en pleno océano se reaparece flotando en la
+ * superficie del agua en vez de en el fondo, y sobre territorio sin
+ * generar se cae desde el techo del mundo hasta la barrera de chunks —
+ * jamás se reaparece enterrado bajo el terreno.
+ */
+function cimaColumna(world, x, z) {
+    if (world.hasChunk(x >> 4, z >> 4)) {
+        for (let y = world.sy - 1; y >= 0; y--) {
+            if (world.get(x, y, z) !== B.AIR) return [x, y, z];
+        }
+    }
+    return [x, world.sy - 1, z];
 }
 
 function approach(current, target, maxDelta) {

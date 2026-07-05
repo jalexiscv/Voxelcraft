@@ -67,7 +67,7 @@ Sin sistema de objetos, domesticación, monturas, crías ni comercio, algunos mo
 
 ## Salud del jugador
 
-20 medios corazones sobre la hotbar. Daño por mobs y flechas con retroceso y viñeta roja; regeneración de ½ corazón cada 4 s tras 8 s sin daño; al llegar a 0, pantalla «Has muerto» con reaparición (la partida no se pierde).
+20 medios corazones sobre la hotbar. Daño por mobs y flechas con retroceso y viñeta roja; regeneración de ½ corazón cada 4 s tras 8 s sin daño; al llegar a 0, pantalla «Has muerto» con reaparición SIEMPRE en la superficie (la partida no se pierde): cerca del origen si su zona sigue generada y, si no — los chunks lejanos se descargan al viajar —, sobre el terreno donde se murió (en pleno océano, flotando en el agua).
 
 ## Verificación
 
