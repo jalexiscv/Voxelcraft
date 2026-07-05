@@ -84,7 +84,9 @@ de aparición** del modo creativo. Se registran tras el elenco vanilla en
   una breve PAUSA quieto (`hopPause`), y la distancia de cada salto es el
   **DOBLE de lo que el cazador recorre durante esa pausa** (su velocidad ×
   `hopPause` × 2), así gana una ventaja neta prudente cada vez y el salto
-  escala con lo rápido que sea el perseguidor. Es una **presa de práctica**
+  escala con lo rápido que sea el perseguidor. Cada salto deja un **rastro
+  de partículas** magenta (efecto `evade_trail`) que traza su huida. Es una
+  **presa de práctica**
   (`behavior.quarry`): **drones y antidrones lo persiguen de inmediato** —
   el guardián lo caza sin inspección (prioridad sobre todo lo demás) y el
   antidron lo detecta como objetivo igual que a un dron. No ataca a nadie.

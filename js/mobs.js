@@ -367,6 +367,14 @@ export class MobSystem {
                 const suelo = this.world.hasChunk(Math.floor(m.pos[0]) >> 4, Math.floor(m.pos[2]) >> 4)
                     ? this.world.surfaceY(Math.floor(m.pos[0]), Math.floor(m.pos[2])) + 1 : m.pos[1];
                 m.dartY = suelo + 3 + this.rng.float() * (b.ceiling || 9);
+                // rastro de partículas al arrancar el salto (efecto visual de
+                // la evasión): estela en el punto de despegue, en dirección
+                // OPUESTA a la huida (queda por detrás del dron)
+                if (this.hooks.particles) {
+                    this.hooks.particles('evade_trail', m, {
+                        x: Math.sin(m.dartYaw), z: Math.cos(m.dartYaw),
+                    });
+                }
             }
             // vuela a máxima velocidad en el rumbo del salto
             m.yaw = m.dartYaw;

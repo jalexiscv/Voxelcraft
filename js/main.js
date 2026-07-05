@@ -266,6 +266,12 @@ function boot() {
             sound.explosion();
             if (pos) disparar('explosion', pos);
         },
+        // efecto de partículas genérico que un mob pide en su propia
+        // posición (p. ej. el rastro del escapista al saltar). `vars` pasa
+        // las variables de contexto del efecto (dirección de la estela…)
+        particles: (evento, m, vars = {}) => {
+            disparar(evento, [m.pos[0], m.pos[1] + m.def.aabb.h * 0.5, m.pos[2]], vars);
+        },
         // botín al morir un mob: solo en supervivencia (en creativo no hay)
         drop: (id, x, y, z) => {
             if (game.mode !== 'supervivencia') return;

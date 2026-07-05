@@ -21,6 +21,7 @@ export const EFECTOS = {
     mob_death: ['explosion_death'],
     mob_hurt: ['basic_crit'],
     block_break: ['block_destruct'],
+    evade_trail: ['vc_evade_trail'], // rastro del escapista al saltar
 };
 
 /** nombre de fichero → Promise<descriptor|null> (sondeo único cacheado). */

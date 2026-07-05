@@ -1505,6 +1505,15 @@ console.log('== Partículas ==');
         Math.abs(snapD[0].color[0] - 0.6) < 1e-9 && Math.abs(snapD[0].color[1] - 0.4) < 1e-9);
     check('la UV del fragmento sale del sub-tésela del atlas de terreno',
         snapD[0].uv[0] >= 0.1 && snapD[0].uv[0] < 0.1 + 0.0625);
+
+    // rastro del escapista: estela magenta que usa variable.direction
+    const trail = cargar('vc_evade_trail');
+    const sysT = new ParticleSystem(rng, 50);
+    sysT.emit(trail, [10, 15, 10], { direction: { x: 0.7, z: -0.7 } });
+    check('el rastro del escapista emite su estela', sysT.list.length >= 1);
+    const snapT = sysT.snapshot();
+    check('la estela es magenta (acento del escapista)',
+        snapT[0].color[0] > 0.6 && snapT[0].color[2] > 0.5 && snapT[0].color[1] < 0.4);
 }
 
 /* ==== Cámara de vigilancia: bloque dinámico dibujado como entidad ==== */

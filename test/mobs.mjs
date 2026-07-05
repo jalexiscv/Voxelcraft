@@ -44,12 +44,13 @@ class MockWorld {
 }
 
 const silentHooks = () => {
-    const calls = { sounds: [], damage: [], explosions: 0 };
+    const calls = { sounds: [], damage: [], explosions: 0, particles: [] };
     return {
         calls,
         sound: (kind) => calls.sounds.push(kind),
         damagePlayer: (dmg, dir) => calls.damage.push({ dmg, dir }),
         explosion: () => calls.explosions++,
+        particles: (evento, m, vars) => calls.particles.push({ evento, vars }),
     };
 };
 
@@ -801,6 +802,23 @@ console.log('== Dron escapista ==');
         simulate(s, 5, cerca);
         const d1 = Math.hypot(e.pos[0] - g.pos[0], e.pos[2] - g.pos[2]);
         check('gana distancia prudente sobre el dron que lo persigue', d1 > d0 + 1);
+    }
+
+    // RASTRO de partículas al saltar: cada salto evasivo pide el efecto
+    // 'evade_trail' (con la dirección de la estela) vía el hook particles
+    {
+        const hooks = silentHooks();
+        const s = new MobSystem({}, new MockWorld(), hooks, 7);
+        const e = new Mob(escapista, 20.5, 20, 20.5);
+        const g = new Mob(dron, 25.5, 20, 20.5); g.airborne = true;
+        s.mobs.push(e, g);
+        const cerca = { pos: [20, 11, 20], eye: [20, 12.62, 20], day: 1 };
+        for (let t = 0; t < 4; t += DT) s.update(DT, cerca);
+        const trails = hooks.calls.particles.filter((p) => p.evento === 'evade_trail');
+        check('deja un rastro de partículas en cada salto evasivo', trails.length >= 2);
+        check('el rastro lleva la dirección de la estela',
+            trails.length > 0 && typeof trails[0].vars.x === 'number' &&
+            typeof trails[0].vars.z === 'number');
     }
 
     // PATRULLA de largo alcance: se aleja hasta ~6× la órbita de un dron (5)
