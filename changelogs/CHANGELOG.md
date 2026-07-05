@@ -121,3 +121,4 @@
 | 117 | 2026-07-05 | [Modelos geo: lobo tumbado y rasgos que viajan a la auto-piel](2026-07-05_lobo_caras.md) |
 | 118 | 2026-07-05 | [Cámara de vigilancia: bloque dinámico animado con barrido y LED](2026-07-05_camara_vigilancia.md) |
 | 119 | 2026-07-05 | [Camellos: cara de perfil y orejas](2026-07-05_camello_cara.md) |
+| 120 | 2026-07-05 | [Mano en primera persona: brazo, objeto en mano y golpe clásico](2026-07-05_mano_primera_persona.md) |

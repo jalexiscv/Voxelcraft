@@ -27,6 +27,7 @@ import { esPuerta, esAbierta, colocarPuerta, alternarPuerta, romperPuerta } from
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { CamaraSystem, CAMARA_DEF } from './camaras.js';
+import { ViewModel } from './viewmodel.js';
 import { SoundEngine } from './audio.js';
 import { HUD } from './hud.js';
 import { saveWorld, loadMeta, loadChunksInto, hasSave } from './storage.js';
@@ -58,6 +59,10 @@ function boot() {
     const mobRenderer = new MobRenderer(renderer, MOBS);
     mobRenderer.buildType(CAMARA_DEF);  // la cámara comparte el pipeline de mobs
     const camaras = new CamaraSystem(); // registro y animación de las cámaras
+    // mano en primera persona: necesita los píxeles del atlas para extruir
+    // los sprites de los items (herramientas, comida, plantas…)
+    const viewmodel = new ViewModel(renderer,
+        atlasCanvas.getContext('2d').getImageData(0, 0, atlasCanvas.width, atlasCanvas.height));
     const hud = new HUD(atlasCanvas);
     const sound = new SoundEngine();
     const player = new Player();
@@ -544,6 +549,9 @@ function boot() {
     /* ---- Interacción con bloques ---- */
 
     function doAction(button) {
+        // el clic izquierdo siempre sacude el brazo (aunque golpee el aire),
+        // como en el MC real; el derecho solo al lograr una acción
+        if (button === 0) viewmodel.swing();
         // el puñetazo a un mob tiene prioridad sobre el bloque de detrás
         if (button === 0 && game.mobs) {
             const dir = lookDir(player.yaw, player.pitch);
@@ -574,6 +582,7 @@ function boot() {
                 hud.setHunger(game.hunger);
                 hud.refreshCounts();
                 sound.evento('comer');
+                viewmodel.swing();
                 return;
             }
         }
@@ -682,7 +691,7 @@ function boot() {
                 // cerrada colisiona como bloque entero): ignora el clic
                 if (!abre) {
                     const yb = hit.id === B.DOOR_TOP_OPEN ? hit.y - 1 : hit.y;
-                    const [px, py, pz] = game.player.pos;
+                    const [px, py, pz] = player.pos;
                     const dentro = px > hit.x - 0.35 && px < hit.x + 1.35 &&
                                    pz > hit.z - 0.35 && pz < hit.z + 1.35 &&
                                    py + 1.8 > yb && py < yb + 2;
@@ -690,6 +699,7 @@ function boot() {
                 }
                 alternarPuerta(game.world, hit.x, hit.y, hit.z);
                 sound.evento(abre ? 'puerta_abrir' : 'puerta_cerrar');
+                viewmodel.swing();
                 return;
             }
             // la cama salta la noche: al usarla de noche, amanece
@@ -697,6 +707,7 @@ function boot() {
                 if (dayFactor() < 0.45) {
                     game.timeOfDay = 0.77; // justo tras el alba
                     sound.place('cloth');
+                    viewmodel.swing();
                 }
                 return;
             }
@@ -708,6 +719,7 @@ function boot() {
                 game.world.get(hit.x, hit.y + 1, hit.z) === B.AIR) {
                 game.world.set(hit.x, hit.y, hit.z, B.FARMLAND);
                 sound.evento('labrar');
+                viewmodel.swing();
                 return;
             }
             // sembrar: un ítem plantable sobre tierra labrada con hueco libre
@@ -721,6 +733,7 @@ function boot() {
                 }
                 game.world.set(hit.x, hit.y + 1, hit.z, brote);
                 sound.evento('sembrar');
+                viewmodel.swing();
                 return;
             }
             const [tx, ty, tz] = [hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz];
@@ -742,6 +755,7 @@ function boot() {
                     hud.refreshCounts();
                 }
                 sound.place(DEFS[id].sound);
+                viewmodel.swing();
                 return;
             }
             if (DEFS[id].solid && player.intersectsBlock(tx, ty, tz)) return;
@@ -752,7 +766,19 @@ function boot() {
             game.world.set(tx, ty, tz, id);
             camaras.onSet(tx, ty, tz, id); // alta si se colocó una cámara
             sound.place(DEFS[id].sound);
+            viewmodel.swing();
         }
+    }
+
+    /**
+     * Id efectivo en mano para el viewmodel: en supervivencia, una ranura
+     * sin existencias es una mano vacía (se ve el brazo, como en el MC real).
+     */
+    function enManoActual() {
+        const id = hud.activeBlock();
+        if (!id) return 0;
+        if (game.mode === 'supervivencia' && game.inventory.count(id) === 0) return 0;
+        return id;
     }
 
     /** Golpes que aporta cada clic: 1 a mano, ×factor con la herramienta adecuada. */
@@ -846,6 +872,9 @@ function boot() {
             game.breakingT -= dt;
             if (game.breakingT <= 0) game.breaking = null;
         }
+
+        // mano en primera persona: golpe, cambio de ítem y balanceo del paso
+        viewmodel.update(dt, player, enManoActual());
 
         // regeneración lenta si no se ha recibido daño en un rato; exige ir
         // bien comido (hambre > 12) y cada medio corazón cuesta 1 de hambre
@@ -945,6 +974,15 @@ function boot() {
                 game.mobs.arrows, game.time, game.world);
         };
         renderer.render(f);
+
+        // mano en primera persona, sobre el fotograma ya dibujado; su luz
+        // local se calcula como la de los mobs (cuevas oscuras, antorchas)
+        const bx = Math.floor(eye[0]), by = Math.floor(eye[1]), bz = Math.floor(eye[2]);
+        const solMano = game.world.sunlit(bx, by, bz) ? 1 : 0.55;
+        viewmodel.render({
+            aspect,
+            light: Math.max(solMano * day, game.world.blockLightAt(bx, by, bz) / 15),
+        });
 
         if (hud.debugVisible()) {
             const [pcx, pcz] = playerChunk();

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- Verificación WebGL real del viewmodel (mano en primera persona).
+     Uso: servir el repo por HTTP y abrir con un navegador headless leyendo
+     el DOM: el resultado se vuelca como texto en <body> (VIEWMODEL-OK /
+     VIEWMODEL-FALLA con el detalle). No forma parte del juego. -->
+<head><meta charset="utf-8"><title>viewmodel-gl</title></head>
+<body>
+<canvas id="c" width="640" height="360" style="width:640px;height:360px"></canvas>
+<pre id="out">cargando…</pre>
+<script type="module">
+const out = document.getElementById('out');
+const errores = [];
+try {
+    const { buildAtlas, buildCloudTexture } = await import('../js/atlas.js');
+    const { Renderer } = await import('../js/renderer.js');
+    const { ViewModel, SWING_DUR } = await import('../js/viewmodel.js');
+    const { B } = await import('../js/blocks.js');
+    const { ITEMS } = await import('../js/items.js');
+
+    const canvas = document.getElementById('c');
+    const atlasCanvas = buildAtlas();
+    const renderer = new Renderer(canvas, atlasCanvas, buildCloudTexture(), null, null);
+    const gl = renderer.gl;
+    const atlasData = atlasCanvas.getContext('2d').getImageData(0, 0, atlasCanvas.width, atlasCanvas.height);
+    const vm = new ViewModel(renderer, atlasData);
+
+    const jugador = { vel: [3, 0, 0], onGround: true };
+    // qué se dibuja en el cuadrante inferior derecho con cada tipo en mano
+    let casos = [
+        ['brazo', 0],
+        ['bloque', B.GRASS],
+        ['item', ITEMS.PICO_HIERRO],
+        ['planta', B.FLOWER_RED],
+        ['puerta', B.DOOR_CLOSED],
+    ];
+    // ?solo=nombre deja ese único caso en el lienzo (inspección visual)
+    const solo = new URLSearchParams(location.search).get('solo');
+    if (solo) casos = casos.filter(([nombre]) => nombre === solo);
+    for (const [nombre, id] of casos) {
+        // fuerza el intercambio inmediato; sin ?solo también anima el golpe
+        // y con ?golpe=0..1 congela el golpe en ese punto del arco
+        vm.shownId = id;
+        vm.swingT = 0;
+        vm.bobAmp = 0;
+        const golpe = new URLSearchParams(location.search).get('golpe');
+        if (golpe) vm.swingT = SWING_DUR * (1 - parseFloat(golpe));
+        else if (!solo) {
+            vm.swing();
+            for (let i = 0; i < 6; i++) vm.update(1 / 60, jugador, id);
+        }
+
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clearColor(0.1, 0.2, 0.9, 1); // fondo azul: la mano no es azul
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        vm.render({ aspect: canvas.width / canvas.height, light: 1 });
+
+        const e = gl.getError();
+        if (e !== gl.NO_ERROR) errores.push(`${nombre}: glError ${e}`);
+
+        // píxeles del cuadrante inferior derecho que dejaron de ser fondo
+        const rw = canvas.width >> 1, rh = canvas.height >> 1;
+        const px = new Uint8Array(rw * rh * 4);
+        gl.readPixels(rw, 0, rw, rh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        let pintados = 0;
+        for (let i = 0; i < px.length; i += 4) {
+            if (!(px[i] < 40 && px[i + 1] < 70 && px[i + 2] > 200)) pintados++;
+        }
+        if (pintados < rw * rh / 100) errores.push(`${nombre}: solo ${pintados} px dibujados`);
+    }
+    out.textContent = errores.length ? 'VIEWMODEL-FALLA ' + errores.join(' | ') : 'VIEWMODEL-OK';
+} catch (err) {
+    out.textContent = 'VIEWMODEL-FALLA excepción: ' + (err && err.stack || err);
+}
+</script>
+</body>
+</html>

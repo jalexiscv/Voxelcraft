@@ -60,6 +60,12 @@ export function mat4RotateZ(out, rad) {
     return out;
 }
 
+export function mat4Scale(out, x, y, z) {
+    mat4Identity(out);
+    out[0] = x; out[5] = y; out[10] = z;
+    return out;
+}
+
 /**
  * Matriz de vista en primera persona (inversa de la pose de la cámara):
  * V = Rx(−pitch) · Ry(−yaw) · T(−ojo).
