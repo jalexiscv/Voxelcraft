@@ -33,24 +33,27 @@
  *   produce varias partes (nombre_0, nombre_1…) que comparten
  *   pivot/rot/anim.
  *
- * LIMITACIÓN (jerarquía): asumimos la jerarquía vanilla de 1 nivel (body
- * raíz + miembros) con coordenadas ya en pose final, y `parent` se usa SOLO
- * para diagnosticar. En cadenas de 2+ niveles (p. ej. las puntas de ala del
- * murciélago colgando de las alas) la pose plana sigue siendo correcta,
- * pero la parte NO hereda la rotación ni la animación de su padre: esos
- * casos se anotan en `avisos` y se renderizan rígidos.
+ * Jerarquía: las coordenadas del geo vienen ABSOLUTAS y en pose final, y al
+ * aplanar la parte hereda de sus ancestros dos cosas: (1) la `rotation` se
+ * HORNEA (rot acumulada + pivote del ancestro rotado más cercano), y (2) un
+ * hueso sin animación propia adopta la del ancestro animado más cercano —
+ * el hocico, las orejas y la crin siguen a la cabeza del caballo — re-
+ * anclando su pivote al de aquel cuando hace falta para girar rígido en
+ * bloque. Solo queda rígida (con nota en `avisos`) la parte rotada cuyo
+ * pivote no coincide con el del ancestro animado.
  *
  * Mapeo de animación por nombre de hueso (insensible a mayúsculas y
  * guiones bajos; convención de fases de la casa, ver js/mobs/cow.js y
  * js/mobs/zombie.js — «izquierda» de la casa = −X = «right» de Bedrock):
  *
- *   head, hat                     → head   (el hat sigue a la cabeza)
+ *   head, hat, neck               → head   (sombrero y cuello siguen la mirada)
  *   leg0 / leg3 (cuadrúpedo)      → leg0   ─ pares diagonales: {trasera-izq,
  *   leg1 / leg2 (cuadrúpedo)      → leg1   ─ delantera-der} y {trasera-der,
  *                                            delantera-izq} (marcha diagonal,
  *                                            como la vaca de la casa)
  *   legN con N≥4 (araña…)         → leg0/leg1 por paridad de N
  *   *leg* con front/back + L/R    → diagonal: (front XOR left) → leg0
+ *   legFL/legBR ↔ legFR/legBL     → la misma diagonal con F/B compactos
  *   leftleg (…+X)                 → leg1   ─ contrafase con el brazo del
  *   rightleg (…−X)                → leg0   ─ mismo lado, como el zombi
  *   leftarm (+X)                  → arm0
@@ -77,7 +80,9 @@ function convRot(gradosXYZ) {
  */
 export function animForBone(nombre) {
     const n = String(nombre || '').toLowerCase().replace(/[_\s]/g, '');
-    if (n === 'head' || n === 'hat') return 'head';
+    // el cuello acompaña la mirada: el conjunto cuello+cabeza gira en
+    // bloque, como cuello/cabeza del caballo procedural de la casa
+    if (n === 'head' || n === 'hat' || n === 'neck') return 'head';
 
     // lado anatómico Bedrock: left = +X, right = −X («izq/der» de la casa
     // son del espectador, por eso right→*0/L y left→*1/R por posición)
@@ -94,6 +99,10 @@ export function animForBone(nombre) {
         return 'none'; // brazo sin lado identificable: mejor rígido
     }
     if (n.includes('leg')) {
+        // nombres compactos de cuadrúpedo (LegFL, LegBR…): F/B + L/R en la
+        // misma diagonal que los nombres largos — (front XOR left) → leg0
+        const compacto = /^leg([fb])([lr])$/.exec(n);
+        if (compacto) return ((compacto[1] === 'f') !== (compacto[2] === 'l')) ? 'leg0' : 'leg1';
         const delante = n.includes('front');
         const detras = n.includes('back') || n.includes('hind') || n.includes('rear');
         if (lado && (delante || detras)) {
@@ -121,18 +130,38 @@ function convertirBones(bones, texW, texH) {
     const porNombre = new Map();
     for (const b of bones || []) porNombre.set(String(b.name).toLowerCase(), b);
 
+    // pivote de una parte una vez horneada: el del ancestro con `rotation`
+    // más cercano si lo hay (la rotación heredada gira alrededor de él), si
+    // no el propio — es el pivote que un hijo debe compartir para heredar
+    // la animación de ese hueso de forma rígida
+    const pivoteHorneado = (hueso) => {
+        let p = hueso;
+        for (let i = 0; p && p.parent && i < 8; i++) {
+            p = porNombre.get(String(p.parent).toLowerCase());
+            if (p && convRot(p.rotation)) return p.pivot || [0, 0, 0];
+        }
+        return hueso.pivot || [0, 0, 0];
+    };
+
     for (const hueso of bones || []) {
         // Cadena de ancestros: en Bedrock un hijo hereda la `rotation` del
         // padre alrededor del pivote del padre (el cuello inclinado del
         // caballo arrastra cabeza, hocico y orejas). Al aplanar, esa
         // rotación se HORNEA en la parte: se acumulan las rotaciones
         // ancestrales y el pivote efectivo pasa a ser el del ancestro
-        // rotado más cercano. OJO: `bind_pose_rotation` (legacy 1.8, la
-        // vaca o la tortuga) NO se hereda — solo posa el propio hueso; sus
-        // hijos ya traen las coordenadas en pose final.
+        // rotado más cercano. También se localiza el ancestro ANIMADO más
+        // cercano para heredar su animación (ver abajo). OJO:
+        // `bind_pose_rotation` (legacy 1.8, la vaca o la tortuga) NO se
+        // hereda — solo posa el propio hueso; sus hijos ya traen las
+        // coordenadas en pose final.
         let prof = 0, rotAncestral = null, pivotAncestral = null, ancestrosRotados = 0;
+        let huesoAnimado = null, animHeredada = 'none';
         for (let p = hueso; p && p.parent && prof < 8; prof++) {
             p = porNombre.get(String(p.parent).toLowerCase());
+            if (p && !huesoAnimado) {
+                const a = animForBone(p.name);
+                if (a !== 'none') { huesoAnimado = p; animHeredada = a; }
+            }
             const r = p && convRot(p.rotation);
             if (r) {
                 ancestrosRotados++;
@@ -146,16 +175,12 @@ function convertirBones(bones, texW, texH) {
             }
         }
         if (hueso.neverRender || !Array.isArray(hueso.cubes) || !hueso.cubes.length) continue;
-        if (prof >= 2 && !rotAncestral) {
-            avisos.push(`hueso «${hueso.name}»: cadena de ${prof + 1} niveles; `
-                + 'la pose plana es correcta pero no seguirá la animación del padre');
-        }
 
         const pivotePropio = hueso.pivot || [0, 0, 0];
         const rotPropia = convRot(hueso.bind_pose_rotation || hueso.rotation);
         // pivote efectivo: el del ancestro rotado (si lo hay) para que la
         // rotación horneada gire la caja hacia su pose real
-        const pivote = rotAncestral ? pivotAncestral : pivotePropio;
+        let pivote = rotAncestral ? pivotAncestral : pivotePropio;
         let rot = rotPropia;
         if (rotAncestral) {
             rot = rotPropia ? rotPropia.map((v, i) => v + rotAncestral[i]) : rotAncestral;
@@ -165,7 +190,28 @@ function convertirBones(bones, texW, texH) {
                     + 'distintos; pose horneada aproximada (suma por eje)');
             }
         }
-        const anim = animForBone(hueso.name);
+
+        // Herencia de animación: un hueso sin animación propia acompaña al
+        // ancestro animado más cercano (el hocico y las orejas siguen a la
+        // cabeza; la punta de ala aletea con el ala). Para girar RÍGIDO en
+        // bloque debe compartir el pivote de aquel: si ya coincide se hereda
+        // tal cual, y si la parte no está rotada se re-ancla su pivote (la
+        // pose estática no cambia: el origin es relativo al pivote). Solo
+        // una parte rotada con pivote distinto queda rígida (aviso).
+        let anim = animForBone(hueso.name);
+        if (anim === 'none' && huesoAnimado) {
+            const pivoteAnimado = pivoteHorneado(huesoAnimado);
+            if (pivote[0] === pivoteAnimado[0] && pivote[1] === pivoteAnimado[1]
+                && pivote[2] === pivoteAnimado[2]) {
+                anim = animHeredada;
+            } else if (!rot) {
+                pivote = pivoteAnimado;
+                anim = animHeredada;
+            } else {
+                avisos.push(`hueso «${hueso.name}»: rotado con pivote distinto al de `
+                    + `«${huesoAnimado.name}»; no seguirá su animación (queda rígido)`);
+            }
+        }
         const varios = hueso.cubes.length > 1;
 
         hueso.cubes.forEach((cubo, i) => {

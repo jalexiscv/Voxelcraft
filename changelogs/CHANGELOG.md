@@ -122,3 +122,4 @@
 | 118 | 2026-07-05 | [Cámara de vigilancia: bloque dinámico animado con barrido y LED](2026-07-05_camara_vigilancia.md) |
 | 119 | 2026-07-05 | [Camellos: cara de perfil y orejas](2026-07-05_camello_cara.md) |
 | 120 | 2026-07-05 | [Mano en primera persona: brazo, objeto en mano y golpe clásico](2026-07-05_mano_primera_persona.md) |
+| 121 | 2026-07-05 | [Corrección de modelos geo: caballo y comerciante deformes (herencia de animación y brazos plegados)](2026-07-05_caballo_trader_deformes.md) |

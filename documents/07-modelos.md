@@ -135,9 +135,11 @@ variante que el render).
 *   Bones con `neverRender` o sin cubes se saltan; un bone con varios
     cubes produce partes `nombre_0`, `nombre_1`… que comparten
     pivote/rot/animación.
-*   La **animación** se deduce del nombre del hueso: `head`/`hat` siguen
-    la mirada; patas de cuadrúpedo en pares diagonales
-    (`leg0`/`leg3` ↔ `leg1`/`leg2`, o `front`/`back` + `left`/`right`);
+*   La **animación** se deduce del nombre del hueso: `head`/`hat`/`neck`
+    siguen la mirada (el cuello gira en bloque con la cabeza, como en el
+    caballo procedural); patas de cuadrúpedo en pares diagonales
+    (`leg0`/`leg3` ↔ `leg1`/`leg2`, `front`/`back` + `left`/`right`, o los
+    nombres compactos `LegFL`/`LegBR` ↔ `LegFR`/`LegBL` del caballo);
     `leftarm`/`rightarm` en contrafase; alas a `flapL`/`flapR`; el resto
     queda rígido.
 *   **Rotaciones ancestrales horneadas**: en Bedrock un hijo hereda la
@@ -147,14 +149,27 @@ variante que el render).
     reproduciendo la pose estática exacta; con varias rotaciones en la
     cadena o pivotes en conflicto se suma por eje (aproximación anotada
     en `avisos`).
+*   **Herencia de animación**: un hueso sin animación propia adopta la del
+    ancestro animado más cercano — el hocico, las orejas y la crin siguen
+    a la cabeza del caballo; la nariz y la capucha, a la del aldeano. Para
+    girar rígido en bloque debe compartir el pivote de aquel: si ya
+    coincide se hereda tal cual y, si la parte no está rotada, su pivote
+    se re-ancla (la pose estática no cambia). Solo una parte rotada con
+    pivote distinto queda rígida (anotado en `avisos`).
 *   **Filtro de atrezo** (`filtrarAtrezo` en `js/modelpack.js`): los
     huesos de equipamiento que el juego original muestra por estado
     (silla, bridas, bocado, riendas, alforjas, armaduras, alfombras…) se
     descartan siempre — un burro salvaje no lleva silla — y `OCULTOS_MOB`
     resuelve las variantes por especie (el geo del caballo trae los dos
-    juegos de orejas: el caballo enseña `Ear*` y el burro `MuleEar*`).
-*   Limitación: jerarquías de 2+ niveles se posan bien pero no heredan la
-    animación del padre (queda anotado en `avisos`).
+    juegos de orejas: el caballo enseña `Ear*` y el burro `MuleEar*`; el
+    comerciante errante descarta el ala de sombrero `brim` del geo del
+    aldeano).
+*   **Pose por especie** (`POSE_MOB` en `js/modelpack.js`): ajustes
+    estáticos que el formato geo deja al código de runtime del juego
+    original — el abanico de patas de la araña, la recolocación de cabeza
+    y piernas del enderman, el cuerpo tumbado del lobo y los brazos
+    cruzados del comerciante errante (`arms` a +43°). Las partes de un
+    hueso multi-cubo (`arms_0`, `arms_1`…) resuelven la clave de su hueso.
 
 ## Notas
 

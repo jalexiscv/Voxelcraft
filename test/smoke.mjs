@@ -1140,6 +1140,7 @@ console.log('== Modelos geo ==');
                 { name: 'body', pivot: [0, 10, 0], cubes: [{ origin: [-2, 4, -2], size: [4, 6, 4], uv: [0, 0] }] },
                 { name: 'neck', parent: 'body', pivot: [0, 10, -2], rotation: [30, 0, 0], cubes: [{ origin: [-1, 10, -4], size: [2, 6, 3], uv: [0, 10] }] },
                 { name: 'head', parent: 'neck', pivot: [0, 16, -3], cubes: [{ origin: [-2, 16, -6], size: [4, 4, 4], uv: [0, 19] }] },
+                { name: 'muzzle', parent: 'head', pivot: [0, 16, -3], cubes: [{ origin: [-1, 16, -8], size: [2, 2, 2], uv: [14, 0] }] },
             ],
         },
     })['geometry.cadena'];
@@ -1148,6 +1149,43 @@ console.log('== Modelos geo ==');
         !!cabeza && !!cabeza.rot && Math.abs(cabeza.rot[0] - (-30 * Math.PI / 180)) < 1e-9 &&
         cabeza.pivot[0] === 0 && cabeza.pivot[1] === 10 && cabeza.pivot[2] === -2 &&
         cabeza.origin[1] === 6 && cabeza.origin[2] === -4);
+
+    // herencia de animación: cuello, cabeza y hocico giran en bloque con la
+    // mirada alrededor de un pivote común (la cara del caballo no se
+    // desmonta al mirar al jugador)
+    const cuelloCadena = geoCadena.partes.find((p) => p.name === 'neck');
+    const hocicoCadena = geoCadena.partes.find((p) => p.name === 'muzzle');
+    check('la animación se hereda: cuello, cabeza y hocico siguen la mirada con pivote común',
+        cuelloCadena.anim === 'head' && cabeza.anim === 'head' &&
+        hocicoCadena.anim === 'head' &&
+        JSON.stringify(hocicoCadena.pivot) === JSON.stringify([0, 10, -2]) &&
+        geoCadena.avisos.length === 0);
+
+    // herencia con re-anclaje: la nariz del aldeano (sin rotación alguna)
+    // adopta el pivote de la cabeza para girar rígida con ella, sin mover
+    // su pose estática (el origin, relativo al pivote, se recalcula)
+    const geoNariz = parseGeo({
+        format_version: '1.8.0',
+        'geometry.nariz': {
+            texturewidth: 64, textureheight: 64,
+            bones: [
+                { name: 'body', cubes: [{ origin: [-4, 12, -3], size: [8, 12, 6], uv: [16, 20] }] },
+                { name: 'head', parent: 'body', pivot: [0, 24, 0], cubes: [{ origin: [-4, 24, -4], size: [8, 10, 8], uv: [0, 0] }] },
+                { name: 'nose', parent: 'head', pivot: [0, 26, 0], cubes: [{ origin: [-1, 23, -6], size: [2, 4, 2], uv: [24, 0] }] },
+            ],
+        },
+    })['geometry.nariz'];
+    const nariz = geoNariz.partes.find((p) => p.name === 'nose');
+    check('sin rotación, el hijo re-ancla su pivote al del ancestro animado (nariz rígida)',
+        nariz.anim === 'head' && JSON.stringify(nariz.pivot) === JSON.stringify([0, 24, 0]) &&
+        JSON.stringify(nariz.origin) === JSON.stringify([-1, -1, -6]));
+
+    // cuello a la mirada y patas de cuadrúpedo con nombres compactos F/B+L/R
+    // (LegFL del caballo…): misma diagonal que los nombres largos
+    check('animForBone: cuello → head y diagonal con nombres compactos LegFL/LegBR',
+        animForBone('Neck') === 'head' && animForBone('Mane') === 'none' &&
+        animForBone('LegFL') === 'leg1' && animForBone('LegBR') === 'leg1' &&
+        animForBone('LegFR') === 'leg0' && animForBone('LegBL') === 'leg0');
 
     // bind_pose_rotation (legacy 1.8) posa SOLO al propio hueso: los hijos
     // traen coordenadas finales y NO la heredan (vaca, tortuga)
@@ -1214,6 +1252,12 @@ console.log('== Modelos geo ==');
     check('cada especie muestra solo sus orejas (burro: mula; caballo: caballo)',
         burro.includes('MuleEarL') && !burro.includes('EarL') &&
         caballo.includes('EarL') && !caballo.includes('MuleEarL'));
+    const traderPartes = filtrarAtrezo(
+        ['head', 'brim', 'helmet', 'nose'].map((name) => ({ name })), 'wandering_trader')
+        .map((p) => p.name);
+    check('el comerciante oculta el ala de sombrero (brim) y conserva capucha y nariz',
+        !traderPartes.includes('brim') && traderPartes.includes('helmet') &&
+        traderPartes.includes('nose'));
 
     // pose por especie: el geo de la araña trae las 8 patas rectas apiladas
     // (el abanico lo pone la animación de runtime del juego original, que
@@ -1228,6 +1272,17 @@ console.log('== Modelos geo ==');
         Math.abs(rotY('leg6') + rotY('leg0')) < 1e-9 && Math.abs(rotY('leg7') + rotY('leg1')) < 1e-9);
     check('la pose por especie no toca a los demás mobs',
         aplicarPose(patas, 'cow').every((p) => !p.rot));
+
+    // brazos plegados del comerciante: el geo trae el hueso `arms` vertical
+    // (el giro −0.75 rad lo ponía el código del juego original); la pose por
+    // especie lo cruza sobre el pecho, y las partes multi-cubo (arms_0…)
+    // resuelven la clave de su hueso
+    const trader = aplicarPose(
+        ['arms_0', 'arms_1', 'arms_2', 'leg0'].map((name) => ({ name, pivot: [0, 22, 0] })),
+        'wandering_trader');
+    check('el comerciante cruza los brazos (la pose alcanza las partes multi-cubo)',
+        Math.abs(trader[0].rot[0] - 43 * Math.PI / 180) < 1e-9 &&
+        Math.abs(trader[2].rot[0] - 43 * Math.PI / 180) < 1e-9 && !trader[3].rot);
 
     // traslados de pose: el enderman legacy trae la cabeza incrustada en el
     // torso y los pies 4 px bajo tierra; mov desplaza el pivote (la caja,

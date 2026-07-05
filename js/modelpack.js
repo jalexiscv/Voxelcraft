@@ -74,11 +74,15 @@ export const ATREZO = /^(saddle|bridle|bit[lr]?|rein|bag[lr]?|harness|rope|leash
 
 /**
  * Huesos ocultos POR ESPECIE: el geo del caballo trae los dos juegos de
- * orejas (caballo y mula) y cada variante enseña el suyo.
+ * orejas (caballo y mula) y cada variante enseña el suyo; el comerciante
+ * errante descarta el ala de sombrero de paja del geo del aldeano (su
+ * textura la deja transparente y la auto-piel la pintaría como un
+ * platillo opaco de 16×16 sobre la cabeza).
  */
 export const OCULTOS_MOB = {
     horse: /^muleear/i,
     donkey: /^ear/i, // conserva MuleEar*: /^ear/ no casa «muleear»
+    wandering_trader: /^brim$/i,
 };
 
 /** Filtra el atrezo (y los ocultos de la especie) de una lista de partes. */
@@ -125,6 +129,14 @@ export const POSE_MOB = {
         body: { rot: [-90, 0, 0] },
         upperbody: { rot: [-90, 0, 0] },
     },
+    wandering_trader: {
+        // el geo del aldeano trae el hueso `arms` en vertical, pegado al
+        // torso y con las manos cruzadas EMPAREDADAS dentro de la túnica:
+        // el renderer original lo giraba −0.75 rad por código; +43° en el
+        // convenio de la casa cruza los antebrazos sobre el pecho (misma
+        // rotación que los brazos del modelo procedural propio)
+        arms: { rot: [43, 0, 0] },
+    },
 };
 
 /** Aplica la pose de la especie (si la hay) a las partes convertidas. */
@@ -132,7 +144,10 @@ export function aplicarPose(partes, mobId) {
     const pose = POSE_MOB[mobId];
     if (!pose) return partes;
     return partes.map((p) => {
-        const extra = pose[String(p.name).toLowerCase()];
+        // las partes de un hueso multi-cubo (arms_0, arms_1…) resuelven la
+        // clave de su hueso: la pose gira todos sus cubos en bloque
+        const nombre = String(p.name).toLowerCase();
+        const extra = pose[nombre] || pose[nombre.replace(/_\d+$/, '')];
         if (!extra) return p;
         const ajustada = { ...p };
         if (extra.rot) {
