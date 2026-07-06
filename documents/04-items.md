@@ -112,6 +112,7 @@ ghast: membrana 0-1.
 | 84 | Puerta, hoja superior (cerrada) | 132 (vidriera translúcida), canto 103 | la coloca la mecánica del par |
 | 85 | Puerta, hoja superior (abierta) | 132 girada (panel en x), canto 103 | gira junto a la inferior; se atraviesa |
 | 86 | Cámara de vigilancia | 133 (solo icono del HUD) | bloque **dinámico** (`js/camaras.js`): sin malla estática, se dibuja como entidad de 13 partes-caja con el pipeline de mobs — el cabezal barre ±70° cada 8 s (con pausa en los extremos y cabeceo de 15°) y su LED rojo parpadea (0,15 s cada 1,2 s); no colisiona pero el raycast la golpea; se pica a piedra (dureza 3, pico) y suelta su bloque |
+| 87 | Lata de Red Bull | 134 (solo icono del HUD) | bloque **dinámico** explosivo (`js/latas.js`): lata de bebida energética de 4 partes-caja (base cónica, cuerpo esbelto 4×8, hombro y anilla) con rombos diagonales azul/plata que envuelven sin costura y emblema de los dos toros rojos frente al sol amarillo; cada lata mira a una de 8 orientaciones elegida DETERMINISTA por su celda; al colocarla arma una **mecha de 10 s** — burbujea cada vez más deprisa, y en los últimos 3 s silba y parpadea en blanco — y **estalla con radio 4** (cráter circular de área π·4² ≈ 50 bloques cuadrados, daño decreciente a jugador y mobs hasta 8 m, capas extra de partículas: doble bola de fuego, hongo de humo y chorro de energía azul); romperla a tiempo (cede a un golpe) la desactiva y suelta su bloque |
 
 **Puerta de DOS bloques** (`js/doors.js`, puro y testeado en Node): colocar
 exige un vano de 2 de alto con suelo sólido y escribe las dos hojas de una
@@ -127,7 +128,8 @@ de cristal → 2) · antorcha (carbón sobre palo → 4) · cama (lana sobre
 tablones: `WWW`/`PPP`) · espadas (material ×2 sobre palo, en columna) ·
 picos/hachas/palas de hierro (como las de piedra con lingotes) · cámara de
 vigilancia (mesa 3×3: fila de 3 lingotes de hierro, fila lingote-cristal-
-lingote y palo centrado abajo como poste → 1).
+lingote y palo centrado abajo como poste → 1) · lata de Red Bull (sin
+forma: lingote de hierro + trigo → 1).
 
 ## Agricultura (bloques 71-83, items 231-239, téselas 110-131)
 

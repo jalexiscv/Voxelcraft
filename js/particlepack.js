@@ -22,6 +22,11 @@ export const EFECTOS = {
     mob_hurt: ['basic_crit'],
     block_break: ['block_destruct'],
     evade_trail: ['vc_evade_trail'], // rastro del escapista al saltar
+    // lata de Red Bull: burbujas de gas durante la mecha y capas EXTRA del
+    // estallido grande (se disparan encima del evento `explosion` base):
+    // bola de fuego doble, hongo de humo y chorro de energía azul («alas»)
+    lata_fuse: ['vc_lata_fizz'],
+    lata_explosion: ['vc_lata_boom_fireball', 'vc_lata_boom_humo', 'vc_lata_boom_alas'],
 };
 
 /** nombre de fichero → Promise<descriptor|null> (sondeo único cacheado). */

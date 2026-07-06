@@ -15,7 +15,7 @@ Minecraft/ (raíz del proyecto)
     ├── main.js              <-- Integración y bucle de juego (rAF)
     ├── math.js              <-- Matrices 4×4 y utilidades (column-major, WebGL)
     ├── noise.js             <-- PRNG Park–Miller, Perlin 2D, fractal, distorsión
-    ├── blocks.js            <-- Registro de 87 tipos de bloque (fuente de verdad)
+    ├── blocks.js            <-- Registro de 88 tipos de bloque (fuente de verdad)
     ├── atlas.js             <-- Atlas de texturas procedural (Canvas 2D) + nubes
     ├── world.js             <-- Mundo infinito: mapa disperso de chunks + alturas de luz
     ├── worldgen.js          <-- Generator por chunk (módulo puro, testeable)
@@ -85,6 +85,7 @@ Dependencias entre módulos (siempre acíclicas): `main` orquesta; `blocks` ← 
 | Templo del origen: pirámide escalonada monumental que corona siempre el punto de aparición, con torres gemelas, contrafuertes y cámara equipada (mesa, horno, cofre y cama) bajo una claraboya | ✅ |
 | Agricultura: labrar con azada, sembrar trigo/zanahoria/patata, crecimiento con riego, pan y patata asada | ✅ (ver [04-items.md](04-items.md)) |
 | Cámara de vigilancia: bloque dinámico dibujado como entidad animada (paneo ±70° cada 8 s y LED parpadeante), crafteable con hierro, cristal y palo | ✅ (ver [04-items.md](04-items.md)) |
+| Lata de Red Bull: bloque dinámico explosivo (rombos azul/plata, emblema de toros y sol, orientación determinista por celda; mecha de 10 s con aviso y estallido de radio 4 ≈ 50 bloques² con partículas en capas), crafteable con lingote y trigo | ✅ (ver [04-items.md](04-items.md)) |
 | Partículas: explosiones (bola de fuego, humo y chispas), nube al morir un mob, chispas al herirlo y fragmentos con el color del bloque al romperlo — intérprete de efectos Bedrock (`particles/*.json`) con Molang | ✅ (ver [08-particulas.md](08-particulas.md)) |
 | Depuración (F3), reaparición (R) | ✅ |
 | Mobs (68 criaturas con IA + dron guardián, antidron kamikaze y dron escapista propios de la casa), salud y combate | ✅ (ver [02-mobs.md](02-mobs.md)) |

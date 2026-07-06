@@ -181,6 +181,9 @@ export const RECIPES = [
     // cámara de vigilancia: carcasa de hierro, objetivo de cristal y poste
     { name: 'Cámara de vigilancia', out: { id: B.CAMERA, n: 1 },
         pattern: ['HHH', 'HGH', ' S '], keys: { H: ITEMS.LINGOTE_HIERRO, G: B.GLASS, S: ITEMS.PALO } },
+    // lata de Red Bull: el metal de la lata y el grano del brebaje
+    { name: 'Lata de Red Bull', out: { id: B.REDBULL, n: 1 },
+        in: [{ id: ITEMS.LINGOTE_HIERRO, n: 1 }, { id: ITEMS.TRIGO, n: 1 }] },
 ];
 
 // Deriva `in` (cantidades) de las recetas con forma: el recetario y

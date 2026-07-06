@@ -57,6 +57,9 @@ export const TILE = {
     // icono de la cámara de vigilancia (el bloque en sí es dinámico: en el
     // mundo lo dibuja js/camaras.js; esta tésela solo viste HUD y selector)
     CAMERA: 133,
+    // icono de la lata de Red Bull (bloque dinámico: en el mundo la dibuja
+    // js/latas.js; esta tésela solo viste HUD y selector)
+    REDBULL: 134,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -1012,6 +1015,32 @@ painters[TILE.CAMERA] = (t) => {
         for (let x = 5; x <= 14; x++) t.px(x, y, 58, 60, 66);
     }
     t.px(6, 14, 140, 146, 158); t.px(13, 14, 140, 146, 158); // tornillos
+};
+
+painters[TILE.REDBULL] = (t) => {
+    // icono de la lata de Red Bull (de frente): cuerpo esbelto con los
+    // rombos diagonales azul/plata, emblema de toros rojos y sol amarillo,
+    // hombro y base cónicos, tapa de aluminio y anilla asomando
+    const AZUL = [22, 58, 138], PLATA = [188, 194, 205];
+    for (let y = 3; y <= 12; y++) {                          // pared del cuerpo
+        for (let x = 5; x <= 10; x++) {
+            const c = ((x + y) >> 2) & 1 ? AZUL : PLATA;
+            const d = t.rng.int(9) - 4;
+            t.px(x, y, c[0] + d, c[1] + d, c[2] + d);
+        }
+    }
+    for (let x = 6; x <= 9; x++) t.px(x, 6, 225, 229, 236);  // placa del emblema
+    t.px(6, 7, 225, 229, 236); t.px(9, 7, 225, 229, 236);
+    t.px(7, 7, 247, 199, 38); t.px(8, 7, 247, 199, 38);      // sol amarillo
+    t.px(6, 8, 206, 34, 44); t.px(9, 8, 206, 34, 44);        // los dos toros
+    t.px(7, 8, 247, 199, 38); t.px(8, 8, 247, 199, 38);
+    t.px(6, 9, 225, 229, 236); t.px(9, 9, 225, 229, 236);    // rótulo azul
+    t.px(7, 9, 26, 44, 96); t.px(8, 9, 26, 44, 96);
+    for (let y = 3; y <= 12; y++) t.px(5, y, 214, 218, 227); // brillo especular
+    for (let x = 6; x <= 9; x++) t.px(x, 2, 225, 229, 236);  // hombro cónico
+    for (let x = 6; x <= 9; x++) t.px(x, 1, 170, 176, 188);  // tapa de aluminio
+    t.px(7, 0, 116, 122, 134); t.px(8, 0, 170, 176, 188);    // anilla y su agujero
+    for (let x = 6; x <= 9; x++) t.px(x, 13, 148, 154, 166); // base cónica en sombra
 };
 
 /**

@@ -37,6 +37,7 @@ export const B = {
     // puerta de dos bloques: hojas superiores (las coloca la mecánica del par)
     DOOR_TOP_CLOSED: 84, DOOR_TOP_OPEN: 85,
     CAMERA: 86,         // cámara de vigilancia: bloque dinámico (entidad animada)
+    REDBULL: 87,        // lata de Red Bull: bloque dinámico explosivo (mecha 10 s, js/latas.js)
 };
 
 /**
@@ -181,6 +182,15 @@ DEFS[B.DOOR_TOP_OPEN]   = def('Puerta abierta (hoja superior)', TILE.DOOR_TOP_T,
 // pero el raycast sí la golpea para poder romperla. Suena y se pica a piedra.
 DEFS[B.CAMERA] = def('Cámara de vigilancia', TILE.CAMERA, {
     dinamico: true, solid: false, opaque: false, hardness: 3, tool: 'pico',
+});
+
+/* ---- Lata de Red Bull (bloque dinámico) ---- */
+// Como la cámara, sin malla estática (la dibuja js/latas.js como entidad
+// de partes-caja con orientación por celda) y sin colisión, pero el raycast
+// la golpea. Aluminio fino: cede a un golpe — conviene, porque al colocarla
+// arma una mecha de 10 s y estalla (radio 4); romperla a tiempo la desactiva.
+DEFS[B.REDBULL] = def('Lata de Red Bull', TILE.REDBULL, {
+    dinamico: true, solid: false, opaque: false, hardness: 1, tool: null,
 });
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */

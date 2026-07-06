@@ -139,3 +139,4 @@
 | 135 | 2026-07-05 | [Dron escapista: rastro de partículas al saltar durante la evasión](2026-07-05_escapista_rastro_particulas.md) |
 | 136 | 2026-07-05 | [Dron escapista: saltos 10× más largos y rastro en línea que se disipa](2026-07-05_escapista_salto_largo_rastro_linea.md) |
 | 137 | 2026-07-05 | [Modelos de mob más complejos: hasta 64 partes y pieles de 256×256](2026-07-05_modelos_mas_complejos.md) |
+| 138 | 2026-07-06 | [Lata de Red Bull: bloque dinámico explosivo con mecha de 10 s](2026-07-06_lata_redbull.md) |

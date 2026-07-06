@@ -38,7 +38,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('87 tipos definidos', DEFS.length === 87 && DEFS.every(d => d));
+check('88 tipos definidos', DEFS.length === 88 && DEFS.every(d => d));
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -249,7 +249,7 @@ console.log('== Puertas y vallas ==');
     // ids y flags de las cuatro hojas: cerradas = panel en z, abiertas = la
     // MISMA hoja girada (panel en x); solo la inferior cerrada va al selector
     check('hojas superiores con ids fijos 84/85 (registro completo: 87)',
-        B.DOOR_TOP_CLOSED === 84 && B.DOOR_TOP_OPEN === 85 && DEFS.length === 87);
+        B.DOOR_TOP_CLOSED === 84 && B.DOOR_TOP_OPEN === 85 && DEFS.length === 88);
     check('flags de panel: cerradas en z (true), abiertas giradas en x',
         DEFS[B.DOOR_CLOSED].panel === true && DEFS[B.DOOR_TOP_CLOSED].panel === true &&
         DEFS[B.DOOR_OPEN].panel === 'x' && DEFS[B.DOOR_TOP_OPEN].panel === 'x');
@@ -755,7 +755,7 @@ console.log('== Cultivos ==');
     check('ids fijos del plan: FARMLAND 71 y cultivos 72..83',
         B.FARMLAND === 71 && B.TRIGO_0 === 72 && B.TRIGO_3 === 75 &&
         B.ZANAHORIA_0 === 76 && B.ZANAHORIA_3 === 79 &&
-        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 87);
+        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 88);
     check('items de agricultura con ids fijos 231..239',
         ITEMS.SEMILLAS_TRIGO === 231 && ITEMS.TRIGO === 232 && ITEMS.PAN === 233 &&
         ITEMS.ZANAHORIA === 234 && ITEMS.PATATA === 235 && ITEMS.PATATA_ASADA === 236 &&
@@ -1528,14 +1528,14 @@ console.log('== Cámara de vigilancia ==');
     const { Inventory } = await import(base + 'inventory.js');
 
     // id, flags y tésela del icono
-    check('id fijo 86 y registro a 87 tipos', B.CAMERA === 86 && DEFS.length === 87);
+    check('id fijo 86 y registro a 88 tipos', B.CAMERA === 86 && DEFS.length === 88);
     check('flags: dinámica, ni sólida ni opaca, colocable, dureza 3 a pico',
         DEFS[B.CAMERA].dinamico === true && !DEFS[B.CAMERA].solid &&
         !DEFS[B.CAMERA].opaque && DEFS[B.CAMERA].placeable &&
         DEFS[B.CAMERA].hardness === 3 && DEFS[B.CAMERA].tool === 'pico' &&
         DEFS[B.CAMERA].sound === 'stone' && PLACEABLE.includes(B.CAMERA));
-    check('ningún otro bloque hereda el flag dinamico',
-        DEFS.filter((d) => d.dinamico).length === 1);
+    check('solo la cámara y la lata llevan el flag dinamico',
+        DEFS.filter((d) => d.dinamico).length === 2);
     check('tésela 133 del icono pintable dentro del atlas',
         TILE.CAMERA === 133 && DEFS[B.CAMERA].side === TILE.CAMERA &&
         typeof painters[TILE.CAMERA] === 'function');
@@ -1669,6 +1669,226 @@ console.log('== Cámara de vigilancia ==');
             craft(inv, recCam) && inv.count(B.CAMERA) === 1 &&
             inv.count(H) === 0 && inv.count(G) === 0 && inv.count(S) === 0);
     }
+}
+
+/* ==== Lata de Red Bull: bloque dinámico decorativo ==== */
+console.log('== Lata de Red Bull ==');
+{
+    const { TILE } = await import(base + 'atlas.js');
+    const { LATA_DEF, LataSystem, yawDeLata,
+            MECHA_S, RADIO_EXPLOSION, AVISO_S, intervaloChispas } = await import(base + 'latas.js');
+    const { partUVRects } = await import(base + 'mobs/model.js');
+    const { Skin } = await import(base + 'mobs/skin.js');
+    const { RECIPES, ITEMS, matchGrid, craft } = await import(base + 'items.js');
+    const { Inventory } = await import(base + 'inventory.js');
+
+    // id, flags y tésela del icono
+    check('id fijo 87 con flags de bloque dinámico decorativo',
+        B.REDBULL === 87 && DEFS[B.REDBULL].dinamico === true &&
+        !DEFS[B.REDBULL].solid && !DEFS[B.REDBULL].opaque &&
+        DEFS[B.REDBULL].placeable && DEFS[B.REDBULL].hardness === 1 &&
+        DEFS[B.REDBULL].tool === null && DEFS[B.REDBULL].sound === 'stone' &&
+        PLACEABLE.includes(B.REDBULL));
+    check('tésela 134 del icono pintable dentro del atlas',
+        TILE.REDBULL === 134 && DEFS[B.REDBULL].side === TILE.REDBULL &&
+        typeof painters[TILE.REDBULL] === 'function');
+
+    // el mesher NO emite geometría para ella y el raycast SÍ la golpea
+    const wLata = new World(13);
+    for (let cx = -1; cx <= 1; cx++) {
+        for (let cz = -1; cz <= 1; cz++) wLata.addChunk(cx, cz, flatChunk());
+    }
+    const sinLata = meshChunk(wLata, 0, 0);
+    wLata.set(5, 10, 5, B.REDBULL);
+    const conLata = meshChunk(wLata, 0, 0);
+    check('el mesher no emite malla para el bloque dinámico',
+        conLata.solid.length === sinLata.solid.length &&
+        eq(new Uint8Array(conLata.solid.buffer), new Uint8Array(sinLata.solid.buffer)));
+    const rayoLata = raycast(wLata, [5.5, 10.5, 2.5], [0, 0, 1], 5);
+    check('el raycast golpea la lata aunque no colisione',
+        !!rayoLata && rayoLata.id === B.REDBULL && rayoLata.x === 5 && rayoLata.z === 5 &&
+        wLata.solidAt(5, 10, 5) === false);
+
+    // def de partes: silueta de lata con UVs válidas dentro de la piel
+    const parte = (n) => LATA_DEF.parts.find((p) => p.name === n);
+    check('4 partes bien formadas: base, cuerpo, hombro y anilla',
+        LATA_DEF.parts.length === 4 &&
+        ['base', 'cuerpo', 'hombro', 'anilla'].every((n) => parte(n)) &&
+        LATA_DEF.parts.every((p) =>
+            [p.size, p.pivot, p.origin].every((v) =>
+                Array.isArray(v) && v.length === 3 && v.every(Number.isFinite)) &&
+            p.size.every((n) => Number.isInteger(n) && n >= 1) && !p.anim));
+    check('todo desplegado UV cae dentro de la piel 32×32',
+        LATA_DEF.parts.every((p) => partUVRects(p).every((r) =>
+            r.x >= 0 && r.y >= 0 && r.w > 0 && r.h > 0 &&
+            r.x + r.w <= LATA_DEF.skin.w && r.y + r.h <= LATA_DEF.skin.h)));
+    check('silueta de lata: cuerpo esbelto (2:1) y anilla sobre el hombro',
+        parte('cuerpo').size[1] === 2 * parte('cuerpo').size[0] &&
+        parte('anilla').origin[1] > parte('hombro').origin[1]);
+
+    // piel: cobertura total, rombos diagonales sin costura y emblema
+    const s = new Skin(LATA_DEF.skin.w, LATA_DEF.skin.h, toSeed('lata'));
+    LATA_DEF.paint(s);
+    let sinPintar = 0;
+    for (const p of LATA_DEF.parts) {
+        for (const r of partUVRects(p)) {
+            for (let y = r.y; y < r.y + r.h; y++) {
+                for (let x = r.x; x < r.x + r.w; x++) {
+                    if (s.data[(y * s.w + x) * 4 + 3] === 0) sinPintar++;
+                }
+            }
+        }
+    }
+    check('paint cubre todos los texels referenciados por las UV', sinPintar === 0);
+    // los rombos se clasifican por canal azul (AZUL b≈138, PLATA b≈205) y
+    // deben seguir la diagonal ((c+r)>>2)&1 fuera del emblema; con período 8
+    // y 16 columnas el patrón cierra sin costura al envolver la lata
+    const esAzul = (c, r) => s.data[((4 + r) * s.w + c) * 4 + 2] < 172;
+    const enEmblema = (c, r) => c >= 4 && c <= 7 && r >= 2 && r <= 5;
+    let diagonalOK = true;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 16; c++) {
+            if (enEmblema(c, r)) continue;
+            if (esAzul(c, r) !== (((c + r) >> 2 & 1) === 1)) diagonalOK = false;
+        }
+    }
+    check('la pared sigue los rombos diagonales azul/plata sin costura', diagonalOK);
+    const texel = (x, y) => [s.data[(y * s.w + x) * 4], s.data[(y * s.w + x) * 4 + 1], s.data[(y * s.w + x) * 4 + 2]];
+    check('emblema frontal: sol amarillo flanqueado por los dos toros rojos',
+        eq(texel(5, 7), [247, 199, 38]) && eq(texel(6, 7), [247, 199, 38]) &&
+        eq(texel(4, 8), [206, 34, 44]) && eq(texel(7, 8), [206, 34, 44]) &&
+        eq(texel(5, 9), [26, 44, 96]) && eq(texel(6, 9), [26, 44, 96]));
+
+    // orientación determinista: pura, en múltiplos de 45° y con variedad
+    const yaws = [];
+    for (let x = 0; x < 4; x++) {
+        for (let z = 0; z < 4; z++) yaws.push(yawDeLata(x, 10, z));
+    }
+    check('yawDeLata es pura y devuelve múltiplos de 45°',
+        yawDeLata(3, 10, 5) === yawDeLata(3, 10, 5) &&
+        yaws.every((y) => y >= 0 && y < Math.PI * 2 && (y / (Math.PI / 4)) % 1 === 0));
+    check('celdas vecinas dan giros distintos (nada de ejército en formación)',
+        new Set(yaws).size >= 3);
+
+    // registro: escaneo del chunk y alta/baja en caliente
+    const sys = new LataSystem();
+    sys.sync(wLata); // la lata de (5,10,5) sigue puesta
+    check('sync levanta la entidad centrada con su yaw determinista',
+        sys.entidades.length === 1 &&
+        sys.entidades[0].pos[0] === 5.5 && sys.entidades[0].pos[1] === 10 &&
+        sys.entidades[0].pos[2] === 5.5 && sys.entidades[0].def === LATA_DEF &&
+        sys.entidades[0].yaw === yawDeLata(5, 10, 5));
+    check('la entidad lleva los campos neutros que mobrender espera',
+        sys.entidades[0].fuseT === -1 && sys.entidades[0].hurtT === 0 &&
+        sys.entidades[0].dying() === false && sys.entidades[0].animSpeed === 0);
+    wLata.set(5, 10, 5, B.AIR);
+    sys.onSet(5, 10, 5, B.AIR);
+    check('romper la lata la da de baja al momento', sys.entidades.length === 0);
+    wLata.set(6, 10, 6, B.REDBULL);
+    sys.onSet(6, 10, 6, B.REDBULL);
+    check('colocar una lata la da de alta al momento',
+        sys.entidades.length === 1 && sys.entidades[0].pos[0] === 6.5);
+    wLata.chunks.delete('0,0'); // descarga del chunk (streaming)
+    sys.sync(wLata);
+    check('descargar el chunk retira sus latas del registro', sys.entidades.length === 0);
+
+    // receta sin forma: lingote de hierro + trigo, en cualquier celda
+    const H = ITEMS.LINGOTE_HIERRO, T = ITEMS.TRIGO;
+    const recLata = RECIPES.find((r) => r.name === 'Lata de Red Bull');
+    check('la receta casa sin forma y produce el bloque 87',
+        (matchGrid([H, 0, 0, T], 2) || {}).name === 'Lata de Red Bull' &&
+        (matchGrid([0, T, H, 0], 2) || {}).name === 'Lata de Red Bull' &&
+        recLata.out.id === B.REDBULL && recLata.out.n === 1);
+    {
+        const inv = new Inventory();
+        inv.add(H, 1); inv.add(T, 1);
+        check('se craftea consumiendo 1 lingote y 1 trigo',
+            craft(inv, recLata) && inv.count(B.REDBULL) === 1 &&
+            inv.count(H) === 0 && inv.count(T) === 0);
+    }
+
+    // mecha de 10 s y explosión: constantes y aceleración del chisporroteo
+    check('mecha de 10 s y radio 4: cráter circular de área ≈ 50 bloques²',
+        MECHA_S === 10 && RADIO_EXPLOSION === 4 &&
+        Math.abs(Math.PI * RADIO_EXPLOSION * RADIO_EXPLOSION - 50) < 0.5);
+    check('el chisporroteo se acelera hacia el final (0,5 → 0,25 → 0,12 s)',
+        intervaloChispas(9) === 0.5 && intervaloChispas(2) === 0.25 &&
+        intervaloChispas(0.5) === 0.12 && AVISO_S === 3);
+
+    // ciclo de la mecha: armado al colocar, aviso a los 3 s y estallido
+    const wM = new World(17);
+    wM.addChunk(0, 0, flatChunk());
+    const sysM = new LataSystem();
+    sysM.sync(wM);
+    wM.set(3, 10, 3, B.REDBULL);
+    sysM.onSet(3, 10, 3, B.REDBULL);
+    const r1 = sysM.update(0.1);
+    check('al colocar arranca la mecha: chisporrotea ya, sin silbar ni estallar',
+        r1.chispean.length === 1 && r1.estallan.length === 0 && r1.silban.length === 0 &&
+        sysM.entidades[0].fuseT === -1);
+    let silbidos = 0;
+    const estallidos = [];
+    for (let i = 0; i < 89; i++) { // 8,9 s más: entra en el tramo de aviso
+        const r = sysM.update(0.1);
+        silbidos += r.silban.length;
+        estallidos.push(...r.estallan);
+    }
+    check('entra en el aviso: un único silbido y el parpadeo encendido',
+        silbidos === 1 && estallidos.length === 0 &&
+        sysM.entidades[0].fuseT > 0 && sysM.entidades[0].fuseT <= AVISO_S);
+    for (let i = 0; i < 16; i++) estallidos.push(...sysM.update(0.1).estallan);
+    check('a los 10 s estalla exactamente una vez y la mecha se consume',
+        estallidos.length === 1 && estallidos[0].x === 3 && estallidos[0].y === 10 &&
+        estallidos[0].z === 3 && sysM.mechas.size === 0);
+
+    // romperla a tiempo la desactiva
+    wM.set(3, 10, 3, B.AIR); // la explosión habría limpiado el bloque (main)
+    sysM.onSet(3, 10, 3, B.AIR);
+    wM.set(5, 10, 5, B.REDBULL);
+    sysM.onSet(5, 10, 5, B.REDBULL);
+    wM.set(5, 10, 5, B.AIR);
+    sysM.onSet(5, 10, 5, B.AIR);
+    let boom = 0;
+    for (let i = 0; i < 120; i++) boom += sysM.update(0.1).estallan.length;
+    check('romper la lata a tiempo la desactiva (no estalla jamás)',
+        boom === 0 && sysM.mechas.size === 0);
+
+    // descarga/recarga del chunk: la mecha no persiste y arranca de nuevo
+    wM.set(7, 10, 7, B.REDBULL);
+    const sysR = new LataSystem();
+    sysR.sync(wM);
+    let boomR = 0;
+    for (let i = 0; i < 50; i++) boomR += sysR.update(0.1).estallan.length; // 5 s
+    const chunkM = wM.chunks.get('0,0');
+    wM.chunks.delete('0,0');
+    sysR.sync(wM); // descarga: olvida la mecha a medias
+    wM.chunks.set('0,0', chunkM);
+    sysR.sync(wM); // recarga: la lata redescubierta arranca fresca
+    for (let i = 0; i < 60; i++) boomR += sysR.update(0.1).estallan.length; // 6 s
+    check('descargar y recargar el chunk reinicia la mecha a 10 s',
+        boomR === 0 && sysR.mechas.size === 1);
+    for (let i = 0; i < 50; i++) boomR += sysR.update(0.1).estallan.length;
+    check('la mecha reiniciada estalla al agotarse', boomR === 1);
+
+    // efectos de partículas: capas registradas, parseables y con su ráfaga
+    const { parseEffect, ParticleSystem } = await import(base + 'particles.js');
+    const { EFECTOS } = await import(base + 'particlepack.js');
+    const { readFileSync } = await import('node:fs');
+    const cargarFx = (n) => parseEffect(JSON.parse(readFileSync(new URL(`../particles/${n}.json`, import.meta.url), 'utf8')));
+    check('eventos lata_fuse (1 capa) y lata_explosion (3 capas) registrados',
+        EFECTOS.lata_fuse.length === 1 && EFECTOS.lata_explosion.length === 3);
+    let seedP = 999;
+    const rngP = () => { seedP = (seedP * 16807) % 2147483647; return seedP / 2147483647; };
+    const sysFx = new ParticleSystem(rngP, 200);
+    for (const n of [...EFECTOS.lata_fuse, ...EFECTOS.lata_explosion]) {
+        sysFx.emit(cargarFx(n), [0, 10, 0]);
+    }
+    check('las 4 capas parsean y emiten su ráfaga (5+40+26+30 = 101 partículas)',
+        sysFx.list.length === 101);
+    const sysA = new ParticleSystem(rngP, 50);
+    sysA.emit(cargarFx('vc_lata_boom_alas'), [0, 10, 0]);
+    check('el chorro de energía nace blanco («te da alas»)',
+        sysA.snapshot()[0].color.slice(0, 3).every((c) => c > 0.9));
 }
 
 /* ==== Templo del origen: monumento fijo en el punto de aparición ==== */

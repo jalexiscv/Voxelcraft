@@ -186,6 +186,25 @@ console.log('== Creeper y flechas ==');
     check('el creeper desaparece al explotar', sys.mobs.length === 0);
 }
 {
+    // explodeAt genérico: la lata de Red Bull lo invoca desde main.js con
+    // radio 4 (cráter circular de área π·4² ≈ 50 bloques cuadrados)
+    const world = new MockWorld();
+    const hooks = silentHooks();
+    let radioHook = 0;
+    hooks.explosion = (pos, r) => { hooks.calls.explosions++; radioHook = r; };
+    const sys = new MobSystem({}, world, hooks, 7);
+    world.set(0, 8, 0, B.BEDROCK); // dentro de la esfera: debe sobrevivir
+    sys.explodeAt([0.5, 10.5, 0.5], 4, [0.5, 13.5, 0.5]);
+    // semiesfera sólida bajo el centro (dy −4..0): 153 celdas exactas menos
+    // la de bedrock, todas a AIR
+    const despejadas = [...world.edits.values()].filter((v) => v === B.AIR).length;
+    check('explodeAt despeja la semiesfera sólida de radio 4 (152 celdas)',
+        despejadas === 152 && hooks.calls.explosions === 1 && radioHook === 4);
+    check('el lecho de roca sobrevive a la explosión', world.get(0, 8, 0) === B.BEDROCK);
+    check('daña al jugador según la distancia (3 m de 8 → 9 de daño)',
+        hooks.calls.damage.length === 1 && hooks.calls.damage[0].dmg === 9);
+}
+{
     const world = new MockWorld();
     const hooks = silentHooks();
     const sys = new MobSystem({}, world, hooks, 7);

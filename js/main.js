@@ -30,6 +30,7 @@ import { esHuevo, mobDeHuevo } from './eggs.js';
 import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { CamaraSystem, CAMARA_DEF } from './camaras.js';
+import { LataSystem, LATA_DEF, RADIO_EXPLOSION } from './latas.js';
 import { ViewModel } from './viewmodel.js';
 import { SoundEngine } from './audio.js';
 import { HUD } from './hud.js';
@@ -62,6 +63,8 @@ function boot() {
     const mobRenderer = new MobRenderer(renderer, MOBS);
     mobRenderer.buildType(CAMARA_DEF);  // la cámara comparte el pipeline de mobs
     const camaras = new CamaraSystem(); // registro y animación de las cámaras
+    mobRenderer.buildType(LATA_DEF);    // la lata de Red Bull, ídem
+    const latas = new LataSystem();     // registro de las latas colocadas
     // mano en primera persona: necesita los píxeles del atlas para extruir
     // los sprites de los items (herramientas, comida, plantas…)
     const viewmodel = new ViewModel(renderer,
@@ -262,9 +265,12 @@ function boot() {
             else if (kind === 'hurt') disparar('mob_hurt', centro, { direction: { x: 0, y: 1, z: 0 } });
         },
         damagePlayer: (dmg, dir) => damagePlayer(dmg, dir),
-        explosion: (pos) => {
+        explosion: (pos, r = 3) => {
             sound.explosion();
-            if (pos) disparar('explosion', pos);
+            if (pos) {
+                disparar('explosion', pos);
+                limpiarDinamicos(pos, r);
+            }
         },
         // efecto de partículas genérico que un mob pide en su propia
         // posición (p. ej. el rastro del escapista al saltar). `vars` pasa
@@ -278,6 +284,25 @@ function boot() {
             game.drops.spawn(id, x - 0.5, y - 0.4, z - 0.5);
         },
     };
+
+    /**
+     * Una explosión puede llevarse bloques dinámicos por delante: reconcilia
+     * los registros (cámaras y latas) con el estado real de cada celda del
+     * cubo afectado. onSet con el id actual es idempotente: da de baja lo
+     * destruido y no toca lo que sobrevivió fuera de la esfera.
+     */
+    function limpiarDinamicos([ex, ey, ez], r) {
+        for (let dx = -r; dx <= r; dx++) {
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dz = -r; dz <= r; dz++) {
+                    const x = Math.floor(ex + dx), y = Math.floor(ey + dy), z = Math.floor(ez + dz);
+                    const id = game.world.get(x, y, z);
+                    camaras.onSet(x, y, z, id);
+                    latas.onSet(x, y, z, id);
+                }
+            }
+        }
+    }
 
     function damagePlayer(dmg, dir) {
         if (game.mode === 'creativo') return; // en Creativo no se recibe daño
@@ -332,6 +357,7 @@ function boot() {
             game.world.addChunk(cx, cz, new Uint8Array(blocks));
             onChunkArrived(cx, cz);
             camaras.sync(game.world); // alta de cámaras del chunk recién llegado
+            latas.sync(game.world);   // ídem con las latas
             pumpGeneration();
         };
     }
@@ -446,7 +472,8 @@ function boot() {
         game.seed = seed;
         game.world = new World(seed);
         game.mobs = new MobSystem(MOBS, game.world, mobHooks, seed);
-        camaras.reset(); // el registro de cámaras es por mundo
+        camaras.reset(); // los registros de bloques dinámicos son por mundo
+        latas.reset();
         game.hp = 20;
         game.dead = false;
         game.hurtGraceT = 0;
@@ -663,6 +690,7 @@ function boot() {
                 else {
                     game.world.set(hit.x, hit.y, hit.z, B.AIR);
                     camaras.onSet(hit.x, hit.y, hit.z, B.AIR); // baja si era cámara
+                    latas.onSet(hit.x, hit.y, hit.z, B.AIR);   // …o lata
                 }
                 sound.dig(def.sound);
                 return;
@@ -705,6 +733,7 @@ function boot() {
                 particulasRotura(hit.id, hit.x, hit.y, hit.z);
                 game.world.set(hit.x, hit.y, hit.z, B.AIR);
                 camaras.onSet(hit.x, hit.y, hit.z, B.AIR); // baja si era cámara
+                latas.onSet(hit.x, hit.y, hit.z, B.AIR);   // …o lata
                 game.breaking = null;
                 if (esCultivo(hit.id)) {
                     // cosechar: maduro suelta el botín completo; inmaduro,
@@ -842,6 +871,7 @@ function boot() {
             }
             game.world.set(tx, ty, tz, id);
             camaras.onSet(tx, ty, tz, id); // alta si se colocó una cámara
+            latas.onSet(tx, ty, tz, id);   // …o una lata
             sound.place(DEFS[id].sound);
             viewmodel.swing();
         }
@@ -935,6 +965,19 @@ function boot() {
             peaceful: game.difficulty === 'pacifica', // no aparecen hostiles
         });
 
+        // mechas de las latas de Red Bull: burbujea, silba al entrar en los
+        // últimos 3 s y al agotarse ESTALLA — capas extra de partículas
+        // (bola de fuego, hongo y alas de energía) sobre la explosión base
+        // que aplica explodeAt (esfera de radio 4, daño, sonido y limpieza)
+        const mechas = latas.update(dt);
+        for (const p of mechas.chispean) disparar('lata_fuse', [p.x + 0.5, p.y + 0.62, p.z + 0.5]);
+        if (mechas.silban.length) sound.fuse();
+        for (const p of mechas.estallan) {
+            const centro = [p.x + 0.5, p.y + 0.5, p.z + 0.5];
+            disparar('lata_explosion', centro);
+            game.mobs.explodeAt(centro, RADIO_EXPLOSION, player.pos);
+        }
+
         // drops: caen, giran y vuelan a la mano al acercarse
         game.drops.update(dt, player.pos, game.world, (id) => {
             game.inventory.add(id);
@@ -1004,6 +1047,7 @@ function boot() {
             ensureMeshes();
             unloadFar();
             camaras.sync(game.world); // baja de cámaras en chunks descargados
+            latas.sync(game.world);   // ídem con las latas
         }
         processDirty(6);
     }
@@ -1052,7 +1096,7 @@ function boot() {
         };
         f.drawEntities = () => {
             camaras.update(game.time); // barrido del cabezal + parpadeo del LED
-            mobRenderer.render(f, game.mobs.mobs.concat(camaras.entidades),
+            mobRenderer.render(f, game.mobs.mobs.concat(camaras.entidades, latas.entidades),
                 game.mobs.arrows, game.time, game.world);
         };
         renderer.render(f);

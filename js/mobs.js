@@ -1001,7 +1001,18 @@ export class MobSystem {
 
     explode(m, ctx) {
         const r = (m.def.behavior && m.def.behavior.radius) || 3;
-        const [ex, ey, ez] = [m.pos[0], m.pos[1] + 0.5, m.pos[2]];
+        this.explodeAt([m.pos[0], m.pos[1] + 0.5, m.pos[2]], r, ctx.pos, m);
+        m.hp = 0;
+        m.dieT = 0.01; // sin sonido de muerte propio: lo tapa la explosión
+    }
+
+    /**
+     * Explosión genérica en una posición: esfera de radio r que limpia
+     * bloques (salvo bedrock y agua) y daña a jugador y mobs a menos de 2r
+     * (decreciente con la distancia). La usan el creeper y el kamikaze
+     * (explode, con `skip` = el propio mob) y la lata de Red Bull (main.js).
+     */
+    explodeAt([ex, ey, ez], r, playerPos, skip = null) {
         for (let dx = -r; dx <= r; dx++) {
             for (let dy = -r; dy <= r; dy++) {
                 for (let dz = -r; dz <= r; dz++) {
@@ -1013,16 +1024,14 @@ export class MobSystem {
             }
         }
         const blast = r * 2;
-        const dp = Math.hypot(ctx.pos[0] - ex, ctx.pos[1] - ey, ctx.pos[2] - ez);
-        if (dp < blast) this.hooks.damagePlayer(Math.round((1 - dp / blast) * 14), this.dirTo([ex, ey, ez], ctx.pos));
+        const dp = Math.hypot(playerPos[0] - ex, playerPos[1] - ey, playerPos[2] - ez);
+        if (dp < blast) this.hooks.damagePlayer(Math.round((1 - dp / blast) * 14), this.dirTo([ex, ey, ez], playerPos));
         for (const other of this.mobs) {
-            if (other === m || other.dying()) continue;
+            if (other === skip || other.dying()) continue;
             const d = Math.hypot(other.pos[0] - ex, other.pos[1] - ey, other.pos[2] - ez);
             if (d < blast) this.hurt(other, Math.round((1 - d / blast) * 20), this.dirTo([ex, ey, ez], other.pos));
         }
-        this.hooks.explosion([ex, ey, ez]);
-        m.hp = 0;
-        m.dieT = 0.01; // sin sonido de muerte propio: lo tapa la explosión
+        this.hooks.explosion([ex, ey, ez], r);
     }
 
     shootArrow(m, ctx) {
