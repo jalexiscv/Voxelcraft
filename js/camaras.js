@@ -7,16 +7,14 @@
  * vigilancia (0,15 s encendido cada 1,2 s) alternando entre dos variantes
  * de piel.
  *
- * Registro barato de cámaras en chunks cargados:
- *  - sync(world): escanea los chunks recién añadidos y da de baja los
- *    descargados (main.js lo llama tras el streaming).
- *  - onSet(x, y, z, id): alta/baja puntual al colocar o romper el bloque
- *    (main.js lo llama junto a world.set en las acciones del jugador).
+ * El rastreo en chunks cargados (sync/onSet) vive en el registro genérico
+ * de bloques dinámicos (js/dinamicos.js); aquí solo queda lo propio de la
+ * cámara: modelo, piel y animación.
  *
  * Módulo puro (sin DOM ni WebGL): probable en Node.
  */
 import { B } from './blocks.js';
-import { CHUNK, chunkKey } from './world.js';
+import { RegistroDinamico } from './dinamicos.js';
 import { PRNG } from './noise.js';
 
 /* ---- Barrido del cabezal ---- */
@@ -192,52 +190,9 @@ function crearEntidad(x, y, z) {
     };
 }
 
-export class CamaraSystem {
+export class CamaraSystem extends RegistroDinamico {
     constructor() {
-        this.porChunk = new Map();  // "cx,cz" → [{x,y,z}] cámaras halladas
-        this.entidades = [];        // entidades vivas para el render
-    }
-
-    /** Olvida todo (cambio de mundo). */
-    reset() {
-        this.porChunk.clear();
-        this.entidades = [];
-    }
-
-    /**
-     * Reconcilia el registro con los chunks cargados: escanea UNA vez cada
-     * chunk nuevo y da de baja los descargados. Barato: O(chunks) en Map.
-     */
-    sync(world) {
-        let cambio = false;
-        for (const key of [...this.porChunk.keys()]) {
-            if (!world.chunks.has(key)) {
-                if (this.porChunk.get(key).length > 0) cambio = true;
-                this.porChunk.delete(key);
-            }
-        }
-        for (const [key, chunk] of world.chunks) {
-            if (this.porChunk.has(key)) continue;
-            const lista = this.escanear(key, chunk.blocks);
-            this.porChunk.set(key, lista);
-            if (lista.length > 0) cambio = true;
-        }
-        if (cambio) this.reconstruir();
-    }
-
-    /** Alta/baja puntual: llamar junto a world.set al colocar o romper. */
-    onSet(x, y, z, id) {
-        const key = chunkKey(x >> 4, z >> 4);
-        const lista = this.porChunk.get(key);
-        if (!lista) return; // chunk sin escanear: sync lo recogerá
-        const i = lista.findIndex((c) => c.x === x && c.y === y && c.z === z);
-        if (id === B.CAMERA && i < 0) {
-            lista.push({ x, y, z });
-            this.reconstruir();
-        } else if (id !== B.CAMERA && i >= 0) {
-            lista.splice(i, 1);
-            this.reconstruir();
-        }
+        super(B.CAMERA, crearEntidad);
     }
 
     /** Anima el barrido y el parpadeo del LED de todas las cámaras. */
@@ -247,27 +202,6 @@ export class CamaraSystem {
         for (const e of this.entidades) {
             e.headYaw = yaw;
             e.variant = v;
-        }
-    }
-
-    /** Escaneo lineal del chunk (16×64×16 bytes): posiciones con cámara. */
-    escanear(key, blocks) {
-        const lista = [];
-        if (!blocks.includes(B.CAMERA)) return lista; // atajo del caso común
-        const [cx, cz] = key.split(',').map(Number);
-        for (let i = 0; i < blocks.length; i++) {
-            if (blocks[i] !== B.CAMERA) continue;
-            const lx = i & 15, lz = (i >> 4) & 15, y = i >> 8;
-            lista.push({ x: cx * CHUNK + lx, y, z: cz * CHUNK + lz });
-        }
-        return lista;
-    }
-
-    /** Rehace la lista de entidades desde el registro (cambia rara vez). */
-    reconstruir() {
-        this.entidades = [];
-        for (const lista of this.porChunk.values()) {
-            for (const c of lista) this.entidades.push(crearEntidad(c.x, c.y, c.z));
         }
     }
 }
