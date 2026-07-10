@@ -64,6 +64,147 @@ uniform vec4 uColor;
 out vec4 outColor;
 void main() { outColor = uColor; }`;
 
+// Cielo atmosférico de pantalla completa: gradiente cénit→horizonte, arrebol
+// crepuscular hacia el sol, estrellas nocturnas y CÚMULOS VOLUMÉTRICOS por
+// raymarching de un campo de altura fbm (iluminados por el sol, con borde
+// plateado y panza oscura; la tormenta los cierra y los agrisa). Sustituye al
+// clearColor plano y al viejo quad de nubes. Un solo triángulo que cubre la
+// pantalla (gl_VertexID, sin buffers); el rayo por píxel se reconstruye con
+// los ejes de la cámara.
+const ATMOS_VS = `#version 300 es
+out vec2 vNDC;
+void main() {
+    vec2 p = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0);
+    vNDC = p;
+    gl_Position = vec4(p, 0.9999, 1.0); // casi en el plano lejano
+}`;
+
+const ATMOS_FS = `#version 300 es
+precision highp float;
+in vec2 vNDC;
+uniform vec3 uCamPos;
+uniform vec3 uCamRight;
+uniform vec3 uCamUp;
+uniform vec3 uCamFwd;
+uniform vec2 uTanFov;    // (tan(fov/2)·aspecto, tan(fov/2))
+uniform vec3 uHorizonte; // color actual del cielo/niebla (con clima y crepúsculo)
+uniform vec3 uSunDir;
+uniform float uDia;      // factor día 0..1
+uniform float uGlow;     // resplandor crepuscular 0..0.55
+uniform float uNublado;  // intensidad del clima 0..1 (cierra y agrisa las nubes)
+uniform float uFlash;    // destello del rayo 0..1 (ilumina las nubes)
+uniform float uTiempo;   // segundos (deriva de nubes, titileo de estrellas)
+uniform float uNubeY;    // altura de la base de las nubes
+out vec4 outColor;
+
+float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+float vnoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash12(i), hash12(i + vec2(1, 0)), f.x),
+               mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), f.x), f.y);
+}
+float fbm(vec2 p) {
+    float v = 0.0, a = 0.5;
+    for (int i = 0; i < 4; i++) { v += a * vnoise(p); p = p * 2.03 + 17.7; a *= 0.5; }
+    return v;
+}
+
+// Densidad de nube en un punto: campo de altura 2.5D — la cobertura decide
+// dónde hay nube y el propio ruido su grosor (cimas abultadas, base plana).
+float densidad(vec3 p) {
+    vec2 q = p.xz * 0.0016 + vec2(uTiempo * 0.006, uTiempo * 0.0025);
+    float f = fbm(q);
+    float cobertura = mix(0.60, 0.34, uNublado); // tormenta: el cielo se cierra
+    float nube = smoothstep(cobertura, cobertura + 0.24, f);
+    if (nube <= 0.0) return 0.0;
+    float h = (p.y - uNubeY) / (26.0 + 96.0 * f); // grosor crece con la nube
+    return nube * smoothstep(0.0, 0.16, h) * (1.0 - smoothstep(0.5, 1.0, h));
+}
+
+// Raymarch del estrato de nubes [uNubeY, uNubeY+120]: acumula luz
+// premultiplicada y transmitancia; el resultado se funde con la bruma
+// del horizonte según la distancia de entrada al estrato.
+vec4 nubes(vec3 ro, vec3 rd, float mu) {
+    float top = uNubeY + 120.0;
+    if (abs(rd.y) < 2e-3) return vec4(0.0);
+    float ta = (uNubeY - ro.y) / rd.y;
+    float tb = (top - ro.y) / rd.y;
+    float t0 = max(min(ta, tb), 0.0);
+    float t1 = max(ta, tb);
+    if (t1 <= 0.0 || t0 > 9000.0) return vec4(0.0);
+    t1 = min(t1, t0 + 2400.0);
+    const int N = 14;
+    float dt = (t1 - t0) / float(N);
+    float T = 1.0;
+    vec3 acc = vec3(0.0);
+    // fase hacia el sol: borde plateado cuando se mira a contraluz
+    float fase = 0.85 + 1.1 * pow(max(mu, 0.0), 8.0);
+    for (int i = 0; i < N; i++) {
+        float t = t0 + (float(i) + 0.5) * dt;
+        vec3 p = ro + rd * t;
+        float d = densidad(p);
+        if (d < 0.01) continue;
+        float hfrac = clamp((p.y - uNubeY) / 110.0, 0.0, 1.0);
+        // panza en sombra, cima al sol (sobreexpuesta: satura a blanco);
+        // de noche apenas lucen; la tormenta las aploma y el rayo las
+        // enciende un instante
+        vec3 luz = mix(vec3(0.52, 0.55, 0.62), vec3(1.22, 1.19, 1.13), hfrac);
+        luz *= (0.16 + 0.9 * uDia) * fase;
+        luz = mix(luz, luz * vec3(0.5, 0.52, 0.58), uNublado);
+        luz += vec3(uFlash) * 0.9;
+        float a = 1.0 - exp(-d * dt * 0.05);
+        acc += T * a * luz;
+        T *= 1.0 - a;
+        if (T < 0.02) break;
+    }
+    float bruma = exp(-t0 * 0.00042); // lejos, la nube se funde con el horizonte
+    return vec4(acc * bruma, (1.0 - T) * bruma);
+}
+
+void main() {
+    vec3 rd = normalize(uCamFwd + uCamRight * (vNDC.x * uTanFov.x) + uCamUp * (vNDC.y * uTanFov.y));
+    float elev = clamp(rd.y, -1.0, 1.0);
+
+    // gradiente atmosférico: el horizonte ES el color de la niebla (el
+    // terreno lejano se funde sin costura) y el cénit es su versión honda;
+    // la tormenta lo neutraliza (un cielo cubierto no azulea en lo alto)
+    vec3 fCenit = mix(vec3(0.36, 0.50, 0.86), vec3(0.52, 0.55, 0.60), uNublado);
+    vec3 cenit = uHorizonte * fCenit;
+    vec3 col = mix(uHorizonte, cenit, pow(max(elev, 0.0), 0.42));
+
+    float mu = max(dot(rd, uSunDir), 0.0);
+    // arrebol: refuerzo cálido direccional hacia el sol en el crepúsculo
+    col += vec3(1.0, 0.42, 0.18) * (uGlow * 0.85 * pow(mu, 6.0));
+    // halo pegado al disco solar (Mie hacia delante)
+    col += vec3(1.0, 0.87, 0.62) * (pow(mu, 320.0) * 1.1 * uDia);
+
+    // estrellas: rejilla angular con brillo y titileo por celda; se funden
+    // al amanecer y desaparecen bajo el cielo cubierto
+    float noche = (1.0 - smoothstep(0.06, 0.32, uDia)) * (1.0 - uNublado);
+    if (noche > 0.003 && elev > 0.02) {
+        vec2 suv = vec2(atan(rd.z, rd.x) * 57.0, asin(elev) * 57.0);
+        vec2 cel = floor(suv);
+        float h = hash12(cel);
+        if (h > 0.993) {
+            vec2 c = fract(suv) - 0.5;
+            float star = smoothstep(0.18, 0.02, length(c));
+            star *= 0.55 + 0.45 * sin(uTiempo * 2.6 + h * 999.0);
+            col += vec3(0.9, 0.95, 1.0) * star * noche * (h - 0.993) * 120.0;
+        }
+    }
+
+    // cúmulos por encima del gradiente (composición premultiplicada)
+    vec4 nb = nubes(uCamPos, rd, mu);
+    col = col * (1.0 - nb.a) + nb.rgb;
+
+    outColor = vec4(col, 1.0);
+}`;
+
 // Astros (sol/luna): quad billboard sin niebla ni factor día — brillan con
 // luz propia. La esquina (±1,±1) se expande con los ejes de la cámara.
 const SKY_VS = `#version 300 es
@@ -206,6 +347,8 @@ const SHATTER_FACES = [
 ];
 
 export class Renderer {
+    // cloudCanvas se conserva en la firma por compatibilidad (arneses y
+    // main), pero ya no se usa: las nubes viven en el shader atmosferico
     constructor(canvas, atlasCanvas, cloudCanvas, sunCanvas, moonCanvas, particleCanvas) {
         const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
         if (!gl) throw new Error('WebGL2 no disponible');
@@ -215,16 +358,19 @@ export class Renderer {
         this.prog = this.compile(VS, FS);
         this.lineProg = this.compile(LINE_VS, LINE_FS);
         this.skyProg = this.compile(SKY_VS, SKY_FS);
+        this.atmosProg = this.compile(ATMOS_VS, ATMOS_FS);
         this.partProg = this.compile(PART_VS, PART_FS);
         this.shatterProg = this.compile(SHATTER_VS, SHATTER_FS);
         this.u = this.uniformMap(this.prog, ['uPV', 'uTex', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar', 'uDay', 'uCutoff', 'uAlphaMul', 'uUVScroll']);
         this.lu = this.uniformMap(this.lineProg, ['uPV', 'uPos', 'uColor']);
         this.su = this.uniformMap(this.skyProg, ['uPV', 'uCenter', 'uRight', 'uUp', 'uSize', 'uUVRect', 'uTex', 'uTint']);
+        this.au = this.uniformMap(this.atmosProg, ['uCamPos', 'uCamRight', 'uCamUp', 'uCamFwd', 'uTanFov',
+            'uHorizonte', 'uSunDir', 'uDia', 'uGlow', 'uNublado', 'uFlash', 'uTiempo', 'uNubeY']);
+        this.atmosVAO = gl.createVertexArray(); // triángulo por gl_VertexID, sin atributos
         this.pu = this.uniformMap(this.partProg, ['uPV', 'uRight', 'uUp', 'uTex', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar']);
         this.shu = this.uniformMap(this.shatterProg, ['uPV', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar', 'uDay', 'uAlpha']);
 
         this.atlasTex = this.makeTexture(atlasCanvas, gl.CLAMP_TO_EDGE);
-        this.cloudTex = this.makeTexture(cloudCanvas, gl.REPEAT);
         // nearest también en los astros, por coherencia con la estética pixelada
         this.sunTex = sunCanvas ? this.makeTexture(sunCanvas, gl.CLAMP_TO_EDGE) : null;
         this.moonTex = moonCanvas ? this.makeTexture(moonCanvas, gl.CLAMP_TO_EDGE) : null;
@@ -233,7 +379,6 @@ export class Renderer {
         this.chunks = new Map(); // "cx,cz" → {solid:{vao,buf,n}, water:{...}}
         this.selectionVAO = this.makeSelectionCube();
         this.skyQuadVAO = this.makeSkyQuad();
-        this.cloud = null;
 
         // búfer dinámico de los drops (se rellena cada fotograma)
         this.dropVAO = gl.createVertexArray();
@@ -581,6 +726,34 @@ export class Renderer {
      * la geometría sólida: no escriben profundidad, así el terreno los
      * tapa al dibujarse después. Deja blend y depthMask como estaban.
      */
+    /**
+     * Cielo atmosférico a pantalla completa (un triángulo por gl_VertexID):
+     * gradiente, arrebol, estrellas y cúmulos volumétricos. Sin escribir
+     * profundidad: todo lo demás se pinta encima.
+     */
+    drawAtmos(f) {
+        const gl = this.gl;
+        gl.useProgram(this.atmosProg);
+        gl.depthMask(false);
+        gl.uniform3fv(this.au.uCamPos, f.camPos);
+        gl.uniform3fv(this.au.uCamRight, f.camRight);
+        gl.uniform3fv(this.au.uCamUp, f.camUp);
+        gl.uniform3fv(this.au.uCamFwd, f.camFwd);
+        gl.uniform2fv(this.au.uTanFov, f.tanFov);
+        gl.uniform3fv(this.au.uHorizonte, f.sky);
+        gl.uniform3fv(this.au.uSunDir, f.sunDir);
+        gl.uniform1f(this.au.uDia, f.day);
+        gl.uniform1f(this.au.uGlow, f.sunGlow || 0);
+        gl.uniform1f(this.au.uNublado, f.nublado || 0);
+        gl.uniform1f(this.au.uFlash, f.flash || 0);
+        gl.uniform1f(this.au.uTiempo, f.time || 0);
+        gl.uniform1f(this.au.uNubeY, CLOUD_Y);
+        gl.bindVertexArray(this.atmosVAO);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindVertexArray(null);
+        gl.depthMask(true);
+    }
+
     drawAstros(f) {
         const gl = this.gl;
         if (!this.sunTex || !this.moonTex || !f.sunDir || !f.camRight || !f.camUp) return;
@@ -595,6 +768,10 @@ export class Renderer {
         gl.bindVertexArray(this.skyQuadVAO);
         const D = 420; // distancia del astro a la cámara (dentro del far plane)
 
+        // la tormenta vela los astros (las nubes del shader quedan detrás de
+        // ellos en el orden de pintado; atenuar su brillo hace el efecto)
+        const velo = 1 - 0.85 * (f.nublado || 0);
+
         if (f.sunDir[1] > -0.15) { // sol: solo si su elevación asoma
             const g = f.sunGlow || 0;
             gl.bindTexture(gl.TEXTURE_2D, this.sunTex);
@@ -604,7 +781,7 @@ export class Renderer {
                 f.camPos[2] + f.sunDir[2] * D);
             gl.uniform1f(this.su.uSize, 56 * (1 + 0.5 * g)); // crece en el horizonte
             // blanco → [1.0, 0.72, 0.45] según el resplandor crepuscular
-            gl.uniform3f(this.su.uTint, 1, 1 - 0.28 * g, 1 - 0.55 * g);
+            gl.uniform3f(this.su.uTint, velo, (1 - 0.28 * g) * velo, (1 - 0.55 * g) * velo);
             gl.uniform4f(this.su.uUVRect, 0, 0, 1, 1);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -617,7 +794,7 @@ export class Renderer {
                 f.camPos[1] - f.sunDir[1] * D,
                 f.camPos[2] - f.sunDir[2] * D);
             gl.uniform1f(this.su.uSize, 40);
-            gl.uniform3f(this.su.uTint, 1, 1, 1);
+            gl.uniform3f(this.su.uTint, velo, velo, velo);
             gl.uniform4f(this.su.uUVRect, uv[0], uv[1], uv[2], uv[3]);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -687,26 +864,6 @@ export class Renderer {
         gl.useProgram(this.prog);
     }
 
-    /**
-     * Mantiene el plano de nubes centrado en el jugador (mundo infinito):
-     * se reconstruye al alejarse >256 bloques del centro anterior. Las UVs
-     * están ancladas a coordenadas de mundo, así el patrón no "salta" al
-     * reconstruir.
-     */
-    ensureClouds(px, pz) {
-        if (this.cloud && Math.hypot(px - this.cloudCenter[0], pz - this.cloudCenter[1]) < 256) return;
-        if (this.cloud) this.freeMesh(this.cloud);
-        const y = CLOUD_Y, s = 900, scale = 320; // nubes a 192 mostrada (MC real)
-        const quad = [
-            [px - s, pz - s], [px + s, pz - s], [px + s, pz + s],
-            [px - s, pz - s], [px + s, pz + s], [px - s, pz + s],
-        ];
-        // luz 0.96: tope del canal solar (1.0 se decodificaría como luz de bloque)
-        const data = new Float32Array(quad.flatMap(([x, z]) => [x, y, z, x / scale, z / scale, 0.96]));
-        this.cloud = this.makeVAO(data);
-        this.cloudCenter = [px, pz];
-    }
-
     resize() {
         const c = this.canvas;
         const w = c.clientWidth, h = c.clientHeight;
@@ -717,7 +874,8 @@ export class Renderer {
     /**
      * Dibuja un fotograma completo.
      * @param {object} f — {pv, camPos, sky, day, fogNear, fogFar, selection,
-     *   cloudOffset, sunDir, sunGlow, moonPhase, camRight, camUp}
+     *   sunDir, sunGlow, moonPhase, camRight, camUp, camFwd, tanFov,
+     *   nublado, flash}
      */
     render(f) {
         const gl = this.gl;
@@ -725,7 +883,12 @@ export class Renderer {
         gl.clearColor(f.sky[0], f.sky[1], f.sky[2], 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        // 0. astros: tras el clear y antes del terreno (sin escribir profundidad)
+        // 0. atmósfera: gradiente + nubes volumétricas + estrellas, a pantalla
+        // completa sin escribir profundidad (el terreno la tapará después)
+        this.drawAtmos(f);
+
+        // 0b. astros: sobre el gradiente y antes del terreno (la tormenta
+        // los vela — las nubes del shader quedan por debajo de ellos)
         this.drawAstros(f);
 
         gl.useProgram(this.prog);
@@ -781,18 +944,10 @@ export class Renderer {
         // sobre el HUD ni la mano
         if (f.particles && f.particles.length) this.drawParticles(f.particles, f);
 
-        // 3. transparencias: nubes y agua (sin escribir profundidad)
+        // 3. transparencias: agua (sin escribir profundidad). Las nubes ya no
+        // son un quad: viven en el shader atmosférico del principio del frame.
         gl.enable(gl.BLEND);
         gl.depthMask(false);
-
-        if (this.cloud) {
-            gl.bindTexture(gl.TEXTURE_2D, this.cloudTex);
-            gl.uniform1f(this.u.uCutoff, 0.05);
-            gl.uniform1f(this.u.uAlphaMul, 0.8);
-            gl.uniform2f(this.u.uUVScroll, f.cloudOffset, 0);
-            gl.bindVertexArray(this.cloud.vao);
-            gl.drawArrays(gl.TRIANGLES, 0, this.cloud.n);
-        }
 
         gl.bindTexture(gl.TEXTURE_2D, this.atlasTex);
         gl.uniform1f(this.u.uCutoff, 0.02);

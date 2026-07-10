@@ -1201,7 +1201,6 @@ async function boot() {
         const hit = (paused() || hud.pickerOpen()) ? null
             : raycast(game.world, eye, lookDir(player.yaw, player.pitch), REACH);
 
-        renderer.ensureClouds(eye[0], eye[2]);
         // cráter del bloque en picado: reconstruye su malla sub-vóxel solo si
         // cambió (por golpe), no cada frame
         if (game.carve && game.carve.dirty) renderer.updateCarve(game.carve);
@@ -1226,12 +1225,17 @@ async function boot() {
             carve: !!game.carve,        // dibuja la malla tallada del bloque en picado
             particles: particles.snapshot().concat(climaParts.snapshot()),
             time: game.time,
-            cloudOffset: game.time * 0.003,
             sunDir: sunDirection(game.timeOfDay),
             sunGlow: sunGlow(game.timeOfDay),
             moonPhase: game.dayCount % MOON_PHASES,
             camRight: [cy, 0, -sy],
             camUp: [sy * sp, cp, cy * sp],
+            // rayo por píxel del cielo atmosférico: eje adelante + tan(fov/2)
+            camFwd: lookDir(player.yaw, player.pitch),
+            tanFov: [Math.tan(35 * Math.PI / 180) * aspect, Math.tan(35 * Math.PI / 180)],
+            // clima: cobertura/gris de las nubes y destello del rayo
+            nublado: game.clima.intensidad,
+            flash: game.clima.flash,
         };
         f.drawEntities = () => {
             camaras.update(game.time); // barrido del cabezal + parpadeo del LED
