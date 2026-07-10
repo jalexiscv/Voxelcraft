@@ -147,6 +147,48 @@ input[type=text], select {
 #picker-grid .cell:hover { border-color: #fff; background: rgba(255,255,255,.15); }
 #picker-grid canvas { image-rendering: pixelated; }
 
+/* Inventario creativo: pestañas por categoría + búsqueda + hotbar integrada
+   (mismo banco de trabajo claro que el crafteo, al estilo Bedrock) */
+.creative-cuerpo { display: flex; flex-direction: column; align-items: flex-start; }
+#creative-tabs { display: flex; gap: 4px; margin-left: 10px; position: relative; z-index: 1; }
+.ctab {
+    width: 54px; height: 46px; cursor: pointer;
+    background: #9a9a9a; border: 3px solid #1b1b1b; border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    box-shadow: inset 2px 2px 0 #cfcfcf;
+    display: flex; align-items: center; justify-content: center;
+}
+.ctab:hover { background: #b0b0b0; }
+.ctab.activa {
+    background: #c6c6c6; height: 52px; margin-top: -6px; margin-bottom: -3px;
+    box-shadow: inset 2px 2px 0 #ffffff;
+}
+.ctab canvas { image-rendering: pixelated; }
+.creative-panel { text-align: left; }
+.creative-busqueda { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.creative-busqueda label { margin: 0; font-size: 14px; font-weight: bold; color: #3f3f3f; }
+.creative-busqueda input {
+    flex: 1; margin: 0; padding: 5px 8px; width: auto;
+    font-family: inherit; font-size: 14px;
+    background: #8b8b8b; color: #1b1b1b; caret-color: #1b1b1b;
+    border: 2px solid; border-color: #373737 #ffffff #ffffff #373737;
+}
+.creative-busqueda input:focus { outline: none; background: #9c9c9c; }
+#creative-grid {
+    display: grid; grid-template-columns: repeat(9, 46px);
+    grid-auto-rows: 46px; gap: 4px; align-content: start;
+    height: 296px;               /* 6 filas de 46 px + huecos */
+    overflow-y: scroll; padding-right: 4px;
+}
+#creative-grid::-webkit-scrollbar { width: 14px; }
+#creative-grid::-webkit-scrollbar-track { background: #8b8b8b; border: 2px solid #555; }
+#creative-grid::-webkit-scrollbar-thumb { background: #d6d6d6; border: 2px solid #555; }
+.creative-vacio { grid-column: 1 / -1; color: #5a5a5a; font-size: 12px; padding: 18px 6px; }
+#creative-hotbar { display: flex; gap: 4px; margin-top: 12px; padding-top: 10px; border-top: 2px solid #a5a5a5; }
+#creative-hotbar .cslot .num {
+    position: absolute; top: 0; left: 2px; font-size: 9px; color: #5a5a5a;
+}
+
 /* Pantalla de inventario y crafteo por cuadrícula (banco de trabajo claro) */
 .craft-cuerpo { display: flex; gap: 14px; align-items: flex-start; }
 .craft-panel {

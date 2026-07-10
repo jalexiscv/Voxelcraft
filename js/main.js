@@ -676,9 +676,11 @@ async function boot() {
 
     document.addEventListener('keydown', (e) => {
         if (game.state !== 'playing') return;
-        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+        // Escape cierra los paneles ANTES del cortocircuito de inputs: así
+        // también funciona con el foco en el buscador del inventario creativo
         if (e.code === 'Escape' && hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); return; }
         if (e.code === 'Escape' && hud.craftOpen()) { hud.closeCraft(); canvas.requestPointerLock(); return; }
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
         if (e.code === 'F3') { e.preventDefault(); hud.toggleDebug(); return; }
         if (e.code === 'KeyB') {
             if (hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); }
@@ -1233,6 +1235,12 @@ async function boot() {
     showMenu(true);
     showSection('main');
     requestAnimationFrame(frame);
+
+    // gancho de depuración y pruebas automatizadas: con ?debug en la URL se
+    // expone el estado interno (el juego normal no publica nada en window)
+    if (new URLSearchParams(location.search).has('debug')) {
+        window.__vc = { game, hud, player };
+    }
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {

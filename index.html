@@ -17,12 +17,30 @@
     <div id="damage"></div>
     <div id="debug" class="hidden"></div>
 
-    <!-- Selector de bloques (tecla B) -->
+    <!-- Selector de bloques (tecla B; solo Supervivencia — lo recolectado) -->
     <div id="picker" class="overlay hidden">
         <div class="panel">
             <h2>Seleccionar bloque</h2>
             <div id="picker-grid"></div>
             <p class="hint">Clic: asignar a la ranura activa &middot; B/Esc: cerrar</p>
+        </div>
+    </div>
+
+    <!-- Inventario creativo (B/E en modo Creativo): pestañas por categoría,
+         búsqueda en vivo sobre todo el catálogo y hotbar integrada. El HUD
+         (js/hud.js) construye pestañas, cuadrícula y ranuras. -->
+    <div id="creative" class="overlay hidden">
+        <div class="creative-cuerpo">
+            <div id="creative-tabs"></div>
+            <div class="panel craft-panel creative-panel">
+                <div class="creative-busqueda">
+                    <label for="creative-search">Búsqueda</label>
+                    <input id="creative-search" type="text" autocomplete="off" spellcheck="false"/>
+                </div>
+                <div id="creative-grid"></div>
+                <div id="creative-hotbar"></div>
+                <p class="craft-ayuda">Clic en un material: ponerlo en la ranura elegida &middot; B/Esc: cerrar</p>
+            </div>
         </div>
     </div>
 

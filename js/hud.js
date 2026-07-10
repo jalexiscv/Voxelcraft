@@ -4,12 +4,45 @@
  */
 import { DEFS, PLACEABLE, B } from './blocks.js';
 import { TILE_PX, ATLAS_GRID } from './atlas.js';
-import { ITEM_DEFS, isItem, RECIPES, matchGrid, autoColocar, FUNDICIONES, COMBUSTIBLES, fundir } from './items.js';
+import { ITEM_DEFS, ITEMS, isItem, RECIPES, matchGrid, autoColocar, FUNDICIONES, COMBUSTIBLES, fundir } from './items.js';
 import { EGG_IDS, esHuevo, nombreHuevo, coloresHuevo } from './eggs.js';
+import { MATERIALES_PLAN } from './materiales.js';
 import { Inventory } from './inventory.js';
 
 const ICON = 36;  // lado del canvas de icono
 const K = 11;     // semiancho del rombo isométrico
+
+/* ---- Categorías del inventario creativo (pestañas al estilo Bedrock) ---- */
+
+// Bloques «de la naturaleza»: aparecen en el mundo tal cual (suelos, troncos,
+// hojas, menas, plantas…). El resto de bloques colocables cuenta como
+// construcción (procesados: tablones, ladrillos, hormigón, cristal…).
+const NATURALEZA = new Set([
+    B.STONE, B.GRASS, B.DIRT, B.SAND, B.GRAVEL, B.GOLD_ORE, B.IRON_ORE,
+    B.COAL_ORE, B.LOG, B.LEAVES, B.SAPLING, B.FLOWER_YELLOW, B.FLOWER_RED,
+    B.MUSHROOM_BROWN, B.MUSHROOM_RED, B.SNOW, B.SNOWY_GRASS, B.ICE,
+    B.SPRUCE_LOG, B.SPRUCE_LEAVES, B.JUNGLE_LOG, B.JUNGLE_LEAVES,
+    B.ACACIA_LOG, B.ACACIA_LEAVES, B.CHERRY_LOG, B.CHERRY_LEAVES,
+    B.PALE_LOG, B.PALE_LEAVES, B.CACTUS, B.MYCELIUM, B.PODZOL,
+    B.DEAD_BUSH, B.TALL_GRASS, B.OBSIDIAN, B.SPONGE,
+    B.GRANITE, B.DIORITE, B.ANDESITE,
+]);
+// de los materiales generados: troncos, hojas, menas y naturales sueltos
+const MAT_NATURAL = /(_LOG|_LEAVES|_ORE)$|^(COARSE_DIRT|CLAY|SNOW_BLOCK|MELON|PUMPKIN|SOUL_SAND|MAGMA_BLOCK|NETHERRACK|END_STONE|NETHER_WART_BLOCK|PACKED_ICE|BLUE_ICE|ICE)$/;
+for (const m of MATERIALES_PLAN) {
+    if (MAT_NATURAL.test(m.key)) NATURALEZA.add(m.id);
+}
+
+/** Pestañas del inventario creativo (icono = id cuyo dibujo la representa). */
+const CREATIVE_TABS = [
+    { cat: 'constru', titulo: 'Construcción', icono: B.BRICKS },
+    { cat: 'natura', titulo: 'Naturaleza', icono: B.GRASS },
+    { cat: 'objetos', titulo: 'Objetos', icono: ITEMS.ESPADA_HIERRO },
+    { cat: 'mobs', titulo: 'Criaturas', icono: EGG_IDS[0] },
+];
+
+/** Texto plegado para buscar: sin mayúsculas ni acentos. */
+const plegar = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export class HUD {
     /**
@@ -28,6 +61,11 @@ export class HUD {
             hotbar: document.getElementById('hotbar'),
             picker: document.getElementById('picker'),
             pickerGrid: document.getElementById('picker-grid'),
+            creative: document.getElementById('creative'),
+            creativeTabs: document.getElementById('creative-tabs'),
+            creativeSearch: document.getElementById('creative-search'),
+            creativeGrid: document.getElementById('creative-grid'),
+            creativeHotbar: document.getElementById('creative-hotbar'),
             craft: document.getElementById('craft'),
             craftTitle: document.getElementById('craft-title'),
             craftGrid: document.getElementById('craft-grid'),
@@ -61,6 +99,11 @@ export class HUD {
         this.buildPicker();
         this.buildHearts();
         this.buildHunger();
+
+        // inventario creativo: pestaña activa y filtrado en vivo al teclear
+        this.creativeCat = CREATIVE_TABS[0].cat;
+        this.buildCreativeTabs();
+        this.els.creativeSearch.addEventListener('input', () => this.renderCreativeGrid());
 
         // el material «en mano» y el tooltip siguen al puntero en el crafteo
         // (el horno y el cofre comparten el manejador: su tooltip usa el
@@ -281,14 +324,12 @@ export class HUD {
     /* ---- Selector de bloques ---- */
 
     buildPicker() {
+        // panel clásico SOLO de supervivencia: lo recolectado (bloques
+        // colocables y herramientas fabricadas). El creativo usa su propio
+        // panel con pestañas y búsqueda (buildCreativeTabs y compañía).
+        if (!this.inventory) return;
         this.els.pickerGrid.innerHTML = '';
-        // creativo: TODO el catálogo — bloques colocables, todos los items
-        // (herramientas, espadas, comida, materiales; sin cantidades) y los
-        // huevos de aparición de los mobs; supervivencia: lo recolectado
-        // (bloques colocables y herramientas fabricadas)
-        const ids = this.inventory
-            ? this.inventory.ids().filter((id) => isItem(id) || (DEFS[id] && DEFS[id].placeable))
-            : [...PLACEABLE, ...Object.keys(ITEM_DEFS).map(Number), ...EGG_IDS];
+        const ids = this.inventory.ids().filter((id) => isItem(id) || (DEFS[id] && DEFS[id].placeable));
         if (ids.length === 0) {
             const vacio = document.createElement('p');
             vacio.className = 'hint';
@@ -319,8 +360,103 @@ export class HUD {
     }
 
     openPicker() {
-        if (this.inventory) this.buildPicker(); // las existencias cambian al jugar
+        if (!this.inventory) { // creativo: panel con pestañas, búsqueda y hotbar
+            this.els.creativeSearch.value = '';
+            this.renderCreativeGrid();
+            this.renderCreativeHotbar();
+            this.els.creative.classList.remove('hidden');
+            return;
+        }
+        this.buildPicker(); // supervivencia: las existencias cambian al jugar
         this.els.picker.classList.remove('hidden');
+    }
+
+    /* ---- Inventario creativo (pestañas + búsqueda + hotbar integrada) ---- */
+
+    /** Catálogo creativo completo: bloques colocables, items y huevos. */
+    creativeIds() {
+        return [...PLACEABLE, ...Object.keys(ITEM_DEFS).map(Number), ...EGG_IDS];
+    }
+
+    /** Pestaña a la que pertenece un id (ver CREATIVE_TABS y NATURALEZA). */
+    categoriaDe(id) {
+        if (esHuevo(id)) return 'mobs';
+        if (isItem(id)) return 'objetos';
+        return NATURALEZA.has(id) ? 'natura' : 'constru';
+    }
+
+    buildCreativeTabs() {
+        this.els.creativeTabs.innerHTML = '';
+        for (const t of CREATIVE_TABS) {
+            const tab = document.createElement('div');
+            tab.className = 'ctab' + (t.cat === this.creativeCat ? ' activa' : '');
+            tab.title = t.titulo;
+            const canvas = document.createElement('canvas');
+            this.drawIcon(canvas, t.icono);
+            tab.appendChild(canvas);
+            tab.addEventListener('click', () => {
+                this.creativeCat = t.cat;
+                this.els.creativeSearch.value = ''; // la pestaña anula la búsqueda
+                [...this.els.creativeTabs.children].forEach((el, i) =>
+                    el.classList.toggle('activa', CREATIVE_TABS[i].cat === t.cat));
+                this.renderCreativeGrid();
+            });
+            this.els.creativeTabs.appendChild(tab);
+        }
+    }
+
+    /**
+     * Cuadrícula del creativo: con texto en el buscador filtra por nombre
+     * TODO el catálogo (ignorando la pestaña); sin texto muestra la
+     * categoría de la pestaña activa. Clic: asignar a la ranura elegida
+     * sin cerrar el panel (se cierra con B/Esc).
+     */
+    renderCreativeGrid() {
+        const q = plegar(this.els.creativeSearch.value.trim());
+        const ids = this.creativeIds().filter((id) => q
+            ? plegar(this.nombreDe(id)).includes(q)
+            : this.categoriaDe(id) === this.creativeCat);
+        this.els.creativeGrid.innerHTML = '';
+        if (!ids.length) {
+            const vacio = document.createElement('p');
+            vacio.className = 'creative-vacio';
+            vacio.textContent = 'Sin resultados para esa búsqueda.';
+            this.els.creativeGrid.appendChild(vacio);
+            return;
+        }
+        for (const id of ids) {
+            const cell = document.createElement('div');
+            cell.className = 'cslot';
+            cell.title = this.nombreDe(id);
+            const canvas = document.createElement('canvas');
+            this.drawIcon(canvas, id);
+            cell.appendChild(canvas);
+            cell.addEventListener('click', () => {
+                this.assignSlot(this.active, id);
+                this.renderCreativeHotbar();
+            });
+            this.els.creativeGrid.appendChild(cell);
+        }
+    }
+
+    /** Hotbar integrada en el panel: espejo de la real; clic elige destino. */
+    renderCreativeHotbar() {
+        this.els.creativeHotbar.innerHTML = '';
+        for (let i = 0; i < 9; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'cslot' + (i === this.active ? ' activo' : '');
+            const num = document.createElement('span');
+            num.className = 'num';
+            num.textContent = String(i + 1);
+            const canvas = document.createElement('canvas');
+            this.drawIcon(canvas, this.slots[i]);
+            slot.append(num, canvas);
+            slot.addEventListener('click', () => {
+                this.setActive(i);           // mueve también la hotbar real
+                this.renderCreativeHotbar();
+            });
+            this.els.creativeHotbar.appendChild(slot);
+        }
     }
 
     /* ---- Pantalla de inventario y crafteo (cuadrícula clásica) ---- */
@@ -523,8 +659,15 @@ export class HUD {
             libro.appendChild(row);
         }
     }
-    closePicker() { this.els.picker.classList.add('hidden'); }
-    pickerOpen() { return !this.els.picker.classList.contains('hidden'); }
+    closePicker() {
+        this.els.picker.classList.add('hidden');
+        this.els.creative.classList.add('hidden');
+        this.els.creativeSearch.blur();
+    }
+    pickerOpen() {
+        return !this.els.picker.classList.contains('hidden') ||
+               !this.els.creative.classList.contains('hidden');
+    }
 
     /* ---- Pantalla del horno (fundición por sesión) ---- */
 
