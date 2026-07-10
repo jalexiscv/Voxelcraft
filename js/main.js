@@ -17,7 +17,7 @@ import { ParticleSystem } from './particles.js';
 import { cargarEfectos } from './particlepack.js';
 import { sunDirection, skyColor, sunGlow, buildSunTexture, buildMoonTexture, MOON_PHASES } from './sky.js';
 import { B, DEFS } from './blocks.js';
-import { World, CHUNK, WORLD_HEIGHT, chunkKey } from './world.js';
+import { World, CHUNK, WORLD_HEIGHT, Y_BASE, chunkKey } from './world.js';
 import { meshChunk } from './mesher.js';
 import { Renderer } from './renderer.js';
 import { Player, raycast } from './player.js';
@@ -1253,7 +1253,9 @@ async function boot() {
             const [pcx, pcz] = playerChunk();
             hud.debug(
                 `FPS: ${game.fps.toFixed(0)}\n` +
-                `XYZ: ${player.pos.map((v) => v.toFixed(1)).join(' / ')}\n` +
+                // la Y se muestra al estilo Minecraft: interna − Y_BASE
+                // (lecho de roca en −64, techo de construcción en 320)
+                `XYZ: ${player.pos[0].toFixed(1)} / ${(player.pos[1] - Y_BASE).toFixed(1)} / ${player.pos[2].toFixed(1)}\n` +
                 `Chunk: ${pcx},${pcz}  Cargados: ${game.world.chunks.size}  Mallas: ${renderer.chunks.size}\n` +
                 `Semilla: ${game.seed}  Hora: ${(game.timeOfDay * 24).toFixed(1)} h  Luz: ${day.toFixed(2)}  Día: ${game.dayCount}\n` +
                 `Vuelo: ${player.flying ? 'sí' : 'no'}  Agua: ${player.inWater ? 'sí' : 'no'}\n` +

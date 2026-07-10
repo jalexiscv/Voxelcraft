@@ -8,9 +8,11 @@
  * local = x & 15. Índice dentro del chunk: (y·16 + lz)·16 + lx.
  */
 import { B, DEFS } from './blocks.js';
+import { CHUNK, WORLD_HEIGHT, Y_BASE } from './dimensiones.js';
 
-export const CHUNK = 16;
-export const WORLD_HEIGHT = 64;
+// re-export: los consumidores históricos (storage, main, mesher…) las
+// importan de aquí; la fuente única es js/dimensiones.js
+export { CHUNK, WORLD_HEIGHT, Y_BASE };
 
 export const chunkKey = (cx, cz) => cx + ',' + cz;
 

@@ -20,9 +20,10 @@ export const CELDA_CHUNKS = 8;
 /** Sal de la feature aldea (worldgen.js reserva 11/22/33/44 para las suyas). */
 export const SAL_ALDEA = 55;
 
-const CHUNK = 16;                           // lado de chunk en bloques (= worldgen.js)
+import { CHUNK, SEA_LEVEL } from '../dimensiones.js';
+
 const CELDA_BLOQUES = CELDA_CHUNKS * CHUNK; // 128 bloques por lado de celda
-const NIVEL_MAR = 32;                       // = SEA_LEVEL de biomes/map.js
+const NIVEL_MAR = SEA_LEVEL;                // fuente única: dimensiones.js
 const PROB_ALDEA = 0.12;                    // fracción de celdas con aldea (antes de requisitos)
 const PLAZA = 4;                            // semilado de la plaza del pozo (7×7 + anillo)
 

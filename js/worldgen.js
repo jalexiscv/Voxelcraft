@@ -24,10 +24,16 @@ import { B } from './blocks.js';
 import { BiomeMap } from './biomes/map.js';
 import { aplicarAldeas } from './villages/build.js';
 import { aplicarTemplo } from './templo.js';
+import { CHUNK, WORLD_HEIGHT, SEA_LEVEL } from './dimensiones.js';
 
-export const CHUNK = 16;
-export const SY = 64;
-export const SEA = 32;
+// re-export con los nombres históricos del generador (los usan las suites)
+export { CHUNK };
+export const SY = WORLD_HEIGHT;
+export const SEA = SEA_LEVEL;
+
+// bajo esta y (interna; mostrada −54) el aire tallado por las cuevas se
+// convierte en lava: los lagos profundos del MC real
+const LAVA_Y = 11;
 
 const CAVE_RADIUS = 4;   // radio (en chunks) del vecindario de cuevas
 const FEAT_RADIUS = 1;   // radio para vetas y árboles
@@ -158,14 +164,16 @@ export class Generator {
         }
 
         /* ---- 2. Cuevas: gusanos de los chunks vecinos que crucen este ---- */
+        // nacen por todo el subsuelo (6..SEA+8): con 384 de altura hay 128
+        // bloques bajo el mar que excavar, como en el MC moderno
         for (let nx = cx - CAVE_RADIUS; nx <= cx + CAVE_RADIUS; nx++) {
             for (let nz = cz - CAVE_RADIUS; nz <= cz + CAVE_RADIUS; nz++) {
                 const rng = new PRNG(hashSeed(this.seed, nx, nz, SALT.CAVES));
-                const worms = rng.int(3); // 0..2 gusanos por chunk de origen
+                const worms = rng.int(4); // 0..3 gusanos por chunk de origen
                 for (let i = 0; i < worms; i++) {
                     this.carveWorm(rng, blocks, x0, z0, heightAt,
                         nx * CHUNK + rng.float() * CHUNK,
-                        6 + rng.float() * 42,
+                        6 + rng.float() * (SEA + 2),
                         nz * CHUNK + rng.float() * CHUNK,
                         Math.floor(rng.float() * rng.float() * 110),
                         1 + rng.float() * 1.6);
@@ -173,11 +181,19 @@ export class Generator {
             }
         }
 
-        /* ---- 3. Vetas de mineral ---- */
+        /* ---- 3. Vetas de mineral: bandas de profundidad del MC moderno ---- */
+        // y interna = mostrada + 64. Carbón arriba, hierro en todo el rango,
+        // y hacia el fondo oro/redstone/lapis/diamante; esmeralda solo en
+        // cotas de montaña. Las menas nuevas vienen del paquete de texturas
+        // (ids MAT_* de js/materiales.js).
         const ORES = [
-            { id: B.COAL_ORE, veins: 3, yMax: 52 },
-            { id: B.IRON_ORE, veins: 2, yMax: 40 },
-            { id: B.GOLD_ORE, veins: 1, yMax: 26 },
+            { id: B.COAL_ORE,         veins: 4, yMin: 96, yMax: 288 }, // mostrada  32..224
+            { id: B.IRON_ORE,         veins: 3, yMin: 8,  yMax: 320 }, // mostrada −56..256
+            { id: B.GOLD_ORE,         veins: 2, yMin: 2,  yMax: 96 },  // mostrada −62..32
+            { id: B.MAT_REDSTONE_ORE, veins: 2, yMin: 2,  yMax: 80 },  // mostrada −62..16
+            { id: B.MAT_LAPIS_ORE,    veins: 1, yMin: 2,  yMax: 128 }, // mostrada −62..64
+            { id: B.MAT_DIAMOND_ORE,  veins: 1, yMin: 2,  yMax: 80 },  // mostrada −62..16
+            { id: B.MAT_EMERALD_ORE,  veins: 1, yMin: 128, yMax: 244 }, // mostrada 64..180
         ];
         for (let nx = cx - FEAT_RADIUS; nx <= cx + FEAT_RADIUS; nx++) {
             for (let nz = cz - FEAT_RADIUS; nz <= cz + FEAT_RADIUS; nz++) {
@@ -186,7 +202,7 @@ export class Generator {
                     for (let v = 0; v < ore.veins; v++) {
                         this.oreVein(rng, blocks, x0, z0, ore.id,
                             nx * CHUNK + rng.float() * CHUNK,
-                            2 + rng.float() * (ore.yMax - 2),
+                            ore.yMin + rng.float() * (ore.yMax - ore.yMin),
                             nz * CHUNK + rng.float() * CHUNK,
                             4 + rng.int(10));
                     }
@@ -294,7 +310,8 @@ export class Generator {
                         const dx = bx - x, dy = by - y, dz = bz - z;
                         if (dx * dx + dy * dy * 2 + dz * dz > r2) continue;
                         const i = (by * CHUNK + (bz - z0)) * CHUNK + (bx - x0);
-                        if (blocks[i] === B.STONE) blocks[i] = B.AIR;
+                        // el fondo del mundo se inunda de lava (MC: y < −54)
+                        if (blocks[i] === B.STONE) blocks[i] = by < LAVA_Y ? B.LAVA : B.AIR;
                     }
                 }
             }

@@ -20,14 +20,15 @@
 import { hashSeed } from './noise.js';
 import { B } from './blocks.js';
 
-const CHUNK = 16;      // lado de chunk en bloques (= worldgen.js)
-const SY = 64;         // altura del mundo (= worldgen.js)
-const SEA = 32;        // nivel del mar (= worldgen.js)
+import { CHUNK, WORLD_HEIGHT, SEA_LEVEL } from './dimensiones.js';
+
+const SY = WORLD_HEIGHT; // altura del mundo (fuente única: dimensiones.js)
+const SEA = SEA_LEVEL;
 
 const SEMI = 15;       // semilado de la base: 31×31 centrada en el origen
 const MARGEN = 1;      // margen del rectángulo para el descarte por chunk
 const RELLENO = 6;     // profundidad del relleno bajo la plataforma (tapa cuevas)
-const Y0_MAX = 48;     // con y0 ≤ 48 las torres (y0+14) no pasan de y=62
+const Y0_MAX = SEA + 16; // techo de la base: las torres (y0+14) quedan a ≤ SEA+30
 const SAL_MUSGO = 770; // sal del hash posicional de los acentos de musgo
 
 /** Geometría pública (la consume la suite de pruebas). */
@@ -35,12 +36,12 @@ export const TEMPLO = {
     SEMI,                 // semilado de la base (31×31)
     ALTO_PLATAFORMA: 3,   // plaza a y0+3 (tres gradas de 1)
     ALTO_CUERPO: 6,       // cima (claraboya) a y0+9; parapeto a y0+10
-    ALTO_TORRES: 14,      // remate de las torres a y0+14 (≤ 62)
+    ALTO_TORRES: 14,      // remate de las torres a y0+14 (≤ Y0_MAX+14)
 };
 
 /**
  * Nivel de la base del templo: la altura del terreno en el origen, acotada
- * a [SEA, 48] para que ni se hunda en el mar ni el remate pase de y=62.
+ * a [SEA, Y0_MAX] para que ni se hunda en el mar ni el remate se dispare.
  * Función pura de alturaEn (surfaceHeight): idéntica desde cualquier chunk.
  */
 export function nivelBaseTemplo(alturaEn) {

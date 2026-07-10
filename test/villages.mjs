@@ -146,7 +146,7 @@ console.log('== Cultivos: reparto de bloqueCultivo ==');
 /* ==== Trazador: utilidades de la sección (sondas simuladas y cajas) ==== */
 const SEMILLA = 20260704;
 // sondas inyectadas: el trazador no conoce el generador, quien llama decide
-const llanura = { biomaEn: () => 'llanura', alturaEn: () => 40 };
+const llanura = { biomaEn: () => 'llanura', alturaEn: () => SEA + 8 };
 // caja [x0, z0, x1, z1] de una pieza, recalculada AQUÍ (independiente del
 // módulo) para verificar la convención: (x, z) centro, huella rotada si rot impar
 const cajaTest = (p) => {
@@ -186,9 +186,9 @@ console.log('== Trazador: determinismo y densidad ==');
 /* ==== Trazador: requisitos del ancla ==== */
 console.log('== Trazador: requisitos del ancla ==');
 {
-    const oceano = { biomaEn: () => 'oceano', alturaEn: () => 40 };
-    const abrupto = { biomaEn: () => 'llanura', alturaEn: (x, z) => 40 + ((x + z) & 7) };
-    const hundido = { biomaEn: () => 'llanura', alturaEn: () => 30 };
+    const oceano = { biomaEn: () => 'oceano', alturaEn: () => SEA + 8 };
+    const abrupto = { biomaEn: () => 'llanura', alturaEn: (x, z) => SEA + 8 + ((x + z) & 7) };
+    const hundido = { biomaEn: () => 'llanura', alturaEn: () => SEA - 2 };
     check('bioma fuera de BIOMAS_ALDEA (oceano) ⇒ null en toda celda con aldea',
         aldeas.every(([cx, cz]) => villageAt(SEMILLA, cx, cz, oceano) === null));
     check('desnivel ≥ 4 en el 7×7 del ancla ⇒ null (sin reintentos)',
@@ -216,7 +216,7 @@ console.log('== Trazador: piezas, solapes y rectángulo ==');
         for (const p of a.piezas) {
             if (p.tipo === 'edificio') {
                 if (!PLANOS[p.id] || (p.id !== 'pozo' && !(p.id in POOL)) ||
-                    ![0, 1, 2, 3].includes(p.rot) || p.y !== 40) idsOk = false;
+                    ![0, 1, 2, 3].includes(p.rot) || p.y !== SEA + 8) idsOk = false;
             } else if (p.tipo !== 'camino' || 'y' in p) idsOk = false;
         }
         // nunca dos edificios de oficio singulares repetidos

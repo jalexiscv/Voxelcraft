@@ -14,7 +14,9 @@ const DB_NAME = 'voxelcraft';
 // guardaba valores de 8 bits, incompatible con el nuevo Uint16Array, así que
 // la migración descarta los stores antiguos (se rompió compatibilidad a
 // propósito: los mundos v1 se regeneran desde la semilla).
-const DB_VERSION = 2;
+// v3: la altura del mundo pasa de 64 a 384 bloques (js/dimensiones.js): los
+// chunks RLE de v2 tienen otra longitud y no pueden cargarse.
+const DB_VERSION = 3;
 const META_KEY = 'default';
 const BLOCKDATA_KEY = 'blockData:default';
 

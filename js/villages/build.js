@@ -19,9 +19,10 @@ import { ROLES_POSICIONALES, resolverBloque } from './model.js';
 import { CELDA_CHUNKS, villageAt, rectanguloDe, cajaDePieza } from './layout.js';
 import { PLANOS } from './planos/registry.js';
 
-const CHUNK = 16;     // lado de chunk en bloques (= worldgen.js)
-const SY = 64;        // altura del mundo (= worldgen.js)
-const NIVEL_MAR = 32; // = SEA de worldgen.js
+import { CHUNK, WORLD_HEIGHT, SEA_LEVEL } from '../dimensiones.js';
+
+const SY = WORLD_HEIGHT;     // altura del mundo (fuente única: dimensiones.js)
+const NIVEL_MAR = SEA_LEVEL;
 const RELLENO = 4;    // profundidad del relleno de DIRT bajo cada parcela
 const SAL_CULTIVO = 66; // sal del rol posicional CULTIVO (sigue a SAL_ALDEA = 55)
 

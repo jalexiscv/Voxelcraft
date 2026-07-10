@@ -136,10 +136,10 @@ console.log('== Integración con el generador ==');
 
     // disciplina de RNG de plantTree: consume los MISMOS rolls plante o no
     // (así la secuencia por chunk de origen no depende del bioma)
-    const plano = () => 40; // altura de 'tierra' (llanura) para el candidato
+    const plano = () => SEA + 8; // altura de 'tierra' (llanura) para el candidato
     const sinArbol = new PRNG(99), conArbol = new PRNG(99);
-    gen.plantTree(sinArbol, new Uint8Array(CHUNK * SY * CHUNK), 0, 0, plano, 8, 8, null);
-    gen.plantTree(conArbol, new Uint8Array(CHUNK * SY * CHUNK), 0, 0, plano, 8, 8,
+    gen.plantTree(sinArbol, new Uint16Array(CHUNK * SY * CHUNK), 0, 0, plano, 8, 8, null);
+    gen.plantTree(conArbol, new Uint16Array(CHUNK * SY * CHUNK), 0, 0, plano, 8, 8,
         { kind: 'roble', log: 'LOG', leaves: 'LEAVES' });
     check('plantTree consume los mismos rolls plante o no', sinArbol.state === conArbol.state);
 
@@ -152,7 +152,7 @@ console.log('== Integración con el generador ==');
         ['cerezo', 'CHERRY_LOG', 'CHERRY_LEAVES'],
     ];
     for (const [kind, log, leaves] of FORMAS) {
-        const buf = new Uint8Array(CHUNK * SY * CHUNK);
+        const buf = new Uint16Array(CHUNK * SY * CHUNK);
         gen.plantTree(new PRNG(5), buf, 0, 0, plano, 8, 8, { kind, log, leaves });
         const cuenta = (id) => buf.reduce((s, v) => s + (v === id ? 1 : 0), 0);
         check(`la forma '${kind}' escribe ${log} y ${leaves}`,

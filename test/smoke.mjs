@@ -5,7 +5,8 @@ const base = new URL('../js/', import.meta.url).href;
 const { PRNG, toSeed, hashSeed, Perlin2D, Fractal2D } = await import(base + 'noise.js');
 const { B, DEFS, PLACEABLE } = await import(base + 'blocks.js');
 const { ATLAS_GRID, painters } = await import(base + 'atlas.js');
-const { Generator, SEA } = await import(base + 'worldgen.js');
+const { PNG_TILES } = await import(base + 'atlas.pngtiles.js');
+const { Generator, SEA, SY } = await import(base + 'worldgen.js');
 const { World, CHUNK, rleEncode, rleDecode } = await import(base + 'world.js');
 const { meshChunk } = await import(base + 'mesher.js');
 const { Player, raycast } = await import(base + 'player.js');
@@ -38,7 +39,10 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('88 tipos definidos', DEFS.length === 88 && DEFS.every(d => d));
+check('bloques base 0..90 todos definidos', [...Array(91).keys()].every((i) => DEFS[i]));
+check('rango 200..499 reservado a items/huevos (sin defs de bloque)',
+    !DEFS[200] && !DEFS[300] && !DEFS[499]);
+check('materiales generados desde 500', DEFS.length > 500 && !!DEFS[500]);
 check('selector sin aire/agua/lava/bedrock',
     !PLACEABLE.includes(B.AIR) && !PLACEABLE.includes(B.WATER) &&
     !PLACEABLE.includes(B.LAVA) && !PLACEABLE.includes(B.BEDROCK));
@@ -49,12 +53,13 @@ console.log('== Atlas de texturas ==');
     const maxTile = ATLAS_GRID * ATLAS_GRID;
     let sinPintor = 0, fueraDeRejilla = 0;
     for (const d of DEFS) {
+        if (!d) continue; // el array es disperso: 200..499 es de items/huevos
         for (const tile of [d.top, d.side, d.bottom]) {
-            if (typeof painters[tile] !== 'function') sinPintor++;
+            if (typeof painters[tile] !== 'function' && !(tile in PNG_TILES)) sinPintor++;
             if (!(tile >= 0 && tile < maxTile)) fueraDeRejilla++;
         }
     }
-    check('toda tésela referenciada por DEFS tiene pintor', sinPintor === 0);
+    check('toda tésela referenciada por DEFS tiene pintor o PNG', sinPintor === 0);
     check('toda tésela cae dentro de la rejilla del atlas', fueraDeRejilla === 0);
     check('ningún pintor fuera de la rejilla',
         Object.keys(painters).every((idx) => Number(idx) >= 0 && Number(idx) < maxTile));
@@ -65,7 +70,7 @@ const gen = new Generator(12345);
 const t0 = Date.now();
 const c00 = gen.generateChunk(0, 0);
 console.log(`  (un chunk en ${Date.now() - t0} ms)`);
-check('tamaño de chunk correcto', c00.length === CHUNK * 64 * CHUNK);
+check('tamaño de chunk correcto', c00.length === CHUNK * SY * CHUNK);
 check('mismo chunk, dos instancias ⇒ idéntico', eq(c00, new Generator(12345).generateChunk(0, 0)));
 {
     // independencia del orden: (3,3) generado en frío vs tras generar otros
@@ -129,7 +134,7 @@ console.log('== Coherencia del terreno (incluye bordes de chunk) ==');
 console.log('== World: escritura, luz y barrera ==');
 {
     const sy = world.surfaceY(4, 4);
-    check('superficie razonable', sy > 5 && sy < 60);
+    check('superficie razonable', sy > SEA - 20 && sy < SEA + 30);
     world.set(4, sy + 5, 4, B.STONE);
     check('set marca chunk sucio', world.dirty.size >= 1);
     check('set marca chunk como modificado', world.chunks.get('0,0').modified === true);
@@ -163,7 +168,7 @@ check('hay malla de agua en el área', (() => {
 
 /* Chunk de laboratorio: suelo de piedra (y<8) y aire encima. */
 const flatChunk = () => {
-    const b = new Uint8Array(CHUNK * 64 * CHUNK);
+    const b = new Uint16Array(CHUNK * SY * CHUNK);
     b.fill(B.STONE, 0, 8 * CHUNK * CHUNK);
     return b;
 };
@@ -249,7 +254,7 @@ console.log('== Puertas y vallas ==');
     // ids y flags de las cuatro hojas: cerradas = panel en z, abiertas = la
     // MISMA hoja girada (panel en x); solo la inferior cerrada va al selector
     check('hojas superiores con ids fijos 84/85 (registro completo: 87)',
-        B.DOOR_TOP_CLOSED === 84 && B.DOOR_TOP_OPEN === 85 && DEFS.length === 88);
+        B.DOOR_TOP_CLOSED === 84 && B.DOOR_TOP_OPEN === 85);
     check('flags de panel: cerradas en z (true), abiertas giradas en x',
         DEFS[B.DOOR_CLOSED].panel === true && DEFS[B.DOOR_TOP_CLOSED].panel === true &&
         DEFS[B.DOOR_OPEN].panel === 'x' && DEFS[B.DOOR_TOP_OPEN].panel === 'x');
@@ -424,7 +429,7 @@ console.log('== Raycast ==');
 {
     const sx = 4, sz = 4;
     const top = world.surfaceY(sx, sz);
-    const hit = raycast(world, [sx + 0.5, 60, sz + 0.5], [0, -1, 0], 64);
+    const hit = raycast(world, [sx + 0.5, top + 20, sz + 0.5], [0, -1, 0], 64);
     check('raycast vertical golpea', hit !== null && hit.ny === 1);
     check('raycast reporta bloque sólido', hit && DEFS[hit.id].solid);
     check('raycast al cielo no golpea', raycast(world, [sx, top + 3, sz], [0, 1, 0], 5) === null);
@@ -500,7 +505,7 @@ console.log('== Reaparición en la superficie ==');
     // que la búsqueda debe caer a la zona de la muerte (siempre cargada) y
     // no dejar al jugador enterrado en y≈1 bajo la barrera (bug corregido)
     const meseta = () => {
-        const b = new Uint8Array(CHUNK * 64 * CHUNK);
+        const b = new Uint16Array(CHUNK * SY * CHUNK);
         b.fill(B.STONE, 0, 40 * CHUNK * CHUNK); // superficie en y=39, sobre el mar
         return b;
     };
@@ -518,7 +523,7 @@ console.log('== Reaparición en la superficie ==');
     // en pleno océano (ninguna columna seca): se flota en la superficie del
     // agua, no se aparece en el fondo marino
     const oceano = () => {
-        const b = new Uint8Array(CHUNK * 64 * CHUNK);
+        const b = new Uint16Array(CHUNK * SY * CHUNK);
         b.fill(B.STONE, 0, 8 * CHUNK * CHUNK);
         b.fill(B.WATER, 8 * CHUNK * CHUNK, 31 * CHUNK * CHUNK); // agua hasta y=30
         return b;
@@ -755,7 +760,7 @@ console.log('== Cultivos ==');
     check('ids fijos del plan: FARMLAND 71 y cultivos 72..83',
         B.FARMLAND === 71 && B.TRIGO_0 === 72 && B.TRIGO_3 === 75 &&
         B.ZANAHORIA_0 === 76 && B.ZANAHORIA_3 === 79 &&
-        B.PATATA_0 === 80 && B.PATATA_3 === 83 && DEFS.length === 88);
+        B.PATATA_0 === 80 && B.PATATA_3 === 83);
     check('items de agricultura con ids fijos 231..239',
         ITEMS.SEMILLAS_TRIGO === 231 && ITEMS.TRIGO === 232 && ITEMS.PAN === 233 &&
         ITEMS.ZANAHORIA === 234 && ITEMS.PATATA === 235 && ITEMS.PATATA_ASADA === 236 &&
@@ -1528,7 +1533,7 @@ console.log('== Cámara de vigilancia ==');
     const { Inventory } = await import(base + 'inventory.js');
 
     // id, flags y tésela del icono
-    check('id fijo 86 y registro a 88 tipos', B.CAMERA === 86 && DEFS.length === 88);
+    check('id fijo 86 de la camara', B.CAMERA === 86);
     check('flags: dinámica, ni sólida ni opaca, colocable, dureza 3 a pico',
         DEFS[B.CAMERA].dinamico === true && !DEFS[B.CAMERA].solid &&
         !DEFS[B.CAMERA].opaque && DEFS[B.CAMERA].placeable &&
@@ -1917,8 +1922,9 @@ console.log('== Templo del origen ==');
     const y0 = nivelBaseTemplo((x, z) => gA.surfaceHeight(x, z));
     const yP = y0 + TEMPLO.ALTO_PLATAFORMA;                    // plaza
     const yC = yP + TEMPLO.ALTO_CUERPO;                        // cima
-    check('la base acota la cima a ≤61 y las torres a ≤62',
-        yC + 1 <= 61 && y0 + TEMPLO.ALTO_TORRES <= 62);
+    const TECHO_TORRES = SEA + 16 + TEMPLO.ALTO_TORRES; // Y0_MAX + torres
+    check('la base acota cima y torres bajo el techo del templo',
+        yC + 1 < TECHO_TORRES && y0 + TEMPLO.ALTO_TORRES <= TECHO_TORRES);
 
     // recuento SOLO en la huella (|x|,|z| ≤ 15) por encima del relleno:
     // todo lo que queda ahí lo escribió el templo (su corte vació el resto)
@@ -1926,9 +1932,9 @@ console.log('== Templo del origen ==');
     let sobre62 = 0;
     for (let x = -TEMPLO.SEMI; x <= TEMPLO.SEMI; x++) {
         for (let z = -TEMPLO.SEMI; z <= TEMPLO.SEMI; z++) {
-            for (let y = 1; y < 64; y++) {
+            for (let y = 1; y < SY; y++) {
                 const b = en(x, y, z);
-                if (y > 62 && b !== B.AIR) sobre62++;
+                if (y > TECHO_TORRES && b !== B.AIR) sobre62++;
                 if (y > y0 && b !== B.AIR) n[b] = (n[b] || 0) + 1;
             }
         }
@@ -1960,7 +1966,7 @@ console.log('== Templo del origen ==');
             const b = en(x, yP + 3, z);
             return b === B.COBBLE || b === B.MOSSY_COBBLE;
         }));
-    check('nada del templo por encima de y=62', sobre62 === 0);
+    check('nada del templo por encima del techo de torres', sobre62 === 0);
 
     // la superficie del origen ES el templo: la lógica de spawn de siempre
     // deja al jugador de pie sobre la claraboya de la cima

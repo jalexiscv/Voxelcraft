@@ -16,15 +16,10 @@
  */
 import { PRNG, Fractal2D } from '../noise.js';
 import { ORDER } from './registry.js';
-
-/** Nivel del mar; una prueba lo compara con SEA de worldgen.js. */
-export const SEA_LEVEL = 32;
-/**
- * Altura desde la que una columna cuenta como montaña. Calibrada con la
- * distribución real del relieve (máximo observado ≈ 47): con 48 no existía
- * ninguna montaña; con 42 son los picos más altos (~0,2 % de las columnas).
- */
-export const MOUNTAIN_H = 42;
+// Nivel del mar y umbral de montaña: la fuente única es js/dimensiones.js;
+// se re-exportan aquí para los consumidores históricos (mobs, tests…).
+import { SEA_LEVEL, MOUNTAIN_H } from '../dimensiones.js';
+export { SEA_LEVEL, MOUNTAIN_H };
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 

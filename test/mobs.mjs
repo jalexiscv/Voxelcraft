@@ -6,6 +6,7 @@
  */
 import { existsSync } from 'node:fs';
 import { B } from '../js/blocks.js';
+import { WORLD_HEIGHT, SEA_LEVEL } from '../js/dimensiones.js';
 import { buildPartMesh, partUVRects, ANIMS } from '../js/mobs/model.js';
 import { Skin } from '../js/mobs/skin.js';
 import { MobSystem, Mob } from '../js/mobs.js';
@@ -23,11 +24,13 @@ const check = (name, cond) => {
 /**
  * Mundo plano: suelo sólido hasta `ground` (hierba en la superficie). Las
  * pruebas de física usan el suelo por defecto (y=10); las de aparición lo
- * suben a y=40 (> SEA_LEVEL+1) para que las columnas caigan en la clase de
+ * suben a TIERRA (> SEA_LEVEL+1) para que las columnas caigan en la clase de
  * terreno 'tierra' y el bioma sea la llanura (el comodín del registro).
  */
+const TIERRA = SEA_LEVEL + 8; // suelo de las pruebas de aparicion (> mar+1)
+
 class MockWorld {
-    constructor(ground = 10) { this.sy = 64; this.ground = ground; this.edits = new Map(); this.walls = new Set(); }
+    constructor(ground = 10) { this.sy = WORLD_HEIGHT; this.ground = ground; this.edits = new Map(); this.walls = new Set(); }
     key(x, y, z) { return `${x},${y},${z}`; }
     addWall(x, y, z) { this.walls.add(this.key(x, y, z)); }
     get(x, y, z) {
@@ -246,9 +249,9 @@ console.log('== Puntería y aparición ==');
     check('fuera de alcance no golpea', sys.raycastMob([0.5, 11.5, 0.5], [1, 0, 0], 2) === null);
 }
 {
-    // suelo en y=40 (> nivel del mar): las columnas caen en 'tierra' y el
+    // suelo en TIERRA (> nivel del mar): las columnas caen en 'tierra' y el
     // bioma es la llanura, cuyas listas day/night gobiernan la aparición
-    const world = new MockWorld(40);
+    const world = new MockWorld(TIERRA);
     const zombie = { ...zombiTest, id: 'zombie' };     // está en llanura.mobs.night
     const osoPolar = { ...pig, id: 'polar_bear' };     // NO está en las listas de llanura
     const defs = { pig, zombie, polar_bear: osoPolar };
@@ -617,7 +620,7 @@ class LakeWorld extends MockWorld {
     }
 
     // no aparece de forma natural (summonOnly): ni de día ni de noche
-    const salvaje = new MobSystem({ dron }, new MockWorld(40), silentHooks(), 3);
+    const salvaje = new MobSystem({ dron }, new MockWorld(TIERRA), silentHooks(), 3);
     simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('el dron no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
 }
@@ -706,7 +709,7 @@ console.log('== Antidron kamikaze ==');
     }
 
     // no aparece de forma natural (summonOnly)
-    const salvaje = new MobSystem({ antidron }, new MockWorld(40), silentHooks(), 3);
+    const salvaje = new MobSystem({ antidron }, new MockWorld(TIERRA), silentHooks(), 3);
     simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('el antidron no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
 }
@@ -911,7 +914,7 @@ console.log('== Dron escapista ==');
         check('el escapista no agrede a otros mobs (es presa, no cazador)',
             vaca.hp === hpVaca && !vaca.dying());
     }
-    const salvaje = new MobSystem({ dron_escapista: escapista }, new MockWorld(40), silentHooks(), 3);
+    const salvaje = new MobSystem({ dron_escapista: escapista }, new MockWorld(TIERRA), silentHooks(), 3);
     simulate(salvaje, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('el escapista no aparece de forma natural (solo por invocación)', salvaje.count() === 0);
 }

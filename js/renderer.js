@@ -6,6 +6,7 @@
 import { moonUV } from './sky.js';
 import { DEFS } from './blocks.js';
 import { tileUV } from './atlas.js';
+import { CLOUD_Y } from './dimensiones.js';
 import { ITEM_DEFS, isItem } from './items.js';
 
 const VS = `#version 300 es
@@ -695,7 +696,7 @@ export class Renderer {
     ensureClouds(px, pz) {
         if (this.cloud && Math.hypot(px - this.cloudCenter[0], pz - this.cloudCenter[1]) < 256) return;
         if (this.cloud) this.freeMesh(this.cloud);
-        const y = 70, s = 900, scale = 320;
+        const y = CLOUD_Y, s = 900, scale = 320; // nubes a 192 mostrada (MC real)
         const quad = [
             [px - s, pz - s], [px + s, pz - s], [px + s, pz + s],
             [px - s, pz - s], [px + s, pz + s], [px - s, pz + s],
