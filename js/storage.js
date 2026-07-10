@@ -10,7 +10,11 @@
 import { CHUNK, WORLD_HEIGHT, rleEncode, rleDecode } from './world.js';
 
 const DB_NAME = 'voxelcraft';
-const DB_VERSION = 1;
+// v2: los chunks pasan a 16 bits por celda (ids de bloque >255). El RLE de v1
+// guardaba valores de 8 bits, incompatible con el nuevo Uint16Array, así que
+// la migración descarta los stores antiguos (se rompió compatibilidad a
+// propósito: los mundos v1 se regeneran desde la semilla).
+const DB_VERSION = 2;
 const META_KEY = 'default';
 const BLOCKDATA_KEY = 'blockData:default';
 
@@ -30,8 +34,13 @@ function openDB() {
     return new Promise((resolve, reject) => {
         const rq = indexedDB.open(DB_NAME, DB_VERSION);
         rq.onupgradeneeded = () => {
-            rq.result.createObjectStore('meta');
-            rq.result.createObjectStore('chunks');
+            const db = rq.result;
+            // al migrar de v1 (celdas de 8 bits) el formato de chunk cambió:
+            // se borran los stores viejos y se recrean vacíos
+            if (db.objectStoreNames.contains('chunks')) db.deleteObjectStore('chunks');
+            if (db.objectStoreNames.contains('meta')) db.deleteObjectStore('meta');
+            db.createObjectStore('meta');
+            db.createObjectStore('chunks');
         };
         rq.onsuccess = () => resolve(rq.result);
         rq.onerror = () => reject(rq.error);

@@ -50,6 +50,10 @@ export class World {
         // estado por posición de los bloques con contenido (cofres):
         // "x,y,z" → objeto plano serializable (viaja tal cual al guardado)
         this.blockData = new Map();
+        // celda [x,y,z] que se está tallando (picado con cráter): el mesher
+        // la omite de la malla del chunk y renderer.drawCarve la dibuja aparte.
+        // null cuando no hay picado con cráter en curso.
+        this.carveHidden = null;
     }
 
     /** Estado extra del bloque en esa posición, o null si no tiene. */
@@ -287,24 +291,31 @@ export class World {
     }
 }
 
-/* ---- Compresión RLE para persistir chunks ---- */
+/* ---- Compresión RLE para persistir chunks ----
+ *
+ * Los ids de bloque son de 16 bits (hasta 65535 tipos), así que el RLE
+ * serializa a un Uint16Array con pares (longitud, valor), ambos de 16 bits.
+ * La longitud llega hasta 65535 (un chunk son 16384 celdas, así que una
+ * columna uniforme cabe entera en un par). IndexedDB clona el typed array
+ * tal cual, sin base64 ni empaquetado manual.
+ */
 
-/** Comprime bytes como pares (longitud ≤255, valor). */
-export function rleEncode(bytes) {
+/** Comprime un Uint16Array de ids como pares (longitud ≤65535, valor). */
+export function rleEncode(cells) {
     const out = [];
     let i = 0;
-    while (i < bytes.length) {
-        const v = bytes[i];
+    while (i < cells.length) {
+        const v = cells[i];
         let run = 1;
-        while (i + run < bytes.length && bytes[i + run] === v && run < 255) run++;
+        while (i + run < cells.length && cells[i + run] === v && run < 65535) run++;
         out.push(run, v);
         i += run;
     }
-    return new Uint8Array(out);
+    return new Uint16Array(out);
 }
 
 export function rleDecode(encoded, expectedLength) {
-    const out = new Uint8Array(expectedLength);
+    const out = new Uint16Array(expectedLength);
     let o = 0;
     for (let i = 0; i < encoded.length; i += 2) {
         out.fill(encoded[i + 1], o, o + encoded[i]);

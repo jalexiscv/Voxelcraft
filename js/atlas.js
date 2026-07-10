@@ -8,7 +8,10 @@
 import { PRNG, Perlin2D, Fractal2D } from './noise.js';
 
 export const TILE_PX = 16;
-export const ATLAS_GRID = 16;
+// Rejilla del atlas: 32×32 = 1024 téselas de 16 px → canvas de 512×512. Se
+// amplió de 16 para dar sitio a los materiales del paquete de texturas real
+// (js/atlas.pngtiles.js), que se cargan como PNG en vez de pintarse a mano.
+export const ATLAS_GRID = 32;
 
 /** Índices de tésela dentro del atlas (fila-major). */
 export const TILE = {
@@ -60,6 +63,10 @@ export const TILE = {
     // icono de la lata de Red Bull (bloque dinámico: en el mundo la dibuja
     // js/latas.js; esta tésela solo viste HUD y selector)
     REDBULL: 134,
+    // ---- Materiales del paquete de texturas real (PNG, no procedural) ----
+    // Estas téselas NO tienen painter: su píxel se carga de textures/blocks/*.png
+    // mediante el registro de js/atlas.pngtiles.js. Índices ≥135 (rejilla 32×32).
+    STONE_GRANITE: 135, STONE_DIORITE: 136, STONE_ANDESITE: 137,
 };
 
 /** Paleta clásica de 16 lanas (arcoíris + grises). */
@@ -1043,22 +1050,72 @@ painters[TILE.REDBULL] = (t) => {
     for (let x = 6; x <= 9; x++) t.px(x, 13, 148, 154, 166); // base cónica en sombra
 };
 
-/**
- * Construye el atlas completo. Devuelve el canvas (para subirlo como textura
- * WebGL y para pintar iconos del HUD).
- */
-export function buildAtlas() {
+/** Coloca una tésela procedural (painter) en su celda del canvas del atlas. */
+function pintarTesela(ctx, idx, paint) {
+    const tile = new Tile(1000 + idx); // semilla estable por tésela
+    paint(tile);
+    const img = new ImageData(tile.data, TILE_PX, TILE_PX);
+    ctx.putImageData(img, (idx % ATLAS_GRID) * TILE_PX, Math.floor(idx / ATLAS_GRID) * TILE_PX);
+}
+
+/** Canvas del atlas vacío del tamaño de la rejilla. */
+function nuevoAtlasCanvas() {
     const size = ATLAS_GRID * TILE_PX;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
+    return canvas;
+}
+
+/**
+ * Construye el atlas SOLO con téselas procedurales (painters). Síncrono.
+ * Devuelve el canvas (para subirlo como textura WebGL y pintar iconos del HUD).
+ * Las téselas del paquete de texturas real (PNG) NO aparecen aquí; para
+ * incluirlas usa buildAtlasAsync().
+ */
+export function buildAtlas() {
+    const canvas = nuevoAtlasCanvas();
     const ctx = canvas.getContext('2d');
-    for (const [tileIdx, paint] of Object.entries(painters)) {
+    for (const [tileIdx, paint] of Object.entries(painters)) pintarTesela(ctx, Number(tileIdx), paint);
+    return canvas;
+}
+
+/** Carga un PNG y resuelve con su HTMLImageElement (rechaza si falla). */
+function cargarImagen(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('No se pudo cargar la textura ' + url));
+        img.src = url;
+    });
+}
+
+/**
+ * Construye el atlas completo de forma asíncrona: primero descarga y dibuja
+ * las téselas del paquete de texturas real (PNG_TILES) y encima aplica los
+ * painters procedurales, de modo que ambos estilos conviven en el mismo atlas.
+ *
+ * `pngTiles` es {índiceDeTesela: rutaCompletaDelPNG}. Un PNG que no cargue se
+ * omite (la celda queda transparente) sin abortar el resto — así un paquete
+ * incompleto degrada en vez de romper el arranque. Devuelve el canvas.
+ */
+export async function buildAtlasAsync(pngTiles = {}) {
+    const canvas = nuevoAtlasCanvas();
+    const ctx = canvas.getContext('2d');
+    // PNG en paralelo: cada uno se dibuja en su celda al llegar (o se ignora
+    // si falla). El escalado del navegador ajusta imágenes que no sean 16×16.
+    await Promise.all(Object.entries(pngTiles).map(async ([tileIdx, url]) => {
         const idx = Number(tileIdx);
-        const tile = new Tile(1000 + idx); // semilla estable por tésela
-        paint(tile);
-        const img = new ImageData(tile.data, TILE_PX, TILE_PX);
-        ctx.putImageData(img, (idx % ATLAS_GRID) * TILE_PX, Math.floor(idx / ATLAS_GRID) * TILE_PX);
-    }
+        try {
+            const img = await cargarImagen(url);
+            ctx.imageSmoothingEnabled = false; // pixel art: nearest al escalar
+            ctx.drawImage(img, (idx % ATLAS_GRID) * TILE_PX, Math.floor(idx / ATLAS_GRID) * TILE_PX, TILE_PX, TILE_PX);
+        } catch (e) {
+            console.warn(e.message); // celda transparente, no aborta el atlas
+        }
+    }));
+    // painters encima (una tésela nunca debería estar en ambos, pero si lo
+    // estuviera el painter tiene la última palabra por dibujarse después)
+    for (const [tileIdx, paint] of Object.entries(painters)) pintarTesela(ctx, Number(tileIdx), paint);
     return canvas;
 }
 

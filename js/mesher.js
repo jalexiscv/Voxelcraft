@@ -309,11 +309,16 @@ export function meshChunk(world, cx, cz) {
     const x0 = cx * CHUNK, z0 = cz * CHUNK;
     const x1 = x0 + CHUNK, z1 = z0 + CHUNK;
 
+    // celda oculta para el render (el bloque que se está tallando/picando):
+    // se omite de la malla del chunk y la dibuja aparte renderer.drawCarve
+    const h = world.carveHidden;
+
     for (let x = x0; x < x1; x++) {
         for (let z = z0; z < z1; z++) {
             for (let y = 0; y < world.sy; y++) {
                 const id = world.get(x, y, z);
                 if (id === B.AIR) continue;
+                if (h && h[0] === x && h[1] === y && h[2] === z) continue; // tallándose
                 const def = DEFS[id];
 
                 // bloques dinámicos (cámara): sin malla estática, los dibuja
@@ -341,8 +346,12 @@ export function meshChunk(world, cx, cz) {
                 const topH = isWater && world.get(x, y + 1, z) !== B.WATER ? 0.875 : 1;
 
                 for (const face of FACES) {
-                    const nId = world.get(x + face.n[0], y + face.n[1], z + face.n[2]);
-                    if (DEFS[nId].opaque) continue;
+                    const nx = x + face.n[0], ny = y + face.n[1], nz = z + face.n[2];
+                    const nId = world.get(nx, ny, nz);
+                    // el vecino oculto (celda tallándose) cuenta como aire: se
+                    // emite la cara hacia él para que el cráter no quede negro
+                    const nHidden = h && h[0] === nx && h[1] === ny && h[2] === nz;
+                    if (DEFS[nId].opaque && !nHidden) continue;
                     if (def.hideSame && nId === id) continue;
                     const tile = face.n[1] > 0 ? def.top : (face.n[1] < 0 ? def.bottom : def.side);
                     emitFace(out, world, x, y, z, face, tile, topH, def.bright);

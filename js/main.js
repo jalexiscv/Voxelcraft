@@ -11,7 +11,8 @@
  */
 import { mat4Perspective, mat4View, mat4Multiply, lookDir, clamp } from './math.js';
 import { toSeed } from './noise.js';
-import { buildAtlas, buildCloudTexture, buildParticleAtlas, tileUV } from './atlas.js';
+import { buildAtlasAsync, buildCloudTexture, buildParticleAtlas, tileUV } from './atlas.js';
+import { PNG_TILES, BLOCKS_DIR } from './atlas.pngtiles.js';
 import { ParticleSystem } from './particles.js';
 import { cargarEfectos } from './particlepack.js';
 import { sunDirection, skyColor, sunGlow, buildSunTexture, buildMoonTexture, MOON_PHASES } from './sky.js';
@@ -23,6 +24,8 @@ import { Player, raycast } from './player.js';
 import { MobSystem } from './mobs.js';
 import { Inventory } from './inventory.js';
 import { DropSystem } from './drops.js';
+import { ShatterSystem } from './shatter.js';
+import { CarveState } from './carve.js';
 import { ITEM_DEFS, ITEMS, isItem } from './items.js';
 import { esCultivo, cosechaDe, plantaDe, maduro, tickCultivos } from './farming.js';
 import { esPuerta, esAbierta, colocarPuerta, alternarPuerta, romperPuerta } from './doors.js';
@@ -46,12 +49,15 @@ const GEN_MARGIN = 1;         // anillo extra generado más allá del render
 const KEEP_MARGIN = 6;        // anillo extra donde se conservan datos
 const MAX_INFLIGHT = 2;       // peticiones simultáneas al worker
 
-function boot() {
+async function boot() {
     const canvas = document.getElementById('game');
     const $ = (id) => document.getElementById(id);
 
     let renderer;
-    const atlasCanvas = buildAtlas();
+    // rutas completas de las téselas que vienen de PNG del paquete real
+    const pngUrls = {};
+    for (const [idx, nombre] of Object.entries(PNG_TILES)) pngUrls[idx] = BLOCKS_DIR + nombre + '.png';
+    const atlasCanvas = await buildAtlasAsync(pngUrls);
     try {
         renderer = new Renderer(canvas, atlasCanvas, buildCloudTexture(), buildSunTexture(), buildMoonTexture(), buildParticleAtlas());
     } catch (e) {
@@ -104,6 +110,28 @@ function boot() {
         return c;
     };
 
+    // Píxel real [r,g,b] de una tésela en coordenadas 0..1 (nearest). Alimenta
+    // el shatter: cada mini-vóxel hereda el color exacto de su píxel de textura.
+    const TESELA_PX = 16, ATLAS_GRID = atlasCanvas.width / TESELA_PX;
+    const pixelDeTesela = (tile, u, v) => {
+        const bx = (tile % ATLAS_GRID) * TESELA_PX, by = Math.floor(tile / ATLAS_GRID) * TESELA_PX;
+        const px = Math.min(TESELA_PX - 1, Math.max(0, Math.floor(u * TESELA_PX)));
+        const py = Math.min(TESELA_PX - 1, Math.max(0, Math.floor(v * TESELA_PX)));
+        const i = ((by + py) * atlasCanvas.width + bx + px) * 4;
+        if (atlasPixeles.data[i + 3] < 128) return null; // píxel transparente
+        return [atlasPixeles.data[i], atlasPixeles.data[i + 1], atlasPixeles.data[i + 2]];
+    };
+
+    // Muestreador de color por cara para el ShatterSystem: (cara,u,v)→[r,g,b].
+    // Elige la tésela top/bottom/side del bloque y devuelve su píxel real.
+    const samplerDe = (id) => {
+        const def = DEFS[id];
+        return (cara, u, v) => {
+            const tile = cara === 'top' ? def.top : (cara === 'bottom' ? def.bottom : def.side);
+            return pixelDeTesela(tile, u, v);
+        };
+    };
+
     /** Nube de fragmentos al romper un bloque, teñidos con su color. */
     const particulasRotura = (id, x, y, z) => {
         const def = DEFS[id];
@@ -118,6 +146,53 @@ function boot() {
             emitter_texture_coordinate: { u: u0, v: v0 },
             emitter_texture_size: { u: u1 - u0, v: v1 - v0 },
         });
+        // desgranado en mini-vóxeles con el color real de la textura: solo para
+        // bloques cúbicos opacos (no plantas en X, cristal ni paneles finos)
+        if (def.opaque && !def.cross && !def.panel && !def.fence) {
+            game.shatter.spawn(id, x, y, z, samplerDe(id));
+            sound.crunch(def.sound);   // crujido granular al desgranarse
+        }
+    };
+
+    /** ¿Puede este bloque tallarse con cráter (Fase 2)? Mismos criterios que el shatter. */
+    const tallable = (id) => {
+        const def = DEFS[id];
+        return def && def.opaque && !def.cross && !def.panel && !def.fence &&
+            !def.dinamico && id !== B.CHEST && !esPuerta(id);
+    };
+
+    /**
+     * Punto de impacto del rayo del jugador sobre el bloque (x,y,z), en
+     * coordenadas locales 0..1. Interseca el rayo con el plano de la cara de
+     * entrada (dada por la normal del raycast) y proyecta; si no hay cara
+     * clara, cae al centro. Ubica el cráter donde apunta el jugador.
+     */
+    const puntoImpactoLocal = (hit) => {
+        const o = player.eye(), d = lookDir(player.yaw, player.pitch);
+        // eje de la cara de entrada = normal no nula del raycast
+        let eje = hit.nx ? 0 : (hit.ny ? 1 : (hit.nz ? 2 : -1));
+        const centro = [0.5, 0.5, 0.5];
+        if (eje === -1) return centro; // sin cara (dentro del bloque): centro
+        const n = [hit.nx, hit.ny, hit.nz][eje];
+        // plano de la cara: coord entera + (0 si normal −, 1 si normal +)… la
+        // normal apunta HACIA el jugador, así la cara está en cell + (n>0?1:0)
+        const base = [hit.x, hit.y, hit.z];
+        const plano = base[eje] + (n > 0 ? 1 : 0);
+        const t = (plano - o[eje]) / (d[eje] || 1e-6);
+        const p = [o[0] + d[0] * t, o[1] + d[1] * t, o[2] + d[2] * t];
+        const loc = [p[0] - hit.x, p[1] - hit.y, p[2] - hit.z];
+        // clamp por si el t no cae exacto y empuja un pelín hacia dentro
+        return loc.map((v) => Math.min(0.999, Math.max(0.001, v)));
+    };
+
+    /** Cierra el tallado en curso: desoculta la celda y remalla su chunk. */
+    const terminarCarve = () => {
+        if (!game.carve) return;
+        const c = game.carve;
+        game.world.carveHidden = null;
+        game.world.dirty.add(chunkKey(c.x >> 4, c.z >> 4));
+        renderer.clearCarve();
+        game.carve = null;
     };
 
     const game = {
@@ -130,6 +205,8 @@ function boot() {
         difficulty: 'normal',   // 'normal' | 'pacifica'
         inventory: new Inventory(), // solo cuenta en supervivencia
         drops: new DropSystem(),    // cubitos flotando tras romper bloques
+        shatter: new ShatterSystem(), // mini-vóxeles del bloque desgranado al romperlo
+        carve: null,                // CarveState del bloque que se pica (cráter en curso)
         breaking: null,             // {x, y, z, hits, need}: picado en curso
         breakingT: 0,               // s restantes antes de olvidar el picado
         time: 0,
@@ -354,7 +431,8 @@ function boot() {
         game.worker.onmessage = (e) => {
             const { cx, cz, blocks } = e.data;
             game.inFlight--;
-            game.world.addChunk(cx, cz, new Uint8Array(blocks));
+            // el worker transfiere el ArrayBuffer de un Uint16Array (16 bits/celda)
+            game.world.addChunk(cx, cz, new Uint16Array(blocks));
             onChunkArrived(cx, cz);
             camaras.sync(game.world); // alta de cámaras del chunk recién llegado
             latas.sync(game.world);   // ídem con las latas
@@ -491,8 +569,10 @@ function boot() {
         game.inventory = new Inventory();
         hud.setInventory(game.mode === 'supervivencia' ? game.inventory : null);
         game.drops = new DropSystem();
+        game.shatter.list.length = 0; // los fragmentos no cruzan de mundo
         particles.list.length = 0; // las partículas no cruzan de mundo
         game.breaking = null;
+        game.carve = null; game.world && (game.world.carveHidden = null); // sin cráter pendiente
         $('death').classList.add('hidden');
         game.requested.clear();
         game.timeOfDay = 0;
@@ -698,12 +778,28 @@ function boot() {
             // cada golpe avanza el picado del MISMO bloque; cambiar de
             // objetivo (o soltar un rato) reinicia el progreso
             const b = game.breaking;
-            if (!b || b.x !== hit.x || b.y !== hit.y || b.z !== hit.z) {
+            const cambioObjetivo = !b || b.x !== hit.x || b.y !== hit.y || b.z !== hit.z;
+            if (cambioObjetivo) {
                 game.breaking = { x: hit.x, y: hit.y, z: hit.z, hits: 0, need: def.hardness };
+                // cierra el cráter anterior SIEMPRE (aunque el nuevo bloque no
+                // sea tallable, si no seguiría oculto y dibujado el viejo)
+                terminarCarve();
+                // arranca el tallado con cráter de ESTE bloque si aplica
+                if (tallable(hit.id)) {
+                    game.carve = new CarveState(hit.id, hit.x, hit.y, hit.z, samplerDe(hit.id));
+                    game.world.carveHidden = [hit.x, hit.y, hit.z];
+                    game.world.dirty.add(chunkKey(hit.x >> 4, hit.z >> 4));
+                }
             }
             game.breakingT = 0.6;
             game.breaking.hits += fuerzaDeGolpe(def);
             sound.dig(def.sound);
+            // cada golpe abre un cráter en el punto de impacto y lanza esquirlas
+            if (game.carve) {
+                const [lx, ly, lz] = puntoImpactoLocal(hit);
+                const arrancados = game.carve.carve(lx, ly, lz, 1.7);
+                for (const a of arrancados) game.shatter.spawnFragmento(a.pos, a.color);
+            }
             if (game.breaking.hits >= game.breaking.need) {
                 // romper cualquier hoja de puerta tira el PAR entero y suelta
                 // UN único drop (en la hoja inferior; dropDe lo recoge cerrado)
@@ -730,6 +826,7 @@ function boot() {
                         hud.refreshCounts();
                     }
                 }
+                terminarCarve();               // cierra el cráter antes de romper
                 particulasRotura(hit.id, hit.x, hit.y, hit.z);
                 game.world.set(hit.x, hit.y, hit.z, B.AIR);
                 camaras.onSet(hit.x, hit.y, hit.z, B.AIR); // baja si era cámara
@@ -985,16 +1082,20 @@ function boot() {
             sound.place('cloth');
         });
 
+        // shatter: los mini-vóxeles del bloque desgranado caen y rebotan
+        game.shatter.update(dt, game.world);
+
         // partículas: avanza la simulación (humo, fuego, fragmentos…)
         particles.update(dt);
 
         // cultivos: crecimiento por muestreo aleatorio en los chunks cargados
         tickCultivos(game.world, dt);
 
-        // el picado a medias se olvida si se deja de golpear un rato
+        // el picado a medias se olvida si se deja de golpear un rato: al
+        // soltar, el cráter se cierra (el bloque vuelve a su malla normal)
         if (game.breaking) {
             game.breakingT -= dt;
-            if (game.breakingT <= 0) game.breaking = null;
+            if (game.breakingT <= 0) { game.breaking = null; terminarCarve(); }
         }
 
         // mano en primera persona: golpe, cambio de ítem y balanceo del paso
@@ -1069,6 +1170,9 @@ function boot() {
             : raycast(game.world, eye, lookDir(player.yaw, player.pitch), REACH);
 
         renderer.ensureClouds(eye[0], eye[2]);
+        // cráter del bloque en picado: reconstruye su malla sub-vóxel solo si
+        // cambió (por golpe), no cada frame
+        if (game.carve && game.carve.dirty) renderer.updateCarve(game.carve);
         // ejes derecho/arriba de la cámara en mundo (columnas de Ry(yaw)·Rx(pitch),
         // la rotación inversa de la que construye mat4View) para los billboards
         const cy = Math.cos(player.yaw), sy = Math.sin(player.yaw);
@@ -1085,6 +1189,9 @@ function boot() {
                 game.breaking.y === hit.y && game.breaking.z === hit.z
                 ? Math.min(1, game.breaking.hits / game.breaking.need) : 0,
             drops: game.drops.list,
+            shatter: game.shatter.list,
+            shatterFade: ShatterSystem.fade,
+            carve: !!game.carve,        // dibuja la malla tallada del bloque en picado
             particles: particles.snapshot(),
             time: game.time,
             cloudOffset: game.time * 0.003,
@@ -1129,5 +1236,5 @@ function boot() {
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    boot();
+    boot().catch((e) => console.error('Fallo al arrancar el juego:', e));
 }

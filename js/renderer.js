@@ -135,10 +135,51 @@ void main() {
     outColor = vec4(mix(rgb, uFogColor, fog), a);
 }`;
 
+// Shatter (fragmentos de bloque roto): cubos sólidos con COLOR PLANO por
+// vértice (no textura: cada mini-vóxel lleva el color real de su píxel) y
+// niebla, para que la nube de esquirlas se funda con la lejanía como el
+// terreno. Un sombreado por normal da volumen a los cubitos sin luz global.
+const SHATTER_VS = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aColor;
+layout(location=2) in float aShade;
+uniform mat4 uPV;
+out vec3 vColor;
+out vec3 vWorld;
+out float vShade;
+void main() {
+    gl_Position = uPV * vec4(aPos, 1.0);
+    vColor = aColor;
+    vWorld = aPos;
+    vShade = aShade;
+}`;
+
+const SHATTER_FS = `#version 300 es
+precision mediump float;
+in vec3 vColor;
+in vec3 vWorld;
+in float vShade;
+uniform vec3 uCamPos;
+uniform vec3 uFogColor;
+uniform float uFogNear;
+uniform float uFogFar;
+uniform float uDay;
+uniform float uAlpha;
+out vec4 outColor;
+void main() {
+    vec3 rgb = vColor * vShade * max(uDay, 0.25);
+    float dist = distance(vWorld, uCamPos);
+    float fog = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
+    outColor = vec4(mix(rgb, uFogColor, fog), uAlpha);
+}`;
+
 const STRIDE = 6 * 4; // 6 floats por vértice
 
 // layout de un vértice de partícula: centro3, corner2, uv2, size1, color4
 const PART_STRIDE = 12 * 4;
+
+// layout de un vértice de shatter: pos3, color3, shade1
+const SHATTER_STRIDE = 7 * 4;
 
 /* Esquinas y luz de las 6 caras del cubito de drop (semiarista 1, se escala).
    Luz ≤0.96: el shader decodifica la parte entera como luz de bloque. */
@@ -149,6 +190,18 @@ const DROP_QUADS = [
     { c: [[-1, -1, 1], [-1, -1, -1], [-1, 1, -1], [-1, 1, 1]], luz: 0.8, cara: 'side' },
     { c: [[1, -1, 1], [-1, -1, 1], [-1, 1, 1], [1, 1, 1]], luz: 0.7, cara: 'side' },
     { c: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1]], luz: 0.7, cara: 'side' },
+];
+
+/* Caras del mini-cubo de shatter (semiarista 1): esquinas, sombreado por cara
+   (da volumen sin luz global) y dirección del vecino `d` (para el culling
+   interior de la malla tallada del bloque activo). Orden de DROP_QUADS. */
+const SHATTER_FACES = [
+    { c: [[-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]], shade: 1.0, d: [0, 1, 0] },   // +Y
+    { c: [[-1, -1, 1], [1, -1, 1], [1, -1, -1], [-1, -1, -1]], shade: 0.5, d: [0, -1, 0] }, // -Y
+    { c: [[1, -1, -1], [1, -1, 1], [1, 1, 1], [1, 1, -1]], shade: 0.72, d: [1, 0, 0] },  // +X
+    { c: [[-1, -1, 1], [-1, -1, -1], [-1, 1, -1], [-1, 1, 1]], shade: 0.72, d: [-1, 0, 0] }, // -X
+    { c: [[1, -1, 1], [-1, -1, 1], [-1, 1, 1], [1, 1, 1]], shade: 0.86, d: [0, 0, 1] },  // +Z
+    { c: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1]], shade: 0.86, d: [0, 0, -1] }, // -Z
 ];
 
 export class Renderer {
@@ -162,10 +215,12 @@ export class Renderer {
         this.lineProg = this.compile(LINE_VS, LINE_FS);
         this.skyProg = this.compile(SKY_VS, SKY_FS);
         this.partProg = this.compile(PART_VS, PART_FS);
+        this.shatterProg = this.compile(SHATTER_VS, SHATTER_FS);
         this.u = this.uniformMap(this.prog, ['uPV', 'uTex', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar', 'uDay', 'uCutoff', 'uAlphaMul', 'uUVScroll']);
         this.lu = this.uniformMap(this.lineProg, ['uPV', 'uPos', 'uColor']);
         this.su = this.uniformMap(this.skyProg, ['uPV', 'uCenter', 'uRight', 'uUp', 'uSize', 'uUVRect', 'uTex', 'uTint']);
         this.pu = this.uniformMap(this.partProg, ['uPV', 'uRight', 'uUp', 'uTex', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar']);
+        this.shu = this.uniformMap(this.shatterProg, ['uPV', 'uCamPos', 'uFogColor', 'uFogNear', 'uFogFar', 'uDay', 'uAlpha']);
 
         this.atlasTex = this.makeTexture(atlasCanvas, gl.CLAMP_TO_EDGE);
         this.cloudTex = this.makeTexture(cloudCanvas, gl.REPEAT);
@@ -201,6 +256,18 @@ export class Renderer {
         for (let a = 0; a < 5; a++) {
             gl.enableVertexAttribArray(a);
             gl.vertexAttribPointer(a, sz[a], gl.FLOAT, false, PART_STRIDE, off[a]);
+        }
+        gl.bindVertexArray(null);
+
+        // búfer dinámico de shatter: pos3, color3, shade1 (cubos sólidos)
+        this.shatterVAO = gl.createVertexArray();
+        this.shatterBuf = gl.createBuffer();
+        gl.bindVertexArray(this.shatterVAO);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.shatterBuf);
+        const shOff = [0, 12, 24], shSz = [3, 3, 1];
+        for (let a = 0; a < 3; a++) {
+            gl.enableVertexAttribArray(a);
+            gl.vertexAttribPointer(a, shSz[a], gl.FLOAT, false, SHATTER_STRIDE, shOff[a]);
         }
         gl.bindVertexArray(null);
 
@@ -358,6 +425,123 @@ export class Renderer {
         gl.drawArrays(gl.TRIANGLES, 0, o / 6);
         gl.bindVertexArray(null);
     }
+
+    /**
+     * Dibuja los fragmentos de shatter como mini-cubos sólidos con su color
+     * real por vértice y un sombreado por cara para darles volumen. Se llama
+     * en la pasada opaca (escribe profundidad: los cubitos se ocluyen entre
+     * sí y con el terreno). `fade` da el alfa de desvanecimiento por fragmento.
+     */
+    drawShatter(frags, f, fade) {
+        if (!frags || !frags.length) return;
+        const gl = this.gl;
+        // 6 caras × 2 tris × 3 vért = 36 vért/cubo, cada uno pos3+color3+shade1
+        const data = new Float32Array(frags.length * 36 * 7);
+        let o = 0;
+        // caras del cubo unitario centrado (±h): esquinas + sombreado por cara
+        for (let i = 0; i < frags.length; i++) {
+            const fr = frags[i];
+            const h = fr.size * 0.5;
+            const hy = h * (fr.flat ?? 1);          // aplanado en Y al asentarse
+            const sh = fr.shade ?? 1;               // sombra propia (montón posado)
+            const [px, py, pz] = fr.pos;
+            const [cr, cg, cb] = [fr.color[0] / 255 * sh, fr.color[1] / 255 * sh, fr.color[2] / 255 * sh];
+            for (const face of SHATTER_FACES) {
+                for (const k of [0, 1, 2, 0, 2, 3]) {
+                    const c = face.c[k];
+                    data[o++] = px + c[0] * h;
+                    data[o++] = py + c[1] * hy;
+                    data[o++] = pz + c[2] * h;
+                    data[o++] = cr; data[o++] = cg; data[o++] = cb;
+                    data[o++] = face.shade;
+                }
+            }
+        }
+        gl.useProgram(this.shatterProg);
+        gl.uniformMatrix4fv(this.shu.uPV, false, f.pv);
+        gl.uniform3fv(this.shu.uCamPos, f.camPos);
+        gl.uniform3fv(this.shu.uFogColor, f.sky);
+        gl.uniform1f(this.shu.uFogNear, f.fogNear);
+        gl.uniform1f(this.shu.uFogFar, f.fogFar);
+        gl.uniform1f(this.shu.uDay, f.day);
+        gl.uniform1f(this.shu.uAlpha, 1);
+        gl.bindVertexArray(this.shatterVAO);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.shatterBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+        gl.drawArrays(gl.TRIANGLES, 0, o / 7);
+        gl.bindVertexArray(null);
+        gl.useProgram(this.prog);
+    }
+
+    /**
+     * Reconstruye la malla sub-vóxel del bloque que se está picando (cráter)
+     * a partir de `state.present` (rejilla n³ presente/ausente). Culling
+     * interior: solo emite la cara de un sub-vóxel si su vecino en esa
+     * dirección está ausente (incluye las caras internas del cráter). Se
+     * llama solo cuando `state.dirty` (por golpe), no cada frame.
+     */
+    updateCarve(state) {
+        const gl = this.gl;
+        if (!this.carveMesh) { this.carveMesh = { vao: gl.createVertexArray(), buf: gl.createBuffer(), n: 0 }; }
+        const n = state.n, s = 1 / n;             // arista del sub-vóxel en bloques
+        const bx = state.x, by = state.y, bz = state.z;
+        const out = [];
+        for (let iy = 0; iy < n; iy++)
+            for (let iz = 0; iz < n; iz++)
+                for (let ix = 0; ix < n; ix++) {
+                    if (!state.has(ix, iy, iz)) continue;
+                    const [cr, cg, cb] = state.colorDe(ix, iy, iz);
+                    const r = cr / 255, g = cg / 255, b = cb / 255;
+                    const ox = bx + ix * s, oy = by + iy * s, oz = bz + iz * s;
+                    for (const face of SHATTER_FACES) {
+                        const [dx, dy, dz] = face.d;
+                        if (state.has(ix + dx, iy + dy, iz + dz)) continue; // cara interna oculta
+                        for (const k of [0, 1, 2, 0, 2, 3]) {
+                            const c = face.c[k];
+                            // c en ±1 → esquina 0/1 del sub-vóxel; centro en (0.5s)
+                            out.push(
+                                ox + ((c[0] + 1) * 0.5) * s,
+                                oy + ((c[1] + 1) * 0.5) * s,
+                                oz + ((c[2] + 1) * 0.5) * s,
+                                r, g, b, face.shade,
+                            );
+                        }
+                    }
+                }
+        const data = new Float32Array(out);
+        gl.bindVertexArray(this.carveMesh.vao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.carveMesh.buf);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+        const shOff = [0, 12, 24], shSz = [3, 3, 1];
+        for (let a = 0; a < 3; a++) {
+            gl.enableVertexAttribArray(a);
+            gl.vertexAttribPointer(a, shSz[a], gl.FLOAT, false, SHATTER_STRIDE, shOff[a]);
+        }
+        gl.bindVertexArray(null);
+        this.carveMesh.n = out.length / 7;
+        state.dirty = false;
+    }
+
+    /** Dibuja la malla tallada del bloque activo (mismo shader que el shatter). */
+    drawCarve(f) {
+        if (!this.carveMesh || !this.carveMesh.n) return;
+        const gl = this.gl;
+        gl.useProgram(this.shatterProg);
+        gl.uniformMatrix4fv(this.shu.uPV, false, f.pv);
+        gl.uniform3fv(this.shu.uCamPos, f.camPos);
+        gl.uniform3fv(this.shu.uFogColor, f.sky);
+        gl.uniform1f(this.shu.uFogNear, f.fogNear);
+        gl.uniform1f(this.shu.uFogFar, f.fogFar);
+        gl.uniform1f(this.shu.uDay, f.day);
+        gl.uniform1f(this.shu.uAlpha, 1);
+        gl.bindVertexArray(this.carveMesh.vao);
+        gl.drawArrays(gl.TRIANGLES, 0, this.carveMesh.n);
+        gl.bindVertexArray(null);
+        gl.useProgram(this.prog);
+    }
+
+    /** Libera la malla tallada (al terminar de picar un bloque). */
+    clearCarve() { if (this.carveMesh) this.carveMesh.n = 0; }
 
     makeSelectionCube() {
         const a = -0.003, b = 1.003;
@@ -564,6 +748,16 @@ export class Renderer {
 
         // 1a. drops: cubitos que giran y flotan (mismo estado que los chunks)
         if (f.drops && f.drops.length) this.drawDrops(f.drops, f.time || 0);
+
+        // 1a-bis. shatter: mini-vóxeles del bloque desgranado (opacos, escriben
+        // profundidad como los cubos del terreno). El callback drawShatter
+        // deja restaurado el programa principal.
+        if (f.shatter && f.shatter.length) this.drawShatter(f.shatter, f, f.shatterFade);
+
+        // 1a-ter. carve: malla tallada del bloque que se pica (el cráter). Su
+        // celda está oculta en la malla del chunk, así que este dibujo la
+        // sustituye rellenando el hueco con la forma parcial.
+        if (f.carve) this.drawCarve(f);
 
         // 1b. entidades (mobs y flechas): opacas, antes de las transparencias;
         // el callback debe dejar restaurado este programa

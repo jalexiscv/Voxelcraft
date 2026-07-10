@@ -117,10 +117,11 @@ export class Generator {
     /**
      * Genera el chunk (cx, cz) completo. Función pura: el resultado depende
      * solo de (semilla, cx, cz).
-     * @returns {Uint8Array} CHUNK×SY×CHUNK, índice (y·CHUNK + lz)·CHUNK + lx
+     * @returns {Uint16Array} CHUNK×SY×CHUNK, índice (y·CHUNK + lz)·CHUNK + lx
+     *   (16 bits por celda para admitir más de 256 ids de bloque)
      */
     generateChunk(cx, cz) {
-        const blocks = new Uint8Array(CHUNK * SY * CHUNK);
+        const blocks = new Uint16Array(CHUNK * SY * CHUNK);
         const li = (lx, y, lz) => (y * CHUNK + lz) * CHUNK + lx;
         const x0 = cx * CHUNK, z0 = cz * CHUNK;
 

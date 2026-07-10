@@ -6,6 +6,7 @@
  * es añadir una entrada aquí y su tésela en atlas.js.
  */
 import { TILE } from './atlas.js';
+import { MATERIALES_PLAN } from './materiales.js';
 
 export const B = {
     AIR: 0, STONE: 1, GRASS: 2, DIRT: 3, COBBLE: 4, PLANKS: 5, SAPLING: 6,
@@ -38,6 +39,10 @@ export const B = {
     DOOR_TOP_CLOSED: 84, DOOR_TOP_OPEN: 85,
     CAMERA: 86,         // cámara de vigilancia: bloque dinámico (entidad animada)
     REDBULL: 87,        // lata de Red Bull: bloque dinámico explosivo (mecha 10 s, js/latas.js)
+    // ---- Materiales del juego con textura del paquete real (piloto) ----
+    // Variantes de piedra: comparten flags con STONE (pico, dureza 5). Su
+    // textura se carga de PNG (js/atlas.pngtiles.js), no se pinta a mano.
+    GRANITE: 88, DIORITE: 89, ANDESITE: 90,
 };
 
 /**
@@ -192,6 +197,24 @@ DEFS[B.CAMERA] = def('Cámara de vigilancia', TILE.CAMERA, {
 DEFS[B.REDBULL] = def('Lata de Red Bull', TILE.REDBULL, {
     dinamico: true, solid: false, opaque: false, hardness: 1, tool: null,
 });
+
+/* ---- Materiales del juego con textura del paquete real (piloto) ---- */
+// Variantes de piedra: mismo material que STONE (pico, dureza por defecto 5),
+// solo cambia la tésela, que se carga de PNG. Son el caso de prueba de la
+// integración del paquete de texturas antes de escalar a todos los materiales.
+DEFS[B.GRANITE]  = def('Granito', TILE.STONE_GRANITE);
+DEFS[B.DIORITE]  = def('Diorita', TILE.STONE_DIORITE);
+DEFS[B.ANDESITE] = def('Andesita', TILE.STONE_ANDESITE);
+
+/* ---- Materiales generados del paquete de texturas real (js/materiales.js) ---- */
+// Cada material del plan trae su id de bloque y sus téselas top/side/bottom ya
+// resueltos (números). Se registran en B (para poder referirlos por B.MAT_<KEY>)
+// y en DEFS. Sus flags de material (dureza, herramienta, opacidad, brillo…) los
+// fijó el generador según la familia; el resto usa los valores por defecto de def().
+for (const m of MATERIALES_PLAN) {
+    B['MAT_' + m.key] = m.id;
+    DEFS[m.id] = def(m.name, m.side, { top: m.top, bottom: m.bottom, ...m.flags });
+}
 
 /** Ids que aparecen en el selector de bloques, en orden de presentación. */
 export const PLACEABLE = DEFS

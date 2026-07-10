@@ -337,6 +337,28 @@ export class SoundEngine {
         this.burst(m.freq * 0.5, m.q, m.vol * 0.8, m.dur * 2.2, 0.03);
     }
 
+    /**
+     * Crujido GRANULAR al desgranar un bloque (Fase 3 del shatter): en vez de
+     * un solo golpe, una ráfaga de micro-bursts escalonados con la frecuencia
+     * del material y jitter de tono/tiempo, como un puñado de esquirlas que se
+     * derraman. Cae al `dig` clásico primero (mantiene el impacto seco) y le
+     * suma la cola granular.
+     */
+    crunch(material) {
+        const m = MATERIALS[material] || MATERIALS.stone;
+        if (!m || !this.ctx) return;
+        this.dig(material);                 // impacto seco inicial
+        // 6 granos repartidos en ~0,22 s, tono y volumen decrecientes
+        const N = 6;
+        for (let i = 0; i < N; i++) {
+            const k = i / N;
+            const freq = m.freq * (0.55 + Math.random() * 0.7);
+            const vol = m.vol * (0.7 - k * 0.5) * (0.7 + Math.random() * 0.6);
+            const dur = m.dur * (0.5 + Math.random() * 0.6);
+            this.burst(freq, m.q * 0.8, vol, dur, 0.02 + k * 0.2 + Math.random() * 0.03);
+        }
+    }
+
     place(material) {
         const fam = MATERIALS[material] ? material : 'stone';
         // 1) árbol del pack: colocar comparte la familia dig/<material>
