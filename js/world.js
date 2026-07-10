@@ -9,7 +9,7 @@
  */
 import { B, DEFS } from './blocks.js';
 import { CHUNK, WORLD_HEIGHT, Y_BASE } from './dimensiones.js';
-import { ChunkPaletizado } from './secciones.js';
+import { ChunkPaletizado, LuzSeccionada } from './secciones.js';
 
 // re-export: los consumidores históricos (storage, main, mesher…) las
 // importan de aquí; la fuente única es js/dimensiones.js
@@ -81,8 +81,8 @@ export class World {
             // uniforme dejan de ocupar memoria
             blocks: blocks instanceof ChunkPaletizado ? blocks : new ChunkPaletizado(blocks),
             heights: new Int16Array(CHUNK * CHUNK).fill(-1),
-            light: new Uint8Array(CHUNK * this.sy * CHUNK), // luz de bloque 0..15
-            lightDirty: true,                               // se calcula en la 1ª consulta
+            light: new LuzSeccionada(), // luz de bloque 0..15, seccionada (vacía = 0 B)
+            lightDirty: true,           // se calcula en la 1ª consulta
             modified,
         };
         this.chunks.set(chunkKey(cx, cz), chunk);
@@ -193,7 +193,7 @@ export class World {
         const c = this.chunks.get(chunkKey(cx, cz));
         if (!c) return 0;
         if (c.lightDirty) this.recomputeChunkLight(cx, cz);
-        return c.light[(y * CHUNK + (z & 15)) * CHUNK + (x & 15)];
+        return c.light.get((y * CHUNK + (z & 15)) * CHUNK + (x & 15));
     }
 
     /**
@@ -208,8 +208,6 @@ export class World {
         c.lightDirty = false;
         const sy = this.sy;
         const gx0 = cx * CHUNK - LIGHT_PAD, gz0 = cz * CHUNK - LIGHT_PAD;
-        luzRegion.fill(0);
-        for (const cola of colasLuz) cola.length = 0;
 
         // vecindario 3×3 de chunks paletizados (la región de 46 cabe en él)
         const hood = [];
@@ -219,15 +217,13 @@ export class World {
                 hood.push(n ? n.blocks : null);
             }
         }
-        // id de bloque por coordenada global (chunks no cargados: aire)
-        const idAt = (gx, y, gz) => {
-            const blocks = hood[((gx >> 4) - cx + 1) * 3 + ((gz >> 4) - cz + 1)];
-            return blocks ? blocks.get((y * CHUNK + (gz & 15)) * CHUNK + (gx & 15)) : B.AIR;
-        };
 
-        // siembra: toda fuente del vecindario que caiga dentro de la región.
-        // fuentesDeLuz salta por paleta las secciones sin emisores: el caso
-        // común (chunk sin lava ni antorchas) cuesta 24 miradas y ya.
+        // 1) recolecta de semillas ANTES de tocar la región: fuentesDeLuz
+        // salta por paleta las secciones sin emisores, así el caso común
+        // (ninguna lava/antorcha en el vecindario) sale gratis por abajo.
+        // También acota la ventana vertical alcanzable (semillas ±15).
+        const semillas = []; // pares aplanados [idxRegión, nivel, ...]
+        let yMin = sy, yMax = -1;
         for (let h = 0; h < 9; h++) {
             const blocks = hood[h];
             if (!blocks) continue;
@@ -236,12 +232,30 @@ export class World {
             for (const [i, nivel] of blocks.fuentesDeLuz(EMIT)) {
                 const rx = bx0 + (i & 15), rz = bz0 + ((i >> 4) & 15);
                 if (rx < 0 || rx >= LGW || rz < 0 || rz >= LGW) continue;
-                const idx = ((i >> 8) * LGW + rz) * LGW + rx;
-                if (luzRegion[idx] < nivel) { luzRegion[idx] = nivel; colasLuz[nivel].push(idx); }
+                const y = i >> 8;
+                semillas.push(((y * LGW + rz) * LGW + rx), nivel);
+                if (y < yMin) yMin = y;
+                if (y > yMax) yMax = y;
             }
         }
 
-        // propagación: −1 por paso a través de celdas no opacas
+        c.light.limpiar(); // campo vacío: las secciones vuelven a costar 0 B
+        if (semillas.length === 0) return; // sin fuentes: listo, sin BFS ni volcado
+
+        luzRegion.fill(0);
+        for (const cola of colasLuz) cola.length = 0;
+        for (let k = 0; k < semillas.length; k += 2) {
+            const idx = semillas[k], nivel = semillas[k + 1];
+            if (luzRegion[idx] < nivel) { luzRegion[idx] = nivel; colasLuz[nivel].push(idx); }
+        }
+
+        // id de bloque por coordenada global (chunks no cargados: aire)
+        const idAt = (gx, y, gz) => {
+            const blocks = hood[((gx >> 4) - cx + 1) * 3 + ((gz >> 4) - cz + 1)];
+            return blocks ? blocks.get((y * CHUNK + (gz & 15)) * CHUNK + (gx & 15)) : B.AIR;
+        };
+
+        // 2) propagación: −1 por paso a través de celdas no opacas
         for (let nivel = 15; nivel >= 2; nivel--) {
             const cola = colasLuz[nivel];
             for (let qi = 0; qi < cola.length; qi++) {
@@ -261,13 +275,20 @@ export class World {
             }
         }
 
-        // volcado de la ventana central de la región al campo del chunk
+        // 3) volcado de la ventana central SOLO en el rango y alcanzable
+        // (semillas ±15); escribir únicamente niveles > 0 mantiene vacías
+        // las secciones sin luz (LuzSeccionada no asigna nada con 0)
+        yMin = Math.max(0, yMin - LIGHT_PAD);
+        yMax = Math.min(sy - 1, yMax + LIGHT_PAD);
         const light = c.light;
-        for (let y = 0; y < sy; y++) {
+        for (let y = yMin; y <= yMax; y++) {
             for (let lz = 0; lz < CHUNK; lz++) {
                 const rBase = (y * LGW + lz + LIGHT_PAD) * LGW + LIGHT_PAD;
                 const cBase = (y * CHUNK + lz) * CHUNK;
-                for (let lx = 0; lx < CHUNK; lx++) light[cBase + lx] = luzRegion[rBase + lx];
+                for (let lx = 0; lx < CHUNK; lx++) {
+                    const v = luzRegion[rBase + lx];
+                    if (v) light.set(cBase + lx, v);
+                }
             }
         }
     }

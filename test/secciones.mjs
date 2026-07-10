@@ -5,7 +5,7 @@
  * de id, tope opaco) y que la memoria baje de verdad.
  */
 import assert from 'node:assert';
-import { ChunkPaletizado, NUM_SECCIONES, CELDAS_SECCION, SECCION_H } from '../js/secciones.js';
+import { ChunkPaletizado, LuzSeccionada, NUM_SECCIONES, CELDAS_SECCION, SECCION_H } from '../js/secciones.js';
 import { CHUNK, WORLD_HEIGHT } from '../js/dimensiones.js';
 
 let ok = 0;
@@ -167,6 +167,62 @@ test('la memoria de un chunk realista baja más de 8 veces frente al plano', () 
     assert.ok(c.bytes() * 8 < planoBytes,
         `paletizado ${c.bytes()} B ≥ 1/8 del plano ${planoBytes} B`);
     console.log(`    (perfil sintético: ${c.bytes()} B frente a ${planoBytes} B planos)`);
+});
+
+console.log('\nLuzSeccionada');
+
+test('recién creada es todo 0 y no ocupa memoria', () => {
+    const l = new LuzSeccionada();
+    assert.strictEqual(l.get(0), 0);
+    assert.strictEqual(l.get(TOTAL - 1), 0);
+    assert.ok(l.bytes() < 64, 'campo vacío casi gratis: ' + l.bytes());
+});
+
+test('escribir 0 sobre sección vacía NO asigna nada', () => {
+    const l = new LuzSeccionada();
+    for (let k = 0; k < 1000; k++) l.set(k * 97 % TOTAL, 0);
+    assert.ok(l.bytes() < 64, 'sigue vacía: ' + l.bytes());
+});
+
+test('fuzz de niveles 0..15: equivalencia con el array plano (nibbles)', () => {
+    const rng = lcg(31);
+    const plano = new Uint8Array(TOTAL);
+    const l = new LuzSeccionada();
+    for (let k = 0; k < 20000; k++) {
+        const i = Math.floor(rng() * TOTAL);
+        const v = Math.floor(rng() * 16);
+        plano[i] = v;
+        l.set(i, v);
+    }
+    for (let i = 0; i < TOTAL; i++) {
+        if (l.get(i) !== plano[i]) assert.fail(`luz ${i}: ${l.get(i)} != ${plano[i]}`);
+    }
+    // celdas vecinas de nibble no se pisan entre sí
+    l.set(100, 15); l.set(101, 7);
+    assert.strictEqual(l.get(100), 15);
+    assert.strictEqual(l.get(101), 7);
+});
+
+test('la luz de una antorcha ocupa 1-2 secciones, no el chunk entero', () => {
+    const l = new LuzSeccionada();
+    // esfera de luz alrededor de y=100 (sección 6): como el volcado real
+    for (let y = 86; y <= 114; y++) {
+        for (let lz = 0; lz < 16; lz++) {
+            for (let lx = 0; lx < 16; lx++) l.set(li(lx, y, lz), 5);
+        }
+    }
+    const conDatos = l.secs.filter((s) => s).length;
+    assert.ok(conDatos <= 3, 'secciones asignadas: ' + conDatos);
+    assert.ok(l.bytes() < 8192, 'muy por debajo de los 96 KB planos: ' + l.bytes());
+});
+
+test('limpiar() vuelve a dejarlo todo vacío y a coste cero', () => {
+    const l = new LuzSeccionada();
+    l.set(li(5, 100, 5), 14);
+    assert.strictEqual(l.get(li(5, 100, 5)), 14);
+    l.limpiar();
+    assert.strictEqual(l.get(li(5, 100, 5)), 0);
+    assert.ok(l.bytes() < 64);
 });
 
 console.log(`\n${ok} pruebas de secciones superadas`);

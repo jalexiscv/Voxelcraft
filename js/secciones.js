@@ -221,3 +221,52 @@ export class ChunkPaletizado {
         return total;
     }
 }
+
+/**
+ * Campo de LUZ DE BLOQUE seccionado: niveles 0..15 por celda, con el mismo
+ * troceado en 24 secciones que ChunkPaletizado. Una sección sin ninguna luz
+ * es `null` (el caso dominante: la mayoría de chunks no tiene antorchas ni
+ * lava, y en los que sí, la luz vive en 1-3 secciones); una sección con luz
+ * son nibbles en 2 KB (frente a los 96 KB del Uint8Array plano por chunk).
+ *
+ * Contrato con el recálculo de world.js: `limpiar()` deja todo vacío y las
+ * escrituras con valor 0 sobre una sección vacía NO asignan nada — el
+ * volcado solo escribe los niveles > 0.
+ */
+export class LuzSeccionada {
+    constructor() {
+        this.secs = new Array(NUM_SECCIONES).fill(null);
+    }
+
+    /** Nivel 0..15 del índice plano i (secciones vacías: 0). */
+    get(i) {
+        const sec = this.secs[i >>> 12];
+        if (!sec) return 0;
+        const j = i & 4095;
+        return (j & 1) ? (sec[j >> 1] >> 4) : (sec[j >> 1] & 15);
+    }
+
+    /** Escribe el nivel en i; un 0 sobre sección vacía no asigna memoria. */
+    set(i, v) {
+        const s = i >>> 12;
+        let sec = this.secs[s];
+        if (!sec) {
+            if (v === 0) return;
+            sec = this.secs[s] = new Uint8Array(CELDAS_SECCION / 2);
+        }
+        const j = i & 4095, k = j >> 1;
+        sec[k] = (j & 1) ? ((sec[k] & 0x0f) | (v << 4)) : ((sec[k] & 0xf0) | v);
+    }
+
+    /** Vacía el campo entero (todas las secciones a null, sin basura). */
+    limpiar() {
+        this.secs.fill(null);
+    }
+
+    /** Memoria aproximada en bytes (depuración/medición). */
+    bytes() {
+        let total = 16;
+        for (const sec of this.secs) total += sec ? sec.byteLength + 16 : 0;
+        return total;
+    }
+}
