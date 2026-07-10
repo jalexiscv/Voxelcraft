@@ -693,12 +693,40 @@ async function boot() {
         Space: 'jump', KeyC: 'down', ShiftLeft: 'sprint', ShiftRight: 'sprint',
     };
 
+    // Escape acaba de cerrar un panel: el re-bloqueo del puntero queda
+    // pendiente hasta el keyup. Re-bloquear en el keydown pierde la carrera
+    // con el navegador: la MISMA pulsación física se evalúa contra la
+    // captura recién concedida, el navegador la suelta y esa pérdida abría
+    // el menú del sistema encima del panel que se acababa de cerrar.
+    let escRelock = false;
+
     document.addEventListener('keydown', (e) => {
         if (game.state !== 'playing') return;
         // Escape cierra los paneles ANTES del cortocircuito de inputs: así
         // también funciona con el foco en el buscador del inventario creativo
-        if (e.code === 'Escape' && hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); return; }
-        if (e.code === 'Escape' && hud.craftOpen()) { hud.closeCraft(); canvas.requestPointerLock(); return; }
+        if (e.code === 'Escape') {
+            if (e.repeat) return;
+            if (hud.pickerOpen()) { hud.closePicker(); escRelock = true; return; }
+            if (hud.craftOpen()) { hud.closeCraft(); escRelock = true; return; }
+            // con el menú del sistema abierto, Escape reanuda como el botón
+            // Reanudar; desde una subsección vuelve primero a la principal.
+            // OJO: la re-captura del keyup puede ser rechazada aquí (la
+            // captura se perdió por el propio Escape, el navegador exige un
+            // gesto real) — entonces el primer clic en el lienzo la recupera
+            if (paused()) {
+                sound.click();
+                if ($('menu-main').classList.contains('hidden')) { showSection('main'); return; }
+                showMenu(false);
+                escRelock = true;
+                return;
+            }
+            // sin panel y sin captura (p. ej. el navegador rechazó el
+            // re-bloqueo): Escape abre el menú del sistema explícitamente;
+            // con captura activa esta tecla nunca llega (la consume el
+            // navegador al soltar el puntero y el menú sale por pointerlockchange)
+            if (!locked() && !game.dead) { showMenu(true); showSection('main'); }
+            return;
+        }
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
         if (e.code === 'F3') { e.preventDefault(); hud.toggleDebug(); return; }
         if (e.code === 'KeyB') {
@@ -731,9 +759,18 @@ async function boot() {
         if (KEYMAP[e.code]) { e.preventDefault(); keys.add(KEYMAP[e.code]); }
     });
     document.addEventListener('keyup', (e) => {
+        // re-bloqueo diferido del Escape que cerró un panel (ver keydown):
+        // al soltar la tecla la pulsación ya no puede robar la captura
+        if (e.code === 'Escape' && escRelock) {
+            escRelock = false;
+            if (game.state === 'playing' && !paused() && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) {
+                try { canvas.requestPointerLock()?.catch(() => {}); } catch (err) { /* clic manual */ }
+            }
+            return;
+        }
         if (KEYMAP[e.code]) keys.delete(KEYMAP[e.code]);
     });
-    window.addEventListener('blur', () => { keys.clear(); game.buttons.clear(); });
+    window.addEventListener('blur', () => { keys.clear(); game.buttons.clear(); escRelock = false; });
 
     hud.onPick = () => canvas.requestPointerLock();
     hud.onCraftDone = () => sound.place('wood');
