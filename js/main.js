@@ -34,6 +34,8 @@ import { MOBS } from './mobs/registry.js';
 import { MobRenderer } from './mobrender.js';
 import { CamaraSystem, CAMARA_DEF } from './camaras.js';
 import { LataSystem, LATA_DEF, RADIO_EXPLOSION } from './latas.js';
+import { ClimaSystem } from './clima.js';
+import { BiomeMap } from './biomes/map.js';
 import { ViewModel } from './viewmodel.js';
 import { SoundEngine } from './audio.js';
 import { HUD } from './hud.js';
@@ -83,6 +85,9 @@ async function boot() {
     // (se cargan async al arrancar; hasta entonces `efectos` está vacío y no
     // pinta nada). `disparar` lanza un evento en una posición del mundo.
     const particles = new ParticleSystem();
+    // partículas del CLIMA en un sistema aparte con su propio cupo: un
+    // aguacero no roba presupuesto a explosiones ni roturas de bloque
+    const climaParts = new ParticleSystem(Math.random, 700);
     let efectos = {};
     cargarEfectos().then((e) => { efectos = e; });
     const disparar = (evento, pos, vars = {}, count) => {
@@ -278,6 +283,7 @@ async function boot() {
             const n = await saveWorld(game.world, {
                 seed: game.seed, player: playerState(), renderDist: game.renderDist,
                 worldName: game.worldName, mode: game.mode, difficulty: game.difficulty,
+                clima: game.clima.toJSON(),
                 savedAt: Date.now(),
             });
             $('btn-save').textContent = `Guardado ✓ (${n} chunks editados)`;
@@ -571,6 +577,19 @@ async function boot() {
         game.drops = new DropSystem();
         game.shatter.list.length = 0; // los fragmentos no cruzan de mundo
         particles.list.length = 0; // las partículas no cruzan de mundo
+        climaParts.list.length = 0;
+        // clima: restaurado del guardado (o despejado); el mapa de biomas es
+        // el MISMO que usa el worker (idéntica semilla) para decidir si en
+        // cada columna cae lluvia, nieve (frío) o nada (desierto)
+        game.clima = ClimaSystem.fromJSON(savedMeta && savedMeta.clima);
+        game.biomas = new BiomeMap(seed);
+        game.clima.onRayo = () => {
+            const [x, , z] = game.clima.rayoVisible(climaParts, game.world,
+                player.pos[0], player.pos[2]);
+            // el trueno llega con retardo según la distancia del impacto
+            const d = Math.hypot(x - player.pos[0], z - player.pos[2]);
+            sound.trueno(0.15 + d / 120);
+        };
         game.breaking = null;
         game.carve = null; game.world && (game.world.carveHidden = null); // sin cráter pendiente
         $('death').classList.add('hidden');
@@ -1016,6 +1035,8 @@ async function boot() {
 
         if (game.state === 'playing' && game.world) {
             if (!paused() && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) simulate(dt);
+            // el bucle de lluvia sigue la intensidad; en pausa se apaga suave
+            sound.lluvia(paused() ? 0 : game.clima.intensidad);
             draw();
         }
         requestAnimationFrame(frame);
@@ -1090,6 +1111,13 @@ async function boot() {
         // partículas: avanza la simulación (humo, fuego, fragmentos…)
         particles.update(dt);
 
+        // clima: máquina de estados, precipitación alrededor del jugador
+        // (lluvia/nieve según el bioma de cada columna) y sus partículas
+        game.clima.update(dt);
+        game.clima.emitir(dt, climaParts, game.world, game.biomas,
+            player.pos[0], player.eye()[1], player.pos[2]);
+        climaParts.update(dt);
+
         // cultivos: crecimiento por muestreo aleatorio en los chunks cargados
         tickCultivos(game.world, dt);
 
@@ -1162,9 +1190,11 @@ async function boot() {
         mat4View(view, eye[0], eye[1], eye[2], player.yaw, player.pitch);
         mat4Multiply(pv, proj, view);
 
-        const day = dayFactor();
         // cielo y niebla comparten color; skyColor añade el tinte crepuscular
-        const sky = skyColor(game.timeOfDay);
+        // y el clima lo agrisa (tormenta) o lo blanquea un instante (rayo);
+        // la luz global también baja bajo el aguacero
+        const day = dayFactor() * game.clima.factorLuz();
+        const sky = game.clima.tintarCielo(skyColor(game.timeOfDay), dayFactor());
 
         // la niebla oculta el borde de generación (técnica del MC real)
         const fogFar = game.renderDist * CHUNK * 0.9;
@@ -1194,7 +1224,7 @@ async function boot() {
             shatter: game.shatter.list,
             shatterFade: ShatterSystem.fade,
             carve: !!game.carve,        // dibuja la malla tallada del bloque en picado
-            particles: particles.snapshot(),
+            particles: particles.snapshot().concat(climaParts.snapshot()),
             time: game.time,
             cloudOffset: game.time * 0.003,
             sunDir: sunDirection(game.timeOfDay),
@@ -1239,7 +1269,7 @@ async function boot() {
     // gancho de depuración y pruebas automatizadas: con ?debug en la URL se
     // expone el estado interno (el juego normal no publica nada en window)
     if (new URLSearchParams(location.search).has('debug')) {
-        window.__vc = { game, hud, player };
+        window.__vc = { game, hud, player, climaParts };
     }
 }
 

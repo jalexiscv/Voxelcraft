@@ -477,6 +477,63 @@ export class SoundEngine {
         if (buf) this.playBuffer(buf, 0.3);
     }
 
+    /* ---- Clima ---- */
+
+    /**
+     * Bucle de lluvia: el ruido blanco compartido en loop pasado por un
+     * lowpass; el volumen sigue la intensidad del clima con una curva
+     * cuadrática (susurro con llovizna, aguacero con tormenta). Se crea una
+     * sola vez y después cada llamada solo mueve la ganancia (suavizada).
+     */
+    lluvia(intensidad) {
+        if (!this.ctx) return;
+        if (!this.lluviaNodo) {
+            const src = this.ctx.createBufferSource();
+            src.buffer = this.noiseBuffer;
+            src.loop = true;
+            const filtro = this.ctx.createBiquadFilter();
+            filtro.type = 'lowpass';
+            filtro.frequency.value = 1100;
+            filtro.Q.value = 0.4;
+            const gain = this.ctx.createGain();
+            gain.gain.value = 0;
+            src.connect(filtro); filtro.connect(gain); gain.connect(this.master);
+            src.start();
+            this.lluviaNodo = { gain };
+        }
+        const v = 0.16 * intensidad * intensidad;
+        this.lluviaNodo.gain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.6);
+    }
+
+    /**
+     * Trueno tras `retardo` segundos (main lo escala con la distancia del
+     * rayo): estruendo de ruido browniano —grave y rugoso— con el filtro
+     * cayendo de 420 a 70 Hz y la ganancia extinguiéndose en ~2.4 s.
+     */
+    trueno(retardo = 0.4) {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime + retardo;
+        const dur = 2.4, sr = this.ctx.sampleRate;
+        const buf = this.ctx.createBuffer(1, dur * sr, sr);
+        const d = buf.getChannelData(0);
+        let acc = 0;
+        for (let i = 0; i < d.length; i++) {
+            acc = (acc + (Math.random() * 2 - 1) * 0.08) * 0.985;
+            d[i] = acc * (1 - i / d.length);
+        }
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        const filtro = this.ctx.createBiquadFilter();
+        filtro.type = 'lowpass';
+        filtro.frequency.setValueAtTime(420, t);
+        filtro.frequency.exponentialRampToValueAtTime(70, t + dur);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.9, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+        src.connect(filtro); filtro.connect(gain); gain.connect(this.master);
+        src.start(t);
+    }
+
     /** Siseo de la mecha del creeper. */
     fuse() {
         this.evento('fuse');
