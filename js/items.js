@@ -117,7 +117,12 @@ export function fundir(inv, entradaId) {
     return f.out;
 }
 
-export const isItem = (id) => id >= ITEM_BASE;
+// Techo del rango de items: los huevos de aparición empiezan en 300
+// (js/eggs.js) y los materiales generados en 500 (js/materiales.js). El mapa
+// completo de rangos de id está documentado en js/materiales.js — sin este
+// techo, cualquier id alto (materiales) se confundiría con un item.
+export const ITEM_TOP = 300;
+export const isItem = (id) => id >= ITEM_BASE && id < ITEM_TOP;
 
 /**
  * Recetario. Con forma: `pattern` (filas de caracteres; espacio = vacío) y

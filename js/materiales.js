@@ -6,16 +6,21 @@
  * como atlas.pngtiles.js (téselas → PNG) importan de aquí, así ambos coinciden.
  *
  * Asignación determinista por orden de MATERIALES:
- *   - id de bloque: MAT_ID_BASE + índice del material. Base 128 → deja libres
- *     los ids 88..127 para materiales añadidos a mano. Todos caben de sobra en
+ *   - id de bloque: MAT_ID_BASE + índice del material. Todos caben de sobra en
  *     los 16 bits por celda (world.js).
  *   - téselas: cada CARA ÚNICA (path de PNG) recibe una tésela correlativa a
  *     partir de MAT_TILE_BASE. Dos materiales que comparten un PNG comparten
  *     tésela (p. ej. varias variantes que reusan la misma cara).
+ *
+ * MAPA DE RANGOS DE ID compartidos por todo el juego (no solaparlos jamás):
+ *   0..199    bloques declarados a mano en blocks.js (hoy 0..90)
+ *   200..299  items (js/items.js, isItem = id >= 200)
+ *   300..499  huevos de aparición (js/eggs.js, EGG_BASE=300, ~71 mobs y creciendo)
+ *   500+      materiales generados (este módulo)
  */
 import { MATERIALES } from './materiales.data.js';
 
-export const MAT_ID_BASE = 128;   // primer id de bloque para materiales generados
+export const MAT_ID_BASE = 500;   // primer id de bloque para materiales generados
 export const MAT_TILE_BASE = 200; // primera tésela de atlas para sus PNG
 
 /** Nombre de PNG de una cara ('top'|'side'|'bottom') de un material. */
