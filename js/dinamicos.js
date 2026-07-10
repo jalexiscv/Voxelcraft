@@ -71,17 +71,16 @@ export class RegistroDinamico {
         }
     }
 
-    /** Escaneo lineal del chunk (16×64×16 bytes): posiciones con el bloque. */
+    /**
+     * Posiciones del chunk con este bloque. `blocks` es el ChunkPaletizado:
+     * buscarId descarta por paleta las secciones sin el id — el caso común
+     * (chunk sin cámaras/latas) cuesta 24 miradas a paletas y nada más.
+     */
     escanear(key, blocks) {
-        const lista = [];
-        if (!blocks.includes(this.blockId)) return lista; // atajo del caso común
         const [cx, cz] = key.split(',').map(Number);
-        for (let i = 0; i < blocks.length; i++) {
-            if (blocks[i] !== this.blockId) continue;
-            const lx = i & 15, lz = (i >> 4) & 15, y = i >> 8;
-            lista.push({ x: cx * CHUNK + lx, y, z: cz * CHUNK + lz });
-        }
-        return lista;
+        return blocks.buscarId(this.blockId).map((i) => ({
+            x: cx * CHUNK + (i & 15), y: i >> 8, z: cz * CHUNK + ((i >> 4) & 15),
+        }));
     }
 
     /** Rehace la lista de entidades desde el registro (cambia rara vez). */

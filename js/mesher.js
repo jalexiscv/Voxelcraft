@@ -313,9 +313,16 @@ export function meshChunk(world, cx, cz) {
     // se omite de la malla del chunk y la dibuja aparte renderer.drawCarve
     const h = world.carveHidden;
 
+    // secciones verticales del chunk que son SOLO aire (el cielo entero):
+    // ninguna celda suya emite geometría, así que el bucle y las salta de
+    // 16 en 16 — con 384 de altura es la mayoría del volumen
+    const vacia = [];
+    for (let s = 0; s < world.sy >> 4; s++) vacia.push(world.seccionUniforme(cx, cz, s) === B.AIR);
+
     for (let x = x0; x < x1; x++) {
         for (let z = z0; z < z1; z++) {
             for (let y = 0; y < world.sy; y++) {
+                if ((y & 15) === 0 && vacia[y >> 4]) { y += 15; continue; }
                 const id = world.get(x, y, z);
                 if (id === B.AIR) continue;
                 if (h && h[0] === x && h[1] === y && h[2] === z) continue; // tallándose

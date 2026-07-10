@@ -60,7 +60,9 @@ export async function saveWorld(world, meta) {
         tx.objectStore('meta').put(blockDataToJSON(world.blockData), BLOCKDATA_KEY);
         let n = 0;
         for (const [key, c] of world.chunks) {
-            if (c.modified) { chunks.put(rleEncode(c.blocks), key); n++; }
+            // aplanar() exporta las secciones paletizadas al array plano
+            // clásico: el formato RLE en disco no cambia (sin migración)
+            if (c.modified) { chunks.put(rleEncode(c.blocks.aplanar()), key); n++; }
         }
         tx.oncomplete = () => { db.close(); resolve(n); };
         tx.onerror = () => { db.close(); reject(tx.error); };

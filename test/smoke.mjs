@@ -89,7 +89,7 @@ for (let cx = -3; cx <= 3; cx++) {
     for (let cz = -3; cz <= 3; cz++) world.addChunk(cx, cz, gen.generateChunk(cx, cz));
 }
 const counts = {};
-for (const [, c] of world.chunks) for (const b of c.blocks) counts[b] = (counts[b] || 0) + 1;
+for (const [, c] of world.chunks) for (const b of c.blocks.aplanar()) counts[b] = (counts[b] || 0) + 1;
 check('hay hierba', (counts[B.GRASS] || 0) > 100);
 check('hay agua', (counts[B.WATER] || 0) > 100);
 check('hay piedra', (counts[B.STONE] || 0) > 10000);
@@ -548,7 +548,7 @@ console.log('== Reaparición en la superficie ==');
 }
 
 console.log('== Guardado RLE por chunk ==');
-const chunk00 = world.chunks.get('0,0').blocks;
+const chunk00 = world.chunks.get('0,0').blocks.aplanar();
 const enc = rleEncode(chunk00);
 check('RLE ida y vuelta', eq(rleDecode(enc, chunk00.length), chunk00));
 console.log(`  (chunk 16×64×16 = ${chunk00.length} B → RLE ${enc.length} B, ${(100 * enc.length / chunk00.length).toFixed(1)} %)`);

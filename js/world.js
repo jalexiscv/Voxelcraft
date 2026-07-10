@@ -9,6 +9,7 @@
  */
 import { B, DEFS } from './blocks.js';
 import { CHUNK, WORLD_HEIGHT, Y_BASE } from './dimensiones.js';
+import { ChunkPaletizado } from './secciones.js';
 
 // re-export: los consumidores históricos (storage, main, mesher…) las
 // importan de aquí; la fuente única es js/dimensiones.js
@@ -75,7 +76,10 @@ export class World {
     /** Incorpora un chunk generado (o cargado; `modified` si viene de guardado). */
     addChunk(cx, cz, blocks, modified = false) {
         const chunk = {
-            blocks,
+            // el generador y el guardado hablan arrays planos; aquí se
+            // paletiza por secciones (js/secciones.js) — el cielo y la roca
+            // uniforme dejan de ocupar memoria
+            blocks: blocks instanceof ChunkPaletizado ? blocks : new ChunkPaletizado(blocks),
             heights: new Int16Array(CHUNK * CHUNK).fill(-1),
             light: new Uint8Array(CHUNK * this.sy * CHUNK), // luz de bloque 0..15
             lightDirty: true,                               // se calcula en la 1ª consulta
@@ -100,7 +104,7 @@ export class World {
         if (y < 0 || y >= this.sy) return B.AIR;
         const c = this.chunks.get(chunkKey(x >> 4, z >> 4));
         if (!c) return B.AIR;
-        return c.blocks[(y * CHUNK + (z & 15)) * CHUNK + (x & 15)];
+        return c.blocks.get((y * CHUNK + (z & 15)) * CHUNK + (x & 15));
     }
 
     /**
@@ -111,7 +115,17 @@ export class World {
         if (y < 0 || y >= this.sy) return false;
         const c = this.chunks.get(chunkKey(x >> 4, z >> 4));
         if (!c) return true;
-        return DEFS[c.blocks[(y * CHUNK + (z & 15)) * CHUNK + (x & 15)]].solid;
+        return DEFS[c.blocks.get((y * CHUNK + (z & 15)) * CHUNK + (x & 15))].solid;
+    }
+
+    /**
+     * Id si TODA la sección vertical s (bloques y en [s·16, s·16+16)) del
+     * chunk es un único bloque, o −1 si es mixta o el chunk no existe. El
+     * mesher lo usa para saltarse el cielo entero de un golpe.
+     */
+    seccionUniforme(cx, cz, s) {
+        const c = this.chunks.get(chunkKey(cx, cz));
+        return c ? c.blocks.uniformeDe(s) : -1;
     }
 
     /**
@@ -125,12 +139,13 @@ export class World {
         const c = this.chunks.get(chunkKey(cx, cz));
         if (!c) return;
         const lx = x & 15, lz = z & 15;
-        const viejo = c.blocks[(y * CHUNK + lz) * CHUNK + lx];
+        const idx = (y * CHUNK + lz) * CHUNK + lx;
+        const viejo = c.blocks.get(idx);
         // ¿afecta a la luz de bloque? Solo si cambia una fuente, o si cambia
         // la opacidad donde ya circulaba luz (consultado ANTES de escribir).
         const tocaLuz = EMIT[viejo] !== EMIT[id] ||
             (OPACO[viejo] !== OPACO[id] && this.hayLuzCerca(x, y, z));
-        c.blocks[(y * CHUNK + lz) * CHUNK + lx] = id;
+        c.blocks.set(idx, id);
         c.modified = true;
         this.updateColumnHeight(c, lx, lz);
         // romper el bloque descarta su estado (el contenido del cofre se
@@ -196,7 +211,7 @@ export class World {
         luzRegion.fill(0);
         for (const cola of colasLuz) cola.length = 0;
 
-        // vecindario 3×3 de arrays de bloques (la región de 46 cabe en él)
+        // vecindario 3×3 de chunks paletizados (la región de 46 cabe en él)
         const hood = [];
         for (let dx = -1; dx <= 1; dx++) {
             for (let dz = -1; dz <= 1; dz++) {
@@ -207,18 +222,18 @@ export class World {
         // id de bloque por coordenada global (chunks no cargados: aire)
         const idAt = (gx, y, gz) => {
             const blocks = hood[((gx >> 4) - cx + 1) * 3 + ((gz >> 4) - cz + 1)];
-            return blocks ? blocks[(y * CHUNK + (gz & 15)) * CHUNK + (gx & 15)] : B.AIR;
+            return blocks ? blocks.get((y * CHUNK + (gz & 15)) * CHUNK + (gx & 15)) : B.AIR;
         };
 
-        // siembra: toda fuente del vecindario que caiga dentro de la región
+        // siembra: toda fuente del vecindario que caiga dentro de la región.
+        // fuentesDeLuz salta por paleta las secciones sin emisores: el caso
+        // común (chunk sin lava ni antorchas) cuesta 24 miradas y ya.
         for (let h = 0; h < 9; h++) {
             const blocks = hood[h];
             if (!blocks) continue;
             const bx0 = (cx + ((h / 3 | 0) - 1)) * CHUNK - gx0;
             const bz0 = (cz + (h % 3 - 1)) * CHUNK - gz0;
-            for (let i = 0; i < blocks.length; i++) {
-                const nivel = EMIT[blocks[i]];
-                if (!nivel) continue;
+            for (const [i, nivel] of blocks.fuentesDeLuz(EMIT)) {
                 const rx = bx0 + (i & 15), rz = bz0 + ((i >> 4) & 15);
                 if (rx < 0 || rx >= LGW || rz < 0 || rz >= LGW) continue;
                 const idx = ((i >> 8) * LGW + rz) * LGW + rx;
@@ -258,13 +273,9 @@ export class World {
     }
 
     updateColumnHeight(chunk, lx, lz) {
-        for (let y = this.sy - 1; y >= 0; y--) {
-            if (DEFS[chunk.blocks[(y * CHUNK + lz) * CHUNK + lx]].opaque) {
-                chunk.heights[lz * CHUNK + lx] = y;
-                return;
-            }
-        }
-        chunk.heights[lz * CHUNK + lx] = -1;
+        // topeOpaco baja sección a sección: el cielo (aire uniforme) se salta
+        // de 16 en 16 y las secciones sin opacos se descartan por paleta
+        chunk.heights[lz * CHUNK + lx] = chunk.blocks.topeOpaco(lx, lz, OPACO);
     }
 
     /** ¿Recibe luz solar directa? (chunks no generados: sí). */
