@@ -57,13 +57,20 @@ function spline(points, t) {
     return points[points.length - 1][1];
 }
 
+// Continentalidad a gran escala: la banda donde la base cruza el nivel del
+// mar es ESTRECHA en c (playas finas) y el interior queda despegado (+4..+12),
+// de modo que el relieve local (±1.6, sin máscara de montaña) no lo hunde.
+// Con la escala /640 esto produce masas continentales de miles de bloques en
+// lugar del archipiélago de islotes de ~50 bloques del modelo anterior.
 const BASE_SPLINE = [
-    [-1.0, -12],  // océano profundo
-    [-0.35, -4],  // plataforma costera
-    [-0.1, 0],    // playa / nivel del mar
-    [0.15, 2],    // llanura
-    [0.6, 5],     // interior elevado
-    [1.1, 9],     // altiplano
+    [-1.0, -24],  // océano profundo
+    [-0.5, -14],  // océano
+    [-0.22, -6],  // plataforma costera
+    [-0.1, -2],   // costa
+    [-0.02, 1],   // playa (banda estrecha)
+    [0.06, 5],    // llanura litoral
+    [0.35, 8],    // interior
+    [1.1, 12],    // altiplano
 ];
 
 export class Generator {
@@ -89,7 +96,7 @@ export class Generator {
     surfaceHeight(x, z) {
         const wx = x + this.warpX.value(x / 60, z / 60) * 6;
         const wz = z + this.warpZ.value(x / 60, z / 60) * 6;
-        const c = this.continents.value(wx / 120, wz / 120);
+        const c = this.continents.value(wx / 640, wz / 640);
         const base = spline(BASE_SPLINE, c);
         const mountainMask = smoothstep(0.2, 0.75, c);
         const r = this.relief.value(wx / 48, wz / 48) * (1 + 9 * mountainMask);

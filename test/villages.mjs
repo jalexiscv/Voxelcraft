@@ -20,7 +20,7 @@ import { PLANOS, LISTA_PLANOS } from '../js/villages/planos/registry.js';
 import {
     CELDA_CHUNKS, villageAt, rectanguloDe,
 } from '../js/villages/layout.js';
-import { BIOMES } from '../js/biomes/registry.js';
+import { BIOMES } from '../js/biomes/map.js';
 import { B } from '../js/blocks.js';
 import { Generator, SEA, SY } from '../js/worldgen.js';
 import { aplicarAldeas, bloqueCultivo } from '../js/villages/build.js';
@@ -35,7 +35,7 @@ const check = (name, cond) => {
 /* ==== Paleta: todos los roles resuelven en todos los biomas ==== */
 console.log('== Paleta por bioma ==');
 {
-    check('BIOMAS_ALDEA son ids reales del registro de biomas',
+    check('BIOMAS_ALDEA son ids reales del catálogo generado',
         BIOMAS_ALDEA.every((id) => BIOMES[id] && BIOMES[id].id === id));
     check('PALETAS cubre exactamente los biomas de aldea',
         Object.keys(PALETAS).length === BIOMAS_ALDEA.length &&
@@ -48,13 +48,13 @@ console.log('== Paleta por bioma ==');
         });
         check(`la paleta de ${bioma} resuelve los ${ROLES.length} roles a bloques de B`, resuelve);
     }
-    // el comodín: los biomas sin paleta propia construyen como la llanura
-    check('bosque y cerezos comparten la paleta de llanura (comodín)',
-        ['bosque', 'cerezos'].every((id) =>
-            ROLES.every((rol) => resolverRol(rol, id) === resolverRol(rol, 'llanura'))));
+    // el comodín: los biomas sin paleta propia construyen como plains
+    check('los bosques comparten la paleta de plains (comodín)',
+        ['forest', 'birch_forest'].every((id) =>
+            ROLES.every((rol) => resolverRol(rol, id) === resolverRol(rol, 'plains'))));
     check('resolverBloque acepta nombres literales además de roles',
-        resolverBloque('WATER', 'llanura') === B.WATER &&
-        resolverBloque('TORCH', 'desierto') === B.TORCH);
+        resolverBloque('WATER', 'plains') === B.WATER &&
+        resolverBloque('TORCH', 'desert') === B.TORCH);
     // los roles posicionales no son de paleta: resolverBloque devuelve null
     // (los materializa build.js por columna) sin romperse en ningún bioma
     check('el rol posicional CULTIVO devuelve null en resolverBloque (todo bioma)',
@@ -146,7 +146,7 @@ console.log('== Cultivos: reparto de bloqueCultivo ==');
 /* ==== Trazador: utilidades de la sección (sondas simuladas y cajas) ==== */
 const SEMILLA = 20260704;
 // sondas inyectadas: el trazador no conoce el generador, quien llama decide
-const llanura = { biomaEn: () => 'llanura', alturaEn: () => SEA + 8 };
+const llanura = { biomaEn: () => 'plains', alturaEn: () => SEA + 8 };
 // caja [x0, z0, x1, z1] de una pieza, recalculada AQUÍ (independiente del
 // módulo) para verificar la convención: (x, z) centro, huella rotada si rot impar
 const cajaTest = (p) => {
@@ -187,8 +187,8 @@ console.log('== Trazador: determinismo y densidad ==');
 console.log('== Trazador: requisitos del ancla ==');
 {
     const oceano = { biomaEn: () => 'oceano', alturaEn: () => SEA + 8 };
-    const abrupto = { biomaEn: () => 'llanura', alturaEn: (x, z) => SEA + 8 + ((x + z) & 7) };
-    const hundido = { biomaEn: () => 'llanura', alturaEn: () => SEA - 2 };
+    const abrupto = { biomaEn: () => 'plains', alturaEn: (x, z) => SEA + 8 + ((x + z) & 7) };
+    const hundido = { biomaEn: () => 'plains', alturaEn: () => SEA - 2 };
     check('bioma fuera de BIOMAS_ALDEA (oceano) ⇒ null en toda celda con aldea',
         aldeas.every(([cx, cz]) => villageAt(SEMILLA, cx, cz, oceano) === null));
     check('desnivel ≥ 4 en el 7×7 del ancla ⇒ null (sin reintentos)',
@@ -258,7 +258,7 @@ console.log('== Trazador: piezas, solapes y rectángulo ==');
 console.log('== Integración con el generador real ==');
 {
     // La MISMA semilla fija de la suite tiene aldea en la rejilla de celdas
-    // -6..6 (la primera cae en llanura y su pozo cruza un borde de chunk).
+    // -6..6 (la primera cae en plains y su pozo cruza un borde de chunk).
     const gen = new Generator(SEMILLA);
     // sondas del generador: altura BASE del terreno (surfaceHeight) y bioma
     // con la misma firma que usa worldgen — nunca el chunk ya poblado, para

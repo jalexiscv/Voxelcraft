@@ -17,7 +17,7 @@ import { ParticleSystem } from './particles.js';
 import { cargarEfectos } from './particlepack.js';
 import { sunDirection, skyColor, sunGlow, buildSunTexture, buildMoonTexture, MOON_PHASES } from './sky.js';
 import { B, DEFS } from './blocks.js';
-import { World, CHUNK, WORLD_HEIGHT, Y_BASE, chunkKey } from './world.js';
+import { World, CHUNK, WORLD_HEIGHT, Y_BASE, chunkKey, rleDecode } from './world.js';
 import { meshChunk } from './mesher.js';
 import { Renderer } from './renderer.js';
 import { Player, raycast } from './player.js';
@@ -28,6 +28,7 @@ import { ShatterSystem } from './shatter.js';
 import { CarveState } from './carve.js';
 import { ITEM_DEFS, ITEMS, isItem } from './items.js';
 import { esCultivo, cosechaDe, plantaDe, maduro, tickCultivos } from './farming.js';
+import { activarFluidos, tickFluidos } from './fluidos.js';
 import { esPuerta, esAbierta, colocarPuerta, alternarPuerta, romperPuerta } from './doors.js';
 import { esHuevo, mobDeHuevo } from './eggs.js';
 import { MOBS } from './mobs/registry.js';
@@ -39,7 +40,12 @@ import { BiomeMap } from './biomes/map.js';
 import { ViewModel } from './viewmodel.js';
 import { SoundEngine } from './audio.js';
 import { HUD } from './hud.js';
-import { saveWorld, loadMeta, loadChunksInto, hasSave } from './storage.js';
+import { saveWorld, loadMeta, loadChunksInto, hasSave, exportSave, importSave, base64AU16 } from './storage.js';
+import * as cuenta from './cuenta.js';
+import { RedCliente } from './red.js';
+import { JUGADOR_DEF } from './avatar.js';
+import { ejecutarComando } from './comandos.js';
+import { colocacionDe, estampar } from './construcciones.js';
 
 const DAY_LENGTH = 600;       // segundos por ciclo día/noche
 const REACH = 5;              // alcance de interacción en bloques
@@ -73,6 +79,7 @@ async function boot() {
     const camaras = new CamaraSystem(); // registro y animación de las cámaras
     mobRenderer.buildType(LATA_DEF);    // la lata de Red Bull, ídem
     const latas = new LataSystem();     // registro de las latas colocadas
+    mobRenderer.buildType(JUGADOR_DEF); // avatar de los jugadores remotos
     // mano en primera persona: necesita los píxeles del atlas para extruir
     // los sprites de los items (herramientas, comida, plantas…)
     const viewmodel = new ViewModel(renderer,
@@ -241,20 +248,151 @@ async function boot() {
     const keys = new Set();
     const proj = new Float32Array(16), view = new Float32Array(16), pv = new Float32Array(16);
 
+    /* ---- Cuenta (registro / inicio de sesión) ---- */
+
+    let usuario = null;        // {id, alias, email} de la sesión, o null
+    let nubeGuardadoEn = null; // sello (ms) de la partida en línea, o null
+
+    // multijugador: cliente del mundo global (server/multijugador.mjs)
+    const red = new RedCliente();
+
+    const pintarCuenta = () => {
+        const estado = $('cuenta-estado');
+        if (usuario) {
+            estado.textContent = `Sesión: ${usuario.alias} — tus partidas se guardan en línea`;
+            estado.classList.remove('sin-sesion');
+            $('btn-cuenta').textContent = `Cerrar sesión (${usuario.alias})`;
+        } else {
+            estado.textContent = 'Sin cuenta: la partida solo se guarda en este navegador';
+            estado.classList.add('sin-sesion');
+            $('btn-cuenta').textContent = 'Iniciar sesión / crear cuenta';
+        }
+    };
+
     /* ---- Menú ---- */
 
     const showMenu = (visible) => {
         $('menu').classList.toggle('hidden', !visible);
         const inGame = game.world !== null;
         $('btn-resume').classList.toggle('hidden', !inGame);
-        $('btn-save').classList.toggle('hidden', !inGame);
-        hasSave().then((ok) => { $('btn-load').disabled = !ok; });
+        // el mundo global lo guarda el servidor: sin guardado manual en él
+        $('btn-save').classList.toggle('hidden', !inGame || red.activo);
+        // se puede cargar si hay guardado local o partida en línea
+        hasSave().then((ok) => { $('btn-load').disabled = !ok && nubeGuardadoEn === null; });
+        $('btn-mp').disabled = !usuario;
+        $('btn-mp').title = usuario ? '' : 'Inicia sesión para jugar en línea';
+        pintarCuenta();
     };
     const showSection = (name) => {
         $('menu-main').classList.toggle('hidden', name !== 'main');
         $('menu-new').classList.toggle('hidden', name !== 'new');
         $('menu-help').classList.toggle('hidden', name !== 'help');
+        $('menu-cuenta').classList.toggle('hidden', name !== 'cuenta');
     };
+
+    const errorCuenta = (msj) => {
+        $('cuenta-error').textContent = msj || '';
+        $('cuenta-error').classList.toggle('hidden', !msj);
+    };
+    const avisoCuenta = (msj) => {
+        $('cuenta-aviso').textContent = msj || '';
+        $('cuenta-aviso').classList.toggle('hidden', !msj);
+    };
+    // vistas excluyentes del panel de cuenta: 'entrar' | 'registro' | 'recuperar'
+    const showCuenta = (vista) => {
+        $('cuenta-entrar').classList.toggle('hidden', vista !== 'entrar');
+        $('cuenta-registro').classList.toggle('hidden', vista !== 'registro');
+        $('cuenta-recuperar').classList.toggle('hidden', vista !== 'recuperar');
+        errorCuenta(null);
+        avisoCuenta(null);
+    };
+    const sesionAbierta = async (u) => {
+        usuario = u;
+        errorCuenta(null);
+        avisoCuenta(null);
+        for (const id of ['inp-clave', 'inp-reg-clave', 'inp-reg-clave2']) $(id).value = '';
+        try {
+            const s = await cuenta.sesionActual();
+            nubeGuardadoEn = s.partida ? s.partida.guardadoEn : null;
+        } catch (e) { nubeGuardadoEn = null; }
+        showMenu(true);
+        showSection('main');
+    };
+    $('btn-entrar').addEventListener('click', async () => {
+        sound.ensure(); sound.click();
+        try { await sesionAbierta(await cuenta.entrar($('inp-email').value.trim(), $('inp-clave').value)); }
+        catch (e) { errorCuenta(e.message); }
+    });
+    $('btn-ir-registro').addEventListener('click', () => {
+        sound.ensure(); sound.click();
+        showCuenta('registro');
+    });
+    $('btn-olvide').addEventListener('click', () => {
+        sound.ensure(); sound.click();
+        $('inp-rec-email').value = $('inp-email').value.trim();
+        showCuenta('recuperar');
+    });
+    for (const b of document.querySelectorAll('.btn-cuenta-volver')) {
+        b.addEventListener('click', () => { sound.click(); showCuenta('entrar'); });
+    }
+    $('btn-registrar').addEventListener('click', async () => {
+        sound.ensure(); sound.click();
+        // la confirmación es solo de usabilidad: el servidor revalida el resto
+        if ($('inp-reg-clave').value !== $('inp-reg-clave2').value) {
+            errorCuenta('Las contraseñas no coinciden.');
+            return;
+        }
+        try {
+            await sesionAbierta(await cuenta.registrar(
+                $('inp-reg-alias').value.trim(), $('inp-reg-email').value.trim(), $('inp-reg-clave').value));
+        } catch (e) { errorCuenta(e.message); }
+    });
+    $('btn-rec-codigo').addEventListener('click', async () => {
+        sound.ensure(); sound.click();
+        // el envío del correo puede tardar unos segundos: feedback en el botón
+        $('btn-rec-codigo').disabled = true;
+        $('btn-rec-codigo').textContent = 'Enviando…';
+        try {
+            const r = await cuenta.solicitarCodigo($('inp-rec-email').value.trim());
+            errorCuenta(null);
+            avisoCuenta(r.mensaje);
+        } catch (e) { avisoCuenta(null); errorCuenta(e.message); }
+        $('btn-rec-codigo').disabled = false;
+        $('btn-rec-codigo').textContent = 'Enviarme un código';
+    });
+    $('btn-rec-cambiar').addEventListener('click', async () => {
+        sound.ensure(); sound.click();
+        if ($('inp-rec-clave').value !== $('inp-rec-clave2').value) {
+            errorCuenta('Las contraseñas no coinciden.');
+            return;
+        }
+        try {
+            const r = await cuenta.restablecerClave(
+                $('inp-rec-email').value.trim(), $('inp-rec-codigo').value.trim(), $('inp-rec-clave').value);
+            // de vuelta a «entrar» con el correo puesto y la clave nueva a mano
+            $('inp-email').value = $('inp-rec-email').value.trim();
+            $('inp-clave').value = '';
+            for (const id of ['inp-rec-codigo', 'inp-rec-clave', 'inp-rec-clave2']) $(id).value = '';
+            showCuenta('entrar');
+            avisoCuenta(r.mensaje);
+        } catch (e) { errorCuenta(e.message); }
+    });
+    $('btn-sin-cuenta').addEventListener('click', () => {
+        sound.ensure(); sound.click();
+        errorCuenta(null);
+        avisoCuenta(null);
+        showSection('main');
+    });
+    $('btn-cuenta').addEventListener('click', async () => {
+        sound.ensure(); sound.click();
+        if (!usuario) { showCuenta('entrar'); showSection('cuenta'); return; }
+        try { await cuenta.salir(); } catch (e) { /* sin conexión: se olvida igual */ }
+        usuario = null;
+        nubeGuardadoEn = null;
+        showMenu(true);
+        // sin mundo en marcha, cerrar sesión devuelve a la puerta de identificación
+        if (!game.world) { showCuenta('entrar'); showSection('cuenta'); }
+    });
 
     $('btn-new').addEventListener('click', () => { sound.ensure(); sound.click(); showSection('new'); });
     $('btn-help').addEventListener('click', () => { sound.ensure(); sound.click(); showSection('help'); });
@@ -280,13 +418,26 @@ async function boot() {
     $('btn-save').addEventListener('click', async () => {
         sound.click();
         try {
-            const n = await saveWorld(game.world, {
+            const meta = {
                 seed: game.seed, player: playerState(), renderDist: game.renderDist,
                 worldName: game.worldName, mode: game.mode, difficulty: game.difficulty,
                 clima: game.clima.toJSON(),
                 savedAt: Date.now(),
-            });
-            $('btn-save').textContent = `Guardado ✓ (${n} chunks editados)`;
+            };
+            const n = await saveWorld(game.world, meta);
+            // con sesión, la misma instantánea sube al servidor (partida en línea)
+            let nube = '';
+            if (usuario) {
+                try {
+                    await cuenta.subirPartida(await exportSave(), meta.savedAt);
+                    nubeGuardadoEn = meta.savedAt;
+                    nube = ' · en línea ✓';
+                } catch (e) {
+                    console.warn('No se pudo subir la partida:', e);
+                    nube = ' · en línea ✗';
+                }
+            }
+            $('btn-save').textContent = `Guardado ✓ (${n} chunks editados${nube})`;
         } catch (e) {
             $('btn-save').textContent = 'Error al guardar';
         }
@@ -295,6 +446,19 @@ async function boot() {
     });
     $('btn-load').addEventListener('click', async () => {
         sound.ensure(); sound.click();
+        // con sesión, si la partida en línea es más reciente que la local
+        // (u otra máquina no tiene copia local) se vuelca antes de cargar
+        if (usuario && nubeGuardadoEn !== null) {
+            try {
+                const local = await loadMeta();
+                if (!local || (local.savedAt || 0) < nubeGuardadoEn) {
+                    const enLinea = await cuenta.bajarPartida();
+                    if (enLinea) await importSave(enLinea);
+                }
+            } catch (e) {
+                console.warn('Partida en línea no disponible, se usa la local:', e);
+            }
+        }
         const meta = await loadMeta();
         if (!meta) return;
         game.renderDist = meta.renderDist || 6;
@@ -302,6 +466,39 @@ async function boot() {
         game.mode = meta.mode || 'supervivencia';        // guardados antiguos
         game.difficulty = meta.difficulty || 'normal';
         startWorld(meta.seed, meta);
+    });
+
+    $('btn-mp').addEventListener('click', async () => {
+        sound.ensure(); sound.click();
+        if (!usuario || red.activo) return;
+        $('btn-mp').disabled = true;
+        $('btn-mp').textContent = 'Conectando…';
+        try {
+            const t = await cuenta.token();
+            // en HTTPS el navegador prohíbe ws:// (contenido mixto): se usa
+            // wss:// contra el dominio propio de la app Node del hosting
+            // (voxelcraftanode.cöm.co, aquí en punycode), cuyo proxy termina
+            // el TLS y reenvía al 7777; en HTTP (XAMPP) directo al 7777
+            const url = location.protocol === 'https:'
+                ? 'wss://voxelcraftanode.xn--cm-fka.co'
+                : `ws://${location.hostname}:7777`;
+            const bienvenida = await red.conectar(url, t);
+            game.worldName = 'Mundo global';
+            game.mode = 'supervivencia';   // el mundo compartido es supervivencia
+            game.difficulty = 'normal';
+            game.renderDist = parseInt($('inp-dist').value, 10) || 6;
+            await startWorld(bienvenida.semilla, null, bienvenida);
+            chatMensaje(`Conectado como ${usuario.alias} — T para chatear`);
+        } catch (e) {
+            red.cerrar();
+            errorCuenta(null);
+            $('btn-mp').textContent = e.message;
+            setTimeout(() => { $('btn-mp').textContent = 'Mundo global (multijugador)'; showMenu(true); }, 2600);
+            return;
+        } finally {
+            $('btn-mp').disabled = false;
+        }
+        $('btn-mp').textContent = 'Mundo global (multijugador)';
     });
 
     const playerState = () => ({
@@ -439,6 +636,8 @@ async function boot() {
             game.inFlight--;
             // el worker transfiere el ArrayBuffer de un Uint16Array (16 bits/celda)
             game.world.addChunk(cx, cz, new Uint16Array(blocks));
+            // multijugador: ediciones remotas que esperaban por este chunk
+            if (red.activo) red.aplicarPendientes(cx, cz);
             onChunkArrived(cx, cz);
             camaras.sync(game.world); // alta de cámaras del chunk recién llegado
             latas.sync(game.world);   // ídem con las latas
@@ -494,15 +693,25 @@ async function boot() {
         }
     }
 
-    /** Remalla chunks pendientes con presupuesto por fotograma. */
-    function processDirty(budget) {
+    /**
+     * Remalla chunks pendientes con presupuesto de TIEMPO por fotograma
+     * (en ms, incluida la subida de la malla a la GPU), siempre al menos
+     * uno para garantizar progreso. Un chunk poblado del mundo real cuesta
+     * 20–35 ms de mallado: presupuestar por cantidad congelaba el juego
+     * cuando una fuente continua de ediciones (un aldeano constructor, el
+     * agua fluyendo) ensuciaba varios chunks por tick y los frames pagaban
+     * hasta 6 remallados de golpe.
+     */
+    function processDirty(budgetMs) {
+        const t0 = performance.now();
         let n = 0;
         for (const key of game.world.dirty) {
             game.world.dirty.delete(key);
             const [cx, cz] = key.split(',').map(Number);
             if (!game.world.meshable(cx, cz)) continue;
             renderer.updateChunk(key, meshChunk(game.world, cx, cz));
-            if (++n >= budget) break;
+            n++;
+            if (performance.now() - t0 >= budgetMs) break;
         }
         return n;
     }
@@ -551,11 +760,29 @@ async function boot() {
 
     /* ---- Arranque de mundo (nuevo o cargado) ---- */
 
-    async function startWorld(seed, savedMeta) {
+    async function startWorld(seed, savedMeta, mp = null) {
         game.state = 'loading';
         game.seed = seed;
         game.world = new World(seed);
-        game.mobs = new MobSystem(MOBS, game.world, mobHooks, seed);
+        if (mp) {
+            // mundo global: los mobs los dicta el servidor y cada edición
+            // local viaja por el gancho onSet (las remotas llegan por red)
+            game.mobs = red.mobs;
+            game.world.onSet = (x, y, z, id) => red.enviarBloque(x, y, z, id);
+        } else {
+            if (red.activo) red.cerrar(); // ir a un mundo local abandona el global
+            game.mobs = new MobSystem(MOBS, game.world, mobHooks, seed);
+            // los líquidos solo se simulan en local: en el mundo global lo
+            // hace el servidor y sus ediciones llegan por red (como el clima)
+            activarFluidos(game.world);
+        }
+        red.mundo = mp ? game.world : null;
+        $('chat-log').innerHTML = '';
+        $('nametags').innerHTML = '';
+        etiquetas.clear();
+        // el chat vive en todos los mundos: en el global conversa y en los
+        // locales es la consola de comandos (los mensajes solo se ven aquí)
+        $('chat').classList.remove('hidden');
         camaras.reset(); // los registros de bloques dinámicos son por mundo
         latas.reset();
         game.hp = 20;
@@ -581,7 +808,7 @@ async function boot() {
         // clima: restaurado del guardado (o despejado); el mapa de biomas es
         // el MISMO que usa el worker (idéntica semilla) para decidir si en
         // cada columna cae lluvia, nieve (frío) o nada (desierto)
-        game.clima = ClimaSystem.fromJSON(savedMeta && savedMeta.clima);
+        game.clima = ClimaSystem.fromJSON(mp ? mp.clima : (savedMeta && savedMeta.clima));
         game.biomas = new BiomeMap(seed);
         game.clima.onRayo = () => {
             const [x, , z] = game.clima.rayoVisible(climaParts, game.world,
@@ -594,8 +821,8 @@ async function boot() {
         game.carve = null; game.world && (game.world.carveHidden = null); // sin cráter pendiente
         $('death').classList.add('hidden');
         game.requested.clear();
-        game.timeOfDay = 0;
-        game.dayCount = 0;
+        game.timeOfDay = mp ? mp.hora : 0;
+        game.dayCount = mp ? mp.diaN : 0;
         renderer.clearChunks();
         showMenu(false);
         hud.progress('Generando el mundo cercano…', 0);
@@ -608,17 +835,29 @@ async function boot() {
         if (savedMeta) {
             await loadChunksInto(game.world); // chunks editados del guardado
             applyPlayerState(savedMeta.player);
+        } else if (mp) {
+            // chunks editados del mundo global (mismo RLE que el guardado);
+            // el terreno virgen se genera localmente con la misma semilla
+            const size = CHUNK * WORLD_HEIGHT * CHUNK;
+            for (const [key, b64] of Object.entries(mp.chunks || {})) {
+                const [cx, cz] = key.split(',').map(Number);
+                game.world.addChunk(cx, cz, rleDecode(base64AU16(b64), size), true);
+            }
+            player.pos = [...mp.p];
+            player.vel = [0, 0, 0];
+            player.yaw = 0; player.pitch = 0;
+            player.flying = false;
         } else {
             player.pos = [0.5, WORLD_HEIGHT, 0.5]; // centro provisional para el streaming
             player.vel = [0, 0, 0];
         }
 
         game.onInitialArea = () => {
-            if (!savedMeta) player.spawn(game.world, (game.renderDist + GEN_MARGIN) * CHUNK);
+            if (!savedMeta && !mp) player.spawn(game.world, (game.renderDist + GEN_MARGIN) * CHUNK);
             // mallado inicial con progreso
             const total = Math.max(1, game.world.dirty.size);
             const meshStep = () => {
-                processDirty(8);
+                processDirty(40); // en carga no hay juego que congelar: pasos gordos
                 if (game.world.dirty.size > 0) {
                     hud.progress('Construyendo geometría…', 100 * (1 - game.world.dirty.size / total));
                     setTimeout(meshStep, 0);
@@ -653,6 +892,9 @@ async function boot() {
         // el mouseup caerá en el overlay y la acción se repetiría sola al
         // volver (p. ej. reabrir la mesa de crafteo tras cerrarla)
         if (!locked()) { game.buttons.clear(); keys.clear(); }
+        // perder la captura con el chat abierto (Escape del navegador
+        // mientras se escribe) cierra el chat sin abrir el menú del sistema
+        if (!locked() && chatAbierto()) { cerrarChat(); return; }
         if (!locked() && game.state === 'playing' && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) {
             showMenu(true);
             showSection('main');
@@ -706,6 +948,7 @@ async function boot() {
         // también funciona con el foco en el buscador del inventario creativo
         if (e.code === 'Escape') {
             if (e.repeat) return;
+            if (chatAbierto()) { cerrarChat(); escRelock = true; return; }
             if (hud.pickerOpen()) { hud.closePicker(); escRelock = true; return; }
             if (hud.craftOpen()) { hud.closeCraft(); escRelock = true; return; }
             // con el menú del sistema abierto, Escape reanuda como el botón
@@ -728,6 +971,18 @@ async function boot() {
             return;
         }
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+        if (e.code === 'KeyT' && !paused() && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) {
+            e.preventDefault(); // que la propia T no quede escrita en el chat
+            abrirChat();
+            return;
+        }
+        // la barra abre el chat ya con «/» puesto (consola de comandos); se
+        // compara e.key, no e.code, porque en el teclado español es Shift+7
+        if (e.key === '/' && !paused() && !hud.pickerOpen() && !hud.craftOpen() && !game.dead) {
+            e.preventDefault();
+            abrirChat('/');
+            return;
+        }
         if (e.code === 'F3') { e.preventDefault(); hud.toggleDebug(); return; }
         if (e.code === 'KeyB') {
             if (hud.pickerOpen()) { hud.closePicker(); canvas.requestPointerLock(); }
@@ -1108,9 +1363,16 @@ async function boot() {
         }
 
         game.time += dt;
-        const prevTimeOfDay = game.timeOfDay;
-        game.timeOfDay = (game.timeOfDay + dt / DAY_LENGTH) % 1;
-        if (game.timeOfDay < prevTimeOfDay) game.dayCount++; // envolvió: nuevo día
+        if (red.activo) {
+            // la hora del mundo global la dicta el servidor (llega a 10 Hz;
+            // con un día de 600 s el salto entre estados es imperceptible)
+            game.timeOfDay = red.hora;
+            game.dayCount = red.diaN;
+        } else {
+            const prevTimeOfDay = game.timeOfDay;
+            game.timeOfDay = (game.timeOfDay + dt / DAY_LENGTH) % 1;
+            if (game.timeOfDay < prevTimeOfDay) game.dayCount++; // envolvió: nuevo día
+        }
 
         // mobs: IA, física, aparición y flechas
         game.mobs.update(dt, {
@@ -1121,6 +1383,17 @@ async function boot() {
             creative: game.mode === 'creativo',      // los hostiles ignoran al jugador
             peaceful: game.difficulty === 'pacifica', // no aparecen hostiles
         });
+
+        // multijugador: interpola jugadores y mobs remotos y publica
+        // nuestra posición a 10 Hz (el servidor difunde el estado conjunto)
+        if (red.activo) {
+            red.update(dt);
+            game.redT = (game.redT || 0) + dt;
+            if (game.redT >= 0.1) {
+                game.redT = 0;
+                red.enviarPos(player.pos, player.yaw, player.pitch);
+            }
+        }
 
         // mechas de las latas de Red Bull: burbujea, silba al entrar en los
         // últimos 3 s y al agotarse ESTALLA — capas extra de partículas
@@ -1151,12 +1424,20 @@ async function boot() {
         // clima: máquina de estados, precipitación alrededor del jugador
         // (lluvia/nieve según el bioma de cada columna) y sus partículas
         game.clima.update(dt);
+        // en el mundo global las transiciones del clima las dicta el
+        // servidor (llegan por red y aplican con forzar); las locales se
+        // congelan reponiendo el reloj del estado en cada fotograma
+        if (red.activo) game.clima.restante = 999;
         game.clima.emitir(dt, climaParts, game.world, game.biomas,
             player.pos[0], player.eye()[1], player.pos[2]);
         climaParts.update(dt);
 
         // cultivos: crecimiento por muestreo aleatorio en los chunks cargados
         tickCultivos(game.world, dt);
+
+        // fluidos: agua y lava fluyen (no-op en el mundo global, donde el
+        // servidor es quien simula y difunde las ediciones)
+        tickFluidos(game.world, dt);
 
         // el picado a medias se olvida si se deja de golpear un rato: al
         // soltar, el cráter se cierra (el bloque vuelve a su malla normal)
@@ -1217,7 +1498,7 @@ async function boot() {
             camaras.sync(game.world); // baja de cámaras en chunks descargados
             latas.sync(game.world);   // ídem con las latas
         }
-        processDirty(6);
+        processDirty(6); // ~un tercio del frame de 60 fps para remallar
     }
 
     function draw() {
@@ -1276,8 +1557,10 @@ async function boot() {
         };
         f.drawEntities = () => {
             camaras.update(game.time); // barrido del cabezal + parpadeo del LED
-            mobRenderer.render(f, game.mobs.mobs.concat(camaras.entidades, latas.entidades),
+            const remotos = red.activo ? [...red.jugadores.values()] : [];
+            mobRenderer.render(f, game.mobs.mobs.concat(camaras.entidades, latas.entidades, remotos),
                 game.mobs.arrows, game.time, game.world);
+            if (red.activo) actualizarEtiquetas(pv);
         };
         renderer.render(f);
 
@@ -1305,14 +1588,201 @@ async function boot() {
         }
     }
 
+    /* ---- Chat y consola de comandos; etiquetas y sucesos de red ---- */
+
+    const chatAbierto = () => !$('chat-input').classList.contains('hidden');
+    const chatMensaje = (texto) => {
+        const div = document.createElement('div');
+        div.textContent = texto; // textContent: el chat ajeno jamás es HTML
+        const log = $('chat-log');
+        log.appendChild(div);
+        while (log.children.length > 8) log.removeChild(log.firstChild);
+        setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 12000);
+    };
+    const abrirChat = (prefijo = '') => {
+        $('chat-input').value = prefijo; // «/» abre directo la consola
+        $('chat-input').classList.remove('hidden');
+        $('chat-input').focus(); // se escribe aun con el puntero capturado
+    };
+    const cerrarChat = () => {
+        $('chat-input').value = '';
+        $('chat-input').classList.add('hidden');
+        $('chat-input').blur();
+    };
+
+    // contexto con el que la consola (js/comandos.js) toca el juego; las
+    // coordenadas hablan en la Y «mostrada» (interna − Y_BASE, como F3)
+    const ctxComandos = {
+        enLinea: () => red.activo,
+        modo: () => game.mode,
+        pos: () => [player.pos[0], player.pos[1] - Y_BASE, player.pos[2]],
+        tp: (x, y, z) => {
+            player.pos = [x, clamp(y + Y_BASE, 1, WORLD_HEIGHT - 2), z];
+            player.vel = [0, 0, 0];
+            pumpGeneration(); // que el terreno del destino no espere al timer
+        },
+        hora: (t) => { game.timeOfDay = t; },
+        clima: (estado) => game.clima.forzar(estado),
+        dar: (id, n) => { game.inventory.add(id, n); hud.refreshCounts(); },
+        cambiarModo: (modo) => {
+            game.mode = modo;
+            if (modo === 'supervivencia') player.flying = false;
+            // mismas reglas de interfaz que al arrancar el mundo: barras solo
+            // en supervivencia y selector según el modo
+            hud.setInventory(modo === 'supervivencia' ? game.inventory : null);
+            $('hearts').classList.toggle('hidden', modo === 'creativo');
+            $('hunger').classList.toggle('hidden', modo === 'creativo');
+            if (modo === 'supervivencia') { hud.setHealth(game.hp); hud.setHunger(game.hunger); }
+        },
+        cambiarDificultad: (dif) => { game.difficulty = dif; },
+        curar: () => {
+            game.hp = 20;
+            game.hunger = 20;
+            game.hungerT = 0;
+            game.starveT = 0;
+            hud.setHealth(game.hp);
+            hud.setHunger(game.hunger);
+        },
+        matar: () => damagePlayer(1000, null),
+        aparecer: (tipo, n) => {
+            const d = lookDir(player.yaw, player.pitch);
+            const x = Math.floor(player.pos[0] + d[0] * 3);
+            const z = Math.floor(player.pos[2] + d[2] * 3);
+            let creados = 0;
+            for (let i = 0; i < n; i++) {
+                if (game.mobs.spawnAt(tipo, x, Math.floor(player.pos[1]), z)) creados++;
+            }
+            return creados;
+        },
+        construir: (idPlano) => {
+            const px = Math.floor(player.pos[0]), pz = Math.floor(player.pos[2]);
+            const d = lookDir(player.yaw, 0);
+            // cardinal dominante de la mirada (sin sign(): con la componente
+            // exactamente 0 el cardinal debe seguir siendo unitario)
+            const mirando = Math.abs(d[0]) > Math.abs(d[2])
+                ? [d[0] > 0 ? 1 : -1, 0]
+                : [0, d[2] > 0 ? 1 : -1];
+            const y = Math.max(1, Math.floor(player.pos[1]) - 1); // el bloque que pisa
+            const { pieza, caja } = colocacionDe(idPlano, px, pz, mirando, y);
+            // sin terreno no hay dónde estampar: se exige TODO chunk que la
+            // caja toque (una huella gigante, como las torres, abarca varios
+            // y las cuatro esquinas ya no bastan)
+            for (let ccx = caja[0] >> 4; ccx <= caja[2] >> 4; ccx++) {
+                for (let ccz = caja[1] >> 4; ccz <= caja[3] >> 4; ccz++) {
+                    if (!game.world.hasChunk(ccx, ccz)) return null;
+                }
+            }
+            const biomaId = game.biomas.at(px, pz, y).id; // estilo del bioma local
+            const alto = estampar(pieza, biomaId, game.seed, (x, y2, z, id) => {
+                if (game.world.get(x, y2, z) === id) return; // sin ediciones de no-op
+                game.world.set(x, y2, z, id);
+                camaras.onSet(x, y2, z, id); // reconcilia dinámicos arrasados por el corte
+                latas.onSet(x, y2, z, id);
+            });
+            sound.place('wood');
+            return { caja, alto };
+        },
+        semilla: () => game.seed,
+    };
+
+    $('chat-input').addEventListener('keydown', (e) => {
+        if (e.code === 'Enter') {
+            const texto = $('chat-input').value.trim();
+            if (texto.startsWith('/')) {
+                // comando: se ejecuta aquí y sus respuestas son solo locales
+                for (const m of ejecutarComando(texto, ctxComandos)) chatMensaje(m);
+            } else if (texto) {
+                if (red.activo) red.enviarChat(texto);
+                else chatMensaje(`<${usuario ? usuario.alias : 'Tú'}> ${texto}`);
+            }
+            cerrarChat();
+            e.preventDefault();
+        }
+        // Escape lo resuelven el keydown global y pointerlockchange
+    });
+
+    // etiquetas con el alias sobre la cabeza: DOM proyectado con la misma
+    // matriz proyección·vista del fotograma (fuera del pipeline WebGL)
+    const etiquetas = new Map(); // cid → div
+    function actualizarEtiquetas(pv) {
+        for (const [cid, div] of etiquetas) {
+            if (!red.jugadores.has(cid)) { div.remove(); etiquetas.delete(cid); }
+        }
+        for (const j of red.jugadores.values()) {
+            let div = etiquetas.get(j.id);
+            if (!div) {
+                div = document.createElement('div');
+                div.textContent = j.alias;
+                $('nametags').appendChild(div);
+                etiquetas.set(j.id, div);
+            }
+            const x = j.pos[0], y = j.pos[1] + j.def.aabb.h + 0.4, z = j.pos[2];
+            const w = pv[3] * x + pv[7] * y + pv[11] * z + pv[15];
+            const d = Math.hypot(x - player.pos[0], z - player.pos[2]);
+            if (w <= 0.1 || d > 48) { div.style.display = 'none'; continue; }
+            const nx = (pv[0] * x + pv[4] * y + pv[8] * z + pv[12]) / w;
+            const ny = (pv[1] * x + pv[5] * y + pv[9] * z + pv[13]) / w;
+            div.style.display = 'block';
+            div.style.left = ((nx * 0.5 + 0.5) * window.innerWidth) + 'px';
+            div.style.top = ((0.5 - ny * 0.5) * window.innerHeight) + 'px';
+        }
+    }
+
+    red.onChat = (alias, texto) => chatMensaje(`<${alias}> ${texto}`);
+    red.onEntra = (alias) => chatMensaje(`${alias} entró al mundo`);
+    red.onSale = (alias) => chatMensaje(`${alias} salió del mundo`);
+    red.onDano = (dmg, dir) => damagePlayer(dmg, dir);
+    red.onBotin = (id, p) => { if (game.drops) game.drops.spawn(id, p[0], p[1], p[2]); };
+    red.onClima = (estado) => { if (game.clima) game.clima.forzar(estado); };
+    red.onExplosion = (p, r) => {
+        sound.explosion();
+        disparar('explosion', p);
+        limpiarDinamicos(p, r);
+    };
+    red.onMobEvt = (evento, tipo, id, p) => {
+        // mismo tratamiento audiovisual que mobHooks.sound, pero a partir
+        // del tipo (el mob vive en el servidor)
+        const def = MOBS[tipo];
+        if (!def) return;
+        const d = Math.hypot(p[0] - player.pos[0], p[1] - player.pos[1], p[2] - player.pos[2]);
+        const gain = clamp(1 - d / 26, 0, 1);
+        if (evento === 'fuse') sound.fuse();
+        else if (evento === 'shoot') sound.arrow();
+        else sound.mobSay(def.voice[evento], gain, def.id, evento, def.sonidos && def.sonidos[evento]);
+        const centro = [p[0], p[1] + def.aabb.h * 0.5, p[2]];
+        if (evento === 'death') disparar('mob_death', centro, { aabb: { x: def.aabb.w * 0.5, y: def.aabb.h, z: def.aabb.w * 0.5 } });
+        else if (evento === 'hurt') disparar('mob_hurt', centro, { direction: { x: 0, y: 1, z: 0 } });
+    };
+    red.onCaida = () => {
+        chatMensaje('Conexión perdida con el servidor');
+        if (game.state === 'playing') { showMenu(true); showSection('main'); }
+    };
+
+    // puerta de identificación: el menú principal (crear mundos, cargar,
+    // mundo global) solo se alcanza con sesión abierta o tras elegir
+    // «Jugar sin cuenta»; el juego arranca en esa puerta mientras se
+    // comprueba la sesión
     showMenu(true);
-    showSection('main');
+    showSection('cuenta');
     requestAnimationFrame(frame);
+
+    // sesión: si el servidor ya reconoce al jugador va directo al menú
+    // principal; si no, se queda en la puerta; sin API (p. ej. servidor
+    // estático o MySQL apagado) también, con «Jugar sin cuenta» como salida
+    cuenta.sesionActual().then((s) => {
+        usuario = s.usuario;
+        nubeGuardadoEn = s.partida ? s.partida.guardadoEn : null;
+        if (usuario) showSection('main');
+        showMenu(true);
+    }).catch(() => {
+        pintarCuenta();
+        errorCuenta('Sin conexión con el servidor: puedes jugar sin cuenta.');
+    });
 
     // gancho de depuración y pruebas automatizadas: con ?debug en la URL se
     // expone el estado interno (el juego normal no publica nada en window)
     if (new URLSearchParams(location.search).has('debug')) {
-        window.__vc = { game, hud, player, climaParts };
+        window.__vc = { game, hud, player, climaParts, red };
     }
 }
 

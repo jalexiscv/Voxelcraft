@@ -13,7 +13,7 @@
  *     tésela (p. ej. varias variantes que reusan la misma cara).
  *
  * MAPA DE RANGOS DE ID compartidos por todo el juego (no solaparlos jamás):
- *   0..199    bloques declarados a mano en blocks.js (hoy 0..90)
+ *   0..199    bloques declarados a mano en blocks.js (hoy 0..106)
  *   200..299  items (js/items.js, isItem = id >= 200)
  *   300..499  huevos de aparición (js/eggs.js, EGG_BASE=300, ~71 mobs y creciendo)
  *   500+      materiales generados (este módulo)

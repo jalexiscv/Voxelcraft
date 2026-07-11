@@ -33,6 +33,10 @@ export default {
     speed: 1.2,
     fleeSpeed: 2.4,
     spawn: { cap: 2, group: 2 },
+    // constructor: emprende proyectos (choza/huerto/estatua, js/aldeanos.js),
+    // acarrea materiales, levanta la obra bloque a bloque y la defiende
+    // cuerpo a cuerpo de los hostiles terrestres; malherido (≤ fleeHp) huye
+    behavior: { builder: true, aggro: 10, attackRange: 1.7, damage: 3, cooldown: 1.2, fleeHp: 6 },
 
     skin: { w: 64, h: 64 },
 

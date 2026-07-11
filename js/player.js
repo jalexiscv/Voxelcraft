@@ -3,7 +3,7 @@
  * vuelo y sprint), resolución de colisiones por ejes y raycast DDA para
  * apuntar bloques (algoritmo de Amanatides & Woo).
  */
-import { B, DEFS } from './blocks.js';
+import { B, DEFS, esAgua } from './blocks.js';
 import { clamp } from './math.js';
 
 const WIDTH = 0.6;       // ancho del AABB
@@ -131,13 +131,13 @@ export class Player {
         const z = Math.floor(this.pos[2]);
         const feet = world.get(x, Math.floor(this.pos[1] + 0.4), z);
         const chest = world.get(x, Math.floor(this.pos[1] + 1.1), z);
-        return feet === B.WATER || chest === B.WATER;
+        return esAgua(feet) || esAgua(chest);
     }
 
     /** ¿Están los ojos sumergidos? (para el sonido de zambullida, etc.) */
     eyesInWater(world) {
         const [ex, ey, ez] = this.eye();
-        return world.get(Math.floor(ex), Math.floor(ey), Math.floor(ez)) === B.WATER;
+        return esAgua(world.get(Math.floor(ex), Math.floor(ey), Math.floor(ez)));
     }
 
     /** Mueve un componente y resuelve la colisión contra bloques sólidos. */
@@ -197,7 +197,7 @@ function buscarSuperficie(world, cx, cz, radius) {
                 const x = cx + dx, z = cz + dz;
                 if (!world.hasChunk(x >> 4, z >> 4)) continue; // sin generar: no hay superficie
                 const y = world.surfaceY(x, z);
-                if (y >= 1 && y + 1 >= world.sy / 2 && world.get(x, y + 1, z) !== B.WATER) {
+                if (y >= 1 && y + 1 >= world.sy / 2 && !esAgua(world.get(x, y + 1, z))) {
                     return [x, y, z];
                 }
             }

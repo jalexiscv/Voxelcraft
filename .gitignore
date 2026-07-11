@@ -15,6 +15,18 @@
 /documents/Protocols/
 /.hermes/
 
+# Dependencias del servidor multijugador (npm)
+/server/node_modules/
+
+# Configuración local con credenciales: JAMÁS al repositorio.
+# api/config.php lleva las credenciales de BD y el secreto compartido del
+# servidor; .vscode/ incluye el sftp.json del despliegue.
+/api/config.php
+/.vscode/
+
+# Respaldo local del proyecto (81 MB): no forma parte del repo
+/Minecraft.zip
+
 # Sistema operativo
 Thumbs.db
 Desktop.ini

@@ -47,9 +47,15 @@ export default {
     // botín: un bocado de carne y algo de cuero, a la medida de su tamaño
     drops: [{ id: ITEMS.CARNE_CRUDA, min: 0, max: 1 }, { id: ITEMS.CUERO, min: 0, max: 1 }],
 
-    /** Seis tonalidades; en nieve sale blanco (1) y en desierto dorado (4). */
+    /** Seis tonalidades; en nieve sale blanco (1) y en desierto dorado (4)
+     * (ids del catálogo con spawns_white_rabbits / spawns_gold_rabbits,
+     * más la playa cálida que ya salía dorada). */
     variants: 6,
-    variantBiome: { nevado: 1, desierto: 4, playa: 4 },
+    variantBiome: {
+        ice_plains: 1, ice_plains_spikes: 1, ice_mountains: 1, cold_beach: 1,
+        cold_taiga: 1, cold_taiga_hills: 1, frozen_river: 1,
+        desert: 4, desert_hills: 4, desert_mutated: 4, beach: 4,
+    },
 
     skin: { w: 64, h: 64 },
 

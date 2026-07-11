@@ -2,166 +2,127 @@
 
 ## Descripción
 
-Plan e implementación de **biomas al estilo Minecraft** para el Overworld de
-VoxelCraft: regiones climáticas deterministas que definen los **materiales** de
-la superficie, la **vegetación**, y **qué mobs habitan** cada una. Como todo en
-VoxelCraft, 100 % procedural y sin assets externos.
+Biomas al estilo Minecraft para el Overworld: regiones climáticas
+deterministas que definen los **materiales** de la superficie, la
+**vegetación** y **qué mobs habitan** cada una.
 
-## Biomas existentes antes de este plan
+La **fuente única de verdad** del catálogo son los 71 `.biome.json` de
+[assets/biomes/](../assets/biomes/) (formato Bedrock 1.21, parte del paquete
+real archivado). No hay definiciones de bioma escritas a mano en el código:
+`node tools/gen-biomas.mjs` los traduce a
+[js/biomes/biomes.data.js](../js/biomes/biomes.data.js) (**generado, no
+editar**), con los ids y nombres **en inglés** tal como los declara el pack
+(`plains`, `desert`, `birch_forest`…). Es el mismo patrón del paquete de
+materiales (`tools/gen-materiales.mjs` → `js/materiales.data.js`).
 
-El generador (v0.4.x) no tenía biomas reales; solo aproximaciones implícitas:
+## Qué se toma del pack y qué se cura
 
-| Aproximación | Cómo se producía |
+De cada `.biome.json` el generador toma **tal cual**:
+
+| Componente Bedrock | A qué se traduce |
 |---|---|
-| Pradera | Todo terreno sobre el nivel del mar: hierba, robles, flores y setas |
-| Playa / desierto | Franja de arena junto al agua por ruido `sandN` (sin cactus ni mobs propios) |
-| Océano / lagos | Todo hueco bajo `SEA=32` se llena de agua; lecho por ruidos `sandN`/`gravelN` |
-| Cuevas | Gusanos tallados bajo la superficie (hábitat de aparición `cave`) |
+| `description.identifier` | `id` (sin `minecraft:`) y `name` (Title Case) |
+| `minecraft:climate` (temperature, downfall) | `congelado` (T ≤ 0 o builder `frozen_ocean`), `precipitacion` (`nieve` si T < 0.15, `null` si downfall 0, si no `lluvia`) y `clima` crudo |
+| `minecraft:surface_builder` | `surface.top/under` mapeados a bloques de B (`grass_block`→GRASS —nevada si T ≤ 0—, `sand`→SAND, `hardened_clay`→MAT_HARDENED_CLAY…) |
+| `minecraft:surface_material_adjustments` | `surface.topAlt/altChance` (el ajuste de rango más ancho cuyo material aporte variante visible: piedra en `extreme_hills`, podzol en `mega_taiga`, grava en `stone_beach`) |
+| `minecraft:overworld_generation_rules` | `zonas` (`generate_for_climates`, con pesos) y las transformaciones `hills`/`mutate` |
+| `minecraft:tags` | clase de terreno (`tierra`/`oceano`/`playa`/`montana`), familia de contenido y datos como las variantes del conejo |
 
-Los mobs aparecían por hábitat (`land`/`water`/`cave`) y hora, **sin noción de
-bioma**: un oso polar podía salir junto a un camello.
+Lo que el pack **no archiva** (sus `features` y `spawn_rules` no están en
+assets/) se **cura por familia de etiquetas** dentro del generador y queda
+horneado en el data file: árboles/cactus/flora y las listas de mobs
+day/night/water. La curación traslada la de los 14 biomas artesanales que
+este sistema reemplaza (p. ej. familia `taiga` → coníferas + lobos/zorros;
+`desert` → cactus/arbusto seco + camellos/husk; `mooshroom_island` →
+mooshroom sin hostiles). El contrato completo de la definición generada está
+en [js/biomes/model.js](../js/biomes/model.js) y lo hace cumplir
+`test/validate-biome.mjs` sobre todo el catálogo.
 
-## Los 14 biomas del plan
+## Colocación (BiomeMap, js/biomes/map.js)
 
-Clasificación por **clase de terreno** (derivada de la altura, sin costuras) y
-**clima** (temperatura/humedad/rareza, ruidos deterministas de la semilla).
-`t`/`h`/`w` ∈ [−1, 1]. El orden de la tabla es el **orden de selección** del
-registro (el primero que casa gana; llanura es el comodín final).
+El bioma es una **función global pura** de (semilla, x, z, altura): el
+Generator (worker) y MobSystem (hilo principal) ven el mismo mapa sin
+costuras. La selección adapta el sistema legado de los `.biome.json`:
 
-| # | Bioma (id) | Selección | Superficie | Árboles/vegetación | Mobs día | Mobs noche | Mobs agua |
-|---|---|---|---|---|---|---|---|
-| 1 | `setas` | tierra, w>0.45 | MYCELIUM/DIRT | setas gigantes no; setas y hierba alta | mooshroom | — (sin hostiles) | squid, glow_squid |
-| 2 | `palido` | tierra, w<−0.45 | GRASS/DIRT | roble pálido (PALE_LOG/PALE_LEAVES) denso; sin flores | — | creaking (solo aquí) | — |
-| 3 | `oceano` | sumergido (h+1≤SEA) | lecho por ruidos (global) | — | — | — | cod, salmon, tropical_fish, pufferfish, squid, glow_squid, dolphin, nautilus, drowned, zombie_nautilus, guardian |
-| 4 | `playa` | h≤SEA+1, agua en el anillo | SAND/SAND | — | turtle, rabbit | zombie, skeleton, drowned, ghast | cod, tropical_fish, dolphin, pufferfish |
-| 5 | `montanas` | h≥42 | GRASS; SNOWY_GRASS si t<−0.3 | conífera rala | goat, llama, sheep, happy_ghast | stray, skeleton, zombie, creeper, spider, ghast | — |
-| 6 | `desierto` | t∈[0.15,1], h∈[−1,−0.05] | SAND/SAND | cactus, arbusto seco; sin árboles | camel, armadillo, rabbit, wandering_trader, villager | husk, parched, skeleton, spider, camel_husk, enderman, ghast, zombie_villager | — |
-| 7 | `sabana` | t∈[0.15,1], h∈[−0.05,0.10] | GRASS/DIRT | acacia rala + hierba alta | horse, donkey, cow, chicken, armadillo, llama, villager | zombie, skeleton, creeper, spider, pillager, ravager, enderman, ghast | cod |
-| 8 | `jungla` | t∈[0.15,1], h∈[0.10,1] | GRASS/DIRT | jungla alta densa + setas | parrot, ocelot, panda, chicken, frog, sniffer, bee | zombie, skeleton, creeper, spider, witch, ghast | tropical_fish, axolotl, squid |
-| 9 | `nevado` | t∈[−1,−0.30] | SNOWY_GRASS/DIRT, hielo | conífera muy rala | polar_bear, fox, rabbit, snow_golem, villager | stray, zombie, creeper, spider, ghast | salmon |
-| 10 | `taiga` | t∈[−0.30,−0.10], h∈[0,1] | PODZOL⇄GRASS/DIRT | conífera densa + setas | wolf, fox, rabbit, chicken, villager | zombie, skeleton, creeper, spider, pillager, ghast | salmon |
-| 11 | `cerezos` | t∈[−0.30,−0.10], h∈[−1,0] | GRASS/DIRT | cerezos (copa rosa) + flores | bee, sheep, pig, rabbit, horse | zombie, skeleton, creeper, spider, ghast | salmon, axolotl |
-| 12 | `pantano` | t∈[0,0.15], h∈[0.20,1] | GRASS/DIRT | roble bajo + setas; sin flores amarillas | frog, rabbit, chicken, cat | slime, witch, bogged, zombie, drowned, enderman, ghast | squid, pufferfish, drowned |
-| 13 | `bosque` | t∈[−0.10,0.15], h∈[0.02,1] | GRASS/DIRT | roble denso + flores | chicken, rabbit, fox, bee, allay | zombie, skeleton, creeper, spider, vindicator, evoker, vex, zombie_villager, ghast | salmon, squid |
-| 14 | `llanura` | comodín (tierra) | GRASS/DIRT | roble ralo + flores + hierba alta | pig, sheep, cow, chicken, horse, donkey, rabbit, villager, wandering_trader, bee, cat, iron_golem, copper_golem, happy_ghast, sniffer | zombie, skeleton, creeper, spider, witch, zombie_villager, pillager, ravager, enderman, ghast | cod, salmon, squid, axolotl |
+1. **Clase de terreno por altura**: `oceano` (sumergido), `playa` (cota del
+   mar con agua en el anillo de radio 3), `montana` (h ≥ MOUNTAIN_H) o
+   `tierra`.
+2. **Zona climática** por el ruido de temperatura a escala regional (~700
+   bloques) —`frozen`, `cold`, `medium`, `lukewarm`, `warm`— con los
+   candidatos y pesos de `generate_for_climates` (p. ej. `plains` pesa 3 en
+   medium; `desert` 3 en warm; `ice_plains` 3 en frozen). La tierra de
+   `lukewarm` usa los candidatos de `medium` (el pack solo declara océanos
+   ahí).
+3. **Tierra**: parcelas Voronoi jitterizadas de ~384 bloques; cada parcela
+   sortea su bioma base entre los candidatos de la zona de su sitio. Las
+   escalas van acompasadas con la continentalidad del relieve (~640, ver
+   [01-voxelcraft.md](01-voxelcraft.md)): masas de tierra de cientos a miles
+   de bloques donde caben regiones de bioma completas.
+4. **Océano**: la variante de la zona (fría/templada/cálida/helada), y la
+   `deep_*` bajo SEA_LEVEL − 20. **Playa**: `cold_beach` en zonas frías,
+   `beach` en las demás. **Montaña**: `ice_mountains` en zona helada,
+   `extreme_hills` en el resto.
+5. **Transformaciones del pack** sobre tierra y montaña: la banda alta del
+   ruido de cerros aplica `hills_transformation` (colinas: `forest_hills`,
+   `desert_hills`… y en `plains` también bosques intercalados) y la banda
+   rara del ruido de mutación aplica `mutate_transformation`
+   (`sunflower_plains`, `flower_forest`, `ice_plains_spikes`…), encadenables.
+6. **Isla de setas**: banda rara del ruido weird → `mushroom_island` (y
+   `mushroom_island_shore` en su costa).
 
-Los mobs de **cueva** no dependen del bioma (siguen siendo globales por
-`spawn.cave`): murciélago, cubo de azufre, slime, lepisma, araña de cueva,
-warden, breeze. **Cobertura**: la unión de las listas de biomas + los de cueva
-debe cubrir los 68 mobs (prueba automática).
+### Catalogados pero sin colocar
 
-## Bloques y téselas nuevos
+Todo el catálogo existe y valida, pero el motor no coloca (todavía): `river`
+y `frozen_river` (no hay trazado de ríos), `jungle_edge`/`extreme_hills_edge`
+y demás `edge` (sin detección de borde), `bamboo_jungle` (nada lo referencia
+en el pack), `legacy_frozen_ocean` (legado), y `hell`/`the_end` (otra
+dimensión). Si algún día se colocan, la definición ya está generada.
 
-`ATLAS_GRID` pasa de 8 a 16 (64→256 huecos; los consumidores derivan todo de la
-constante). Ids de bloque y téselas **fijos** (contrato entre agentes):
+### Adaptaciones declaradas
 
-| Bloque (B.) | id | Téselas (TILE.) | Notas |
-|---|---|---|---|
-| SNOW | 44 | SNOW:45 | sonido cloth |
-| SNOWY_GRASS | 45 | top SNOW, side GRASS_SNOW_SIDE:46, bottom DIRT | |
-| ICE | 46 | ICE:47 | translúcido (opaque:false, hideSame) |
-| SPRUCE_LOG | 47 | side SPRUCE_LOG_SIDE:48, top LOG_TOP | sonido wood |
-| SPRUCE_LEAVES | 48 | SPRUCE_LEAVES:49 | opaque:false, huecos alfa |
-| JUNGLE_LOG | 49 | side JUNGLE_LOG_SIDE:50, top LOG_TOP | |
-| JUNGLE_LEAVES | 50 | JUNGLE_LEAVES:51 | |
-| ACACIA_LOG | 51 | side ACACIA_LOG_SIDE:52, top LOG_TOP | |
-| ACACIA_LEAVES | 52 | ACACIA_LEAVES:53 | |
-| CHERRY_LOG | 53 | side CHERRY_LOG_SIDE:54, top LOG_TOP | |
-| CHERRY_LEAVES | 54 | CHERRY_LEAVES:55 | rosa |
-| PALE_LOG | 55 | side PALE_LOG_SIDE:56, top LOG_TOP | desaturado |
-| PALE_LEAVES | 56 | PALE_LEAVES:57 | gris verdoso |
-| CACTUS | 57 | side CACTUS_SIDE:58, top CACTUS_TOP:59 | sonido cloth |
-| MYCELIUM | 58 | top MYCELIUM_TOP:60, side MYCELIUM_SIDE:61, bottom DIRT | |
-| PODZOL | 59 | top PODZOL_TOP:62, side PODZOL_SIDE:63, bottom DIRT | |
-| DEAD_BUSH | 60 | DEAD_BUSH:64 | planta cross |
-| TALL_GRASS | 61 | TALL_GRASS:65 | planta cross |
+* `red_sand` y `netherrack` no existen como bloque: caen a SAND y STONE.
+* El abedul usa el tronco real del pack (MAT_BIRCH_LOG) con follaje verde
+  estándar: la textura de hojas del pack es en escala de grises (el MC real
+  la tiñe por bioma y este atlas aún no tiñe).
+* Los cerezos y el jardín pálido no existen en este pack: sus bloques
+  (CHERRY_*/PALE_*) siguen en el juego pero ya no se generan de forma
+  natural, y el creaking se muda al bosque oscuro (`roofed_forest`).
+* El `multinoise_generation_rules` del pack es vestigial (solo 12 biomas lo
+  traen): la colocación implementada es la del sistema de zonas legado.
+* La lava del fondo de las cuevas y la arena/grava del lecho marino siguen
+  siendo globales del generador (no por bioma).
+
+## Habitantes
+
+Los mobs de **cueva** siguen siendo globales por `spawn.cave` (murciélago,
+slime, warden…). **Cobertura**: la unión de las listas de los 71 biomas + los
+de cueva/invocación cubre los 71 mobs del registro (prueba automática). Las
+variantes por bioma (conejo blanco en nieve, dorado en desierto) usan los ids
+del catálogo con las tags `spawns_white_rabbits`/`spawns_gold_rabbits`.
 
 ## Arquitectura
 
 ```
-js/
-├── worldgen.js          <-- consume BiomeMap: superficie, árboles por tipo,
-│                            cactus, hielo y flora según el bioma de la columna
-├── mobs.js              <-- eligibleAt() filtra por las listas del bioma
-└── biomes/
-    ├── model.js         <-- Contrato de definición de bioma (documentación)
-    ├── map.js           <-- BiomeMap(seed): clima determinista + selección
-    ├── registry.js      <-- Registro y ORDEN de selección (fuente de verdad)
-    └── <bioma>.js × 14  <-- Una definición por bioma (llanura.js es el canónico)
+assets/biomes/*.biome.json      ← FUENTE DE VERDAD (71 biomas, Bedrock)
+        │  node tools/gen-biomas.mjs
+        ▼
+js/biomes/biomes.data.js        ← catálogo generado (NO editar a mano)
+js/biomes/map.js                ← BiomeMap: selección determinista
+js/biomes/model.js              ← contrato de la definición generada
+        │
+        ├─ js/worldgen.js       ← superficie, árboles, cactus, flora, hielo
+        ├─ js/mobs.js           ← eligibleAt: listas day/night/water
+        ├─ js/clima.js          ← precipitación por bioma (lluvia/nieve/seco)
+        └─ js/villages/model.js ← BIOMAS_ALDEA y paletas (plains, desert…)
 ```
-
-*   **`BiomeMap(seed)`** (puro): tres ruidos `Fractal2D` de baja frecuencia —
-    temperatura (esc. 1/180), humedad (1/180), rareza (1/300) — con valores
-    `clamp(v·0.7, −1, 1)`. `at(x, z, h, heightAt?)` decide: clase de terreno
-    por altura (`oceano`/`playa`/`montana`/`tierra`), rarezas (`w`), y si no,
-    la primera ventana climática que case en el orden del registro; comodín
-    `llanura`. Una candidata a playa sin columnas sumergidas en su anillo
-    (radio 3) se trata como tierra: playa solo junto al agua de verdad.
-    Exporta `SEA_LEVEL=32` y `MOUNTAIN_H=42` (una prueba los compara con
-    worldgen para impedir divergencias).
-*   **Calibración con datos**: las ventanas de la tabla están ajustadas a la
-    distribución real de los ruidos (medida sobre varias semillas): el fbm
-    concentra la masa cerca de 0, así que los umbrales «extremos» son más
-    suaves de lo que sugeriría el rango teórico [−1, 1]. Distribución
-    resultante (semilla 2026): océano 39 %, playa 12 %, llanura 11 %, bosque
-    7 %, taiga/cerezos/desierto/nevado/jungla 3-6 %, sabana/pantano 2-3 %,
-    setas/palido ~0,6 % y montañas 0,2 %. Los 14 aparecen en toda semilla
-    probada.
-*   **El mismo `BiomeMap`** se instancia en el `Generator` (worker) y en
-    `MobSystem` (hilo principal) con la misma semilla: ambos ven el mismo mapa.
-*   **Aparición de mobs**: el hábitat `land` exige que el id esté en
-    `mobs.day`/`mobs.night` del bioma del punto; `water`, en `mobs.water`;
-    `cave` no cambia. Las demás reglas (hora, bloque, topes) se mantienen.
-*   **Árboles por tipo** (`roble`, `conifera`, `acacia`, `jungla`, `cerezo`)
-    con bloques parametrizados; misma disciplina de RNG con secuencia fija
-    para que crucen bordes de chunk sin costuras.
-
-## El contrato de definición
-
-Cada bioma es un archivo de **solo datos** (importable en Node) — formato
-completo en el docblock de [model.js](../js/biomes/model.js):
-`id`, `name`, `terrain` (`tierra`|`oceano`|`playa`|`montana`),
-`clima {temp:[a,b], humid:[a,b]}`, `rare {weird:[a,b]}`,
-`surface {top, under, topAlt?, altChance?, topFrio?}`, `congelado`,
-`trees {kind, log, leaves, chance, max}`, `cactus {chance}`,
-`flora [{block, weight}]`, `mobs {day, night, water}`.
-
-**Añadir un bioma**: crear `js/biomes/<id>.js` imitando `llanura.js`, validar
-con `node test/validate-biome.mjs <id>` e importarlo en `registry.js` (¡en la
-posición correcta del orden de selección!).
-
-## Consideraciones adicionales
-
-*   **Sin costuras**: el bioma es función pura de (semilla, x, z, altura); la
-    altura sigue siendo global (continentalidad), así que no hay saltos en
-    bordes de chunk. Los biomas no modifican el relieve en esta fase.
-*   **Compatibilidad de guardado**: los chunks editados guardados conservan sus
-    bloques (ids nuevos no chocan: 44..61 estaban libres). Un mundo guardado
-    con la versión anterior regenera los chunks NO editados con biomas.
-*   **Fuera de alcance (documentado)**: variantes de océano por temperatura,
-    ríos, tintado de hierba/agua por bioma, nieve en capas, badlands/tierras
-    baldías, bioma exclusivo de lush caves, y estructuras (aldeas, templos).
-*   **Adaptaciones**: el gato vive en llanura/pantano (sin aldeas ni cabañas);
-    el allay en bosque (sin mansiones); vindicador/evocador/vex son nocturnos
-    del bosque (sin mansión); saqueador/ravager nocturnos de llanura/sabana/
-    taiga (sin patrullas); el slime es nocturno del pantano además de cueva.
-
-## Fases del plan (una por commit)
-
-1. **Contrato y plan** (este documento + `js/biomes/model.js`).
-2. **Infraestructura** (agentes en paralelo sobre archivos disjuntos):
-   I1 bloques+atlas · I2 núcleo de biomas (map/registry/llanura/validador/
-   suite base) · I3 integración worldgen + mobs + adaptación de pruebas.
-3. **Fan-out**: 13 agentes en paralelo, uno por bioma restante, cada uno
-   construye su `js/biomes/<id>.js` contra el validador.
-4. **Integración**: cableado del registro en orden, prueba de cobertura de los
-   68 mobs, suites completas en verde.
-5. **Documentación y changelog** según protocolos.
 
 ## Verificación
 
-*   `node test/biomes.mjs` — determinismo del mapa, cobertura climática (toda
-    coordenada tiene bioma), constantes sincronizadas con worldgen, contrato de
-    las 14 definiciones y cobertura de los 68 mobs.
-*   `node test/validate-biome.mjs <id>` — validador por definición.
-*   `node test/mobs.mjs` y `node test/smoke.mjs` — siguen en verde.
+*   `node tools/gen-biomas.mjs` — regenera el catálogo (determinista).
+*   `node test/biomes.mjs` — determinismo, cobertura de la selección,
+    contrato de las 71 definiciones, colocación por zonas (los biomas base
+    aparecen; los no colocables no se cuelan) y cobertura de los mobs.
+*   `node test/validate-biome.mjs <id>` — validador por definición (p. ej.
+    `plains`, `mesa`, `ice_plains`).
+*   `node test/mobs.mjs`, `node test/villages.mjs`, `node test/clima.mjs`,
+    `node test/smoke.mjs` — consumidores en verde.

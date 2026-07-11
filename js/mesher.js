@@ -12,7 +12,7 @@
  * solar (recortada a ≤0.96) y la parte entera es la luz de bloque 0..15 de la
  * celda que da la cara (antorchas/lava); el shader las separa con fract/floor.
  */
-import { B, DEFS } from './blocks.js';
+import { B, DEFS, esAgua, esLava, nivelDe } from './blocks.js';
 import { tileUV } from './atlas.js';
 import { CHUNK } from './world.js';
 
@@ -72,13 +72,16 @@ function emitFace(out, world, x, y, z, face, tile, topH, bright) {
     // luz de bloque de la celda que da la cara (constante en las 4 esquinas:
     // la parte entera no varía dentro del triángulo y fract interpola bien)
     const luzBloque = world.blockLightAt(nx, ny, nz);
+    // topH plano (número) o por esquina (matriz 2×2 indexada [px][pz]): los
+    // líquidos inclinan su superficie hacia los niveles menores
+    const alturaTope = (px, pz) => (typeof topH === 'number' ? topH : topH[px][pz]);
 
     const verts = face.corners.map((pos) => {
         const [lu, lv] = cornerUV(face.n, pos);
         const ao = bright ? 1 : vertexAO(world, nx, ny, nz, ta, tb, pos[ta] ? 1 : -1, pos[tb] ? 1 : -1);
         return [
             x + pos[0],
-            y + (pos[1] ? topH : 0),
+            y + (pos[1] ? alturaTope(pos[0], pos[2]) : 0),
             z + pos[2],
             u0 + lu * (u1 - u0),
             v0 + lv * (v1 - v0),
@@ -347,10 +350,32 @@ export function meshChunk(world, cx, cz) {
                     continue;
                 }
 
-                const isWater = id === B.WATER;
+                const isWater = esAgua(id);
                 const out = isWater ? water : solid;
-                // superficie del agua ligeramente hundida
-                const topH = isWater && world.get(x, y + 1, z) !== B.WATER ? 0.875 : 1;
+                // superficie de los líquidos: hundida según el nivel y CONTINUA
+                // entre celdas — cada esquina de la tapa promedia la altura de
+                // las 4 celdas de su familia que la comparten (y sube a tope si
+                // la columna sigue hacia arriba o toca el cubo de una fuente de
+                // lava). Celdas vecinas comparten esquinas idénticas, así que
+                // los escalones entre niveles no dejan rendijas y la superficie
+                // se inclina hacia los niveles menores, como en el clásico. La
+                // fuente de lava sigue siendo el cubo opaco lleno de siempre.
+                const mismaFamilia = (nId) => isWater ? esAgua(nId) : esLava(nId);
+                let topH = 1;
+                if (def.liquid && id !== B.LAVA && !mismaFamilia(world.get(x, y + 1, z))) {
+                    const esquina = (px, pz) => {
+                        let suma = 0, n = 0;
+                        for (const [ox, oz] of [[px - 1, pz - 1], [px, pz - 1], [px - 1, pz], [px, pz]]) {
+                            const nId = world.get(x + ox, y, z + oz);
+                            if (!mismaFamilia(nId)) continue;
+                            if (nId === B.LAVA || mismaFamilia(world.get(x + ox, y + 1, z + oz))) return 1;
+                            suma += 0.875 * nivelDe(nId) / 8;
+                            n++;
+                        }
+                        return suma / n; // n ≥ 1: la propia celda es líquida
+                    };
+                    topH = [[esquina(0, 0), esquina(0, 1)], [esquina(1, 0), esquina(1, 1)]];
+                }
 
                 for (const face of FACES) {
                     const nx = x + face.n[0], ny = y + face.n[1], nz = z + face.n[2];
@@ -359,7 +384,7 @@ export function meshChunk(world, cx, cz) {
                     // emite la cara hacia él para que el cráter no quede negro
                     const nHidden = h && h[0] === nx && h[1] === ny && h[2] === nz;
                     if (DEFS[nId].opaque && !nHidden) continue;
-                    if (def.hideSame && nId === id) continue;
+                    if (def.hideSame && (nId === id || (def.liquid && mismaFamilia(nId)))) continue;
                     const tile = face.n[1] > 0 ? def.top : (face.n[1] < 0 ? def.bottom : def.side);
                     emitFace(out, world, x, y, z, face, tile, topH, def.bright);
                 }

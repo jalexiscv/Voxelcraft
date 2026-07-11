@@ -43,6 +43,11 @@ export const B = {
     // Variantes de piedra: comparten flags con STONE (pico, dureza 5). Su
     // textura se carga de PNG (js/atlas.pngtiles.js), no se pinta a mano.
     GRANITE: 88, DIORITE: 89, ANDESITE: 90,
+    // Fluidos en movimiento (js/fluidos.js): WATER/LAVA son la FUENTE y
+    // estos ids el flujo con su nivel 1..8 codificado en el propio id (como
+    // la etapa de los cultivos); el 8 es la columna que cae (altura llena).
+    WATER_FLOW1: 91, // 91..98 = agua fluyendo, niveles 1..8
+    LAVA_FLOW1: 99,  // 99..106 = lava fluyendo, niveles 1..8
 };
 
 /**
@@ -206,6 +211,17 @@ DEFS[B.GRANITE]  = def('Granito', TILE.STONE_GRANITE);
 DEFS[B.DIORITE]  = def('Diorita', TILE.STONE_DIORITE);
 DEFS[B.ANDESITE] = def('Andesita', TILE.STONE_ANDESITE);
 
+/* ---- Fluidos en movimiento (js/fluidos.js) ---- */
+// Mismos flags que su fuente, con dos matices: la lava que fluye NO es opaca
+// (su altura es parcial y taparía caras vecinas que sí se ven) y ambos brillan
+// o no como su fuente. El mesher les da la altura según el nivel del id.
+for (let n = 1; n <= 8; n++) {
+    DEFS[B.WATER_FLOW1 + n - 1] = def('Agua (flujo)', TILE.WATER,
+        { solid: false, opaque: false, liquid: true, hideSame: true, breakable: false, placeable: false, sound: 'none' });
+    DEFS[B.LAVA_FLOW1 + n - 1] = def('Lava (flujo)', TILE.LAVA,
+        { solid: false, opaque: false, liquid: true, hideSame: true, bright: true, breakable: false, placeable: false, sound: 'none' });
+}
+
 /* ---- Materiales generados del paquete de texturas real (js/materiales.js) ---- */
 // Cada material del plan trae su id de bloque y sus téselas top/side/bottom ya
 // resueltos (números). Se registran en B (para poder referirlos por B.MAT_<KEY>)
@@ -224,3 +240,14 @@ export const PLACEABLE = DEFS
 
 export const isOpaque = (id) => DEFS[id].opaque;
 export const isSolid = (id) => DEFS[id].solid;
+
+/* ---- Familias de líquidos (fuente + flujos) ---- */
+export const esAgua = (id) => id === B.WATER || (id >= B.WATER_FLOW1 && id < B.WATER_FLOW1 + 8);
+export const esLava = (id) => id === B.LAVA || (id >= B.LAVA_FLOW1 && id < B.LAVA_FLOW1 + 8);
+export const esLiquido = (id) => esAgua(id) || esLava(id);
+
+/** Nivel 1..8 del líquido (fuente = 8, el máximo; no líquido = 0). */
+export const nivelDe = (id) =>
+    id === B.WATER || id === B.LAVA ? 8 :
+    esAgua(id) ? id - B.WATER_FLOW1 + 1 :
+    esLava(id) ? id - B.LAVA_FLOW1 + 1 : 0;

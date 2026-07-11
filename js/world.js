@@ -7,7 +7,7 @@
  * Coordenadas globales x/z ilimitadas (negativos incluidos): chunk = x >> 4,
  * local = x & 15. Índice dentro del chunk: (y·16 + lz)·16 + lx.
  */
-import { B, DEFS } from './blocks.js';
+import { B, DEFS, esLava } from './blocks.js';
 import { CHUNK, WORLD_HEIGHT, Y_BASE } from './dimensiones.js';
 import { ChunkPaletizado, LuzSeccionada } from './secciones.js';
 
@@ -36,7 +36,7 @@ const OPACO = new Uint8Array(DEFS.length);  // 1 si el bloque corta la luz
 for (let i = 0; i < DEFS.length; i++) {
     if (!DEFS[i]) continue;
     OPACO[i] = DEFS[i].opaque ? 1 : 0;
-    EMIT[i] = DEFS[i].bright ? (i === B.LAVA ? 15 : 14) : 0;
+    EMIT[i] = DEFS[i].bright ? (esLava(i) ? 15 : 14) : 0;
 }
 
 // región de trabajo reutilizada entre recálculos (sin basura por llamada)
@@ -175,6 +175,13 @@ export class World {
                 }
             }
         }
+
+        // gancho opcional (multijugador): notifica la edición YA aplicada,
+        // con el id anterior por si el oyente necesita distinguir alta/baja
+        if (this.onSet) this.onSet(x, y, z, id, viejo);
+        // gancho opcional (fluidos, js/fluidos.js): despierta a los líquidos
+        // del entorno; solo existe donde corresponde simular (local/servidor)
+        if (this.fluidos) this.fluidos.tocar(x, y, z);
     }
 
     /** ¿Hay luz de bloque en la celda o en alguna de sus 6 vecinas? */

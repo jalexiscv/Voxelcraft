@@ -83,6 +83,69 @@ export async function hasSave() {
     try { return (await loadMeta()) !== null; } catch (e) { return false; }
 }
 
+/* ---- Exportar/importar el guardado completo (partida en línea) ---- */
+
+// El RLE es Uint16Array; en JSON viaja como base64 de sus bytes (little
+// endian, la plataforma de todos los navegadores objetivo).
+function u16ABase64(u16) {
+    const bytes = new Uint8Array(u16.buffer, u16.byteOffset, u16.byteLength);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin);
+}
+
+export function base64AU16(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Uint16Array(bytes.buffer);
+}
+
+/**
+ * Instantánea completa del guardado local como objeto serializable
+ * {meta, blockData, chunks: {"cx,cz": base64}}, o null si no hay guardado.
+ */
+export async function exportSave() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(['meta', 'chunks']);
+        const store = tx.objectStore('chunks');
+        const metaRq = tx.objectStore('meta').get(META_KEY);
+        const dataRq = tx.objectStore('meta').get(BLOCKDATA_KEY);
+        const keysRq = store.getAllKeys();
+        const valsRq = store.getAll();
+        tx.oncomplete = () => {
+            db.close();
+            if (!metaRq.result) { resolve(null); return; }
+            const chunks = {};
+            for (let i = 0; i < keysRq.result.length; i++) {
+                chunks[String(keysRq.result[i])] = u16ABase64(valsRq.result[i]);
+            }
+            resolve({ meta: metaRq.result, blockData: dataRq.result || {}, chunks });
+        };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+}
+
+/** Reemplaza el guardado local con una instantánea de exportSave(). */
+export async function importSave(save) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(['meta', 'chunks'], 'readwrite');
+        const chunks = tx.objectStore('chunks');
+        chunks.clear();
+        tx.objectStore('meta').put(save.meta, META_KEY);
+        tx.objectStore('meta').put(save.blockData || {}, BLOCKDATA_KEY);
+        for (const [key, b64] of Object.entries(save.chunks || {})) {
+            chunks.put(base64AU16(b64), key);
+        }
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+}
+
 /** Vuelca los chunks editados del guardado (y su blockData) en el mundo. */
 export async function loadChunksInto(world) {
     const db = await openDB();

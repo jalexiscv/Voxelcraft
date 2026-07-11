@@ -23,7 +23,7 @@ import { CHUNK, WORLD_HEIGHT, SEA_LEVEL } from '../dimensiones.js';
 
 const SY = WORLD_HEIGHT;     // altura del mundo (fuente única: dimensiones.js)
 const NIVEL_MAR = SEA_LEVEL;
-const RELLENO = 4;    // profundidad del relleno de DIRT bajo cada parcela
+export const RELLENO = 4; // profundidad del relleno de DIRT bajo cada parcela
 const SAL_CULTIVO = 66; // sal del rol posicional CULTIVO (sigue a SAL_ALDEA = 55)
 
 /**
@@ -76,9 +76,10 @@ function aldeaDeCelda(seed, celdaX, celdaZ, sondas) {
  * Coordenadas locales [lx, lz] del plano para la celda (u, v) de su huella
  * en mundo (u, v ≥ 0 desde la esquina x0/z0 de cajaDePieza). Inversa de la
  * tabla DIRECCIONES de layout.js: con rot r la fachada (fila lz = 0 del
- * plano) mira a [−Z, +X, +Z, −X][r] en mundo.
+ * plano) mira a [−Z, +X, +Z, −X][r] en mundo. La comparte la consola de
+ * construcciones (js/construcciones.js): una sola tabla de rotación.
  */
-function localDe(rot, u, v, ancho, fondo) {
+export function localDe(rot, u, v, ancho, fondo) {
     switch (rot) {
         case 0: return [u, v];
         case 1: return [v, fondo - 1 - u];

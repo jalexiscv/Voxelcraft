@@ -10,6 +10,7 @@ import { WORLD_HEIGHT, SEA_LEVEL } from '../js/dimensiones.js';
 import { buildPartMesh, partUVRects, ANIMS } from '../js/mobs/model.js';
 import { Skin } from '../js/mobs/skin.js';
 import { MobSystem, Mob } from '../js/mobs.js';
+import { BIOMES } from '../js/biomes/map.js';
 import { mat4RotateZ } from '../js/math.js';
 import { validate } from './validate-mob.mjs';
 import pig from '../js/mobs/pig.js';
@@ -21,11 +22,16 @@ const check = (name, cond) => {
     else { fail++; console.log(`  FALLA ${name}`); }
 };
 
+// bioma FIJADO para las pruebas de aparición: las listas de plains son el
+// contrato de este arnés (dónde cae cada bioma con el mapa real es asunto de
+// test/biomes.mjs, y su calibración no debe mover esta suite)
+const biomasLlanura = { at: () => BIOMES.plains, climate: () => ({ temp: 0, humid: 0, weird: 0 }) };
+
 /**
  * Mundo plano: suelo sólido hasta `ground` (hierba en la superficie). Las
  * pruebas de física usan el suelo por defecto (y=10); las de aparición lo
  * suben a TIERRA (> SEA_LEVEL+1) para que las columnas caigan en la clase de
- * terreno 'tierra' y el bioma sea la llanura (el comodín del registro).
+ * terreno 'tierra' con las listas de la llanura (bioma fijado).
  */
 const TIERRA = SEA_LEVEL + 8; // suelo de las pruebas de aparicion (> mar+1)
 
@@ -256,6 +262,7 @@ console.log('== Puntería y aparición ==');
     const osoPolar = { ...pig, id: 'polar_bear' };     // NO está en las listas de llanura
     const defs = { pig, zombie, polar_bear: osoPolar };
     const dia = new MobSystem(defs, world, silentHooks(), 11);
+    dia.biomes = biomasLlanura;
     simulate(dia, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('de día aparecen mobs y son pasivos', dia.count() > 0 && dia.mobs.every((m) => !m.def.hostile));
     check('un id fuera de las listas del bioma no aparece (polar_bear)',
@@ -263,6 +270,7 @@ console.log('== Puntería y aparición ==');
 
     // la distancia mínima se mide recién aparecidos (antes de que persigan)
     const noche = new MobSystem(defs, world, silentHooks(), 11);
+    noche.biomes = biomasLlanura;
     simulate(noche, 1.05, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 0.22 });
     check('de noche aparecen hostiles', noche.mobs.some((m) => m.def.hostile));
     check('respetan la distancia mínima de aparición', noche.mobs.length > 0 && noche.mobs.every(
@@ -270,12 +278,14 @@ console.log('== Puntería y aparición ==');
 
     // dificultad pacífica: la misma noche, pero sin ningún hostil
     const pacifica = new MobSystem(defs, world, silentHooks(), 11);
+    pacifica.biomes = biomasLlanura;
     simulate(pacifica, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 0.22, peaceful: true });
     check('en dificultad pacífica no aparecen hostiles',
         pacifica.mobs.every((m) => !m.def.hostile));
 
     // las tonalidades (variants) se asignan al aparecer
     const tonos = new MobSystem({ rabbit }, world, silentHooks(), 3);
+    tonos.biomes = biomasLlanura;
     simulate(tonos, 30, { pos: [0.5, 41, 0.5], eye: [0.5, 42.62, 0.5], day: 1 });
     check('los conejos aparecen con tonalidad válida (variants)',
         tonos.count() > 0 && tonos.mobs.every((m) => m.variant >= 0 && m.variant < rabbit.variants));
@@ -462,6 +472,7 @@ class LakeWorld extends MockWorld {
         pig: { ...pig, spawn: { cap: 6, group: 2 } },
     };
     const sys = new MobSystem(defs, world, silentHooks(), 13);
+    sys.biomes = biomasLlanura;
     simulate(sys, 40, { pos: [0.5, 11, 0.5], eye: [0.5, 12.62, 0.5], day: 1 });
     check('en el lago aparecen peces (y solo peces)',
         sys.count() > 0 && sys.mobs.every((m) => m.def.id === 'cod'));

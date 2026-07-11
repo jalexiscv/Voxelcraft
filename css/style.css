@@ -126,9 +126,42 @@ button:hover:not(:disabled) { background: linear-gradient(#8f9bd4, #6b77b0); }
 button:disabled { color: #888; cursor: default; background: #3a3a3a; }
 
 label { display: block; margin: 8px 0; font-size: 14px; text-align: left; }
-input[type=text], select {
+input[type=text], input[type=password], input[type=email], select {
     width: 100%; margin-top: 4px; padding: 6px; font-family: inherit;
     background: #111; color: #fff; border: 2px solid #555;
+}
+
+/* Cuenta (inicio de sesión / registro / recuperación) */
+.cuenta-estado { font-size: 12px; color: #9fc57f; margin-bottom: 10px; }
+.cuenta-estado.sin-sesion { color: #aaa; }
+.cuenta-error { font-size: 12px; color: #ff8a80; margin: 8px 0; }
+.cuenta-aviso { font-size: 12px; color: #9fc57f; margin: 8px 0; }
+.btn-enlace {
+    display: inline-block; width: auto; margin: 0 0 6px; padding: 2px 6px;
+    background: none; border: none; color: #9db4ff; font-size: 12px;
+    text-shadow: none;
+}
+.btn-enlace:hover:not(:disabled) { background: none; text-decoration: underline; }
+
+/* Multijugador: chat y alias sobre las cabezas */
+#chat {
+    position: absolute; left: 10px; bottom: 96px; z-index: 5;
+    width: 42%; max-width: 460px; font-size: 13px;
+}
+#chat-log div {
+    background: rgba(0, 0, 0, .45); padding: 2px 7px; margin-top: 2px;
+    text-shadow: 1px 1px #000; word-break: break-word;
+}
+#chat-input {
+    width: 100%; margin-top: 4px; padding: 6px; font-family: inherit;
+    background: rgba(0, 0, 0, .65); color: #fff; border: 2px solid #666;
+}
+#chat-input:focus { outline: none; border-color: #aaa; }
+#nametags { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+#nametags div {
+    position: absolute; transform: translate(-50%, -100%);
+    background: rgba(0, 0, 0, .35); padding: 1px 6px;
+    font-size: 12px; color: #fff; text-shadow: 1px 1px #000; white-space: nowrap;
 }
 
 #help-table { margin: 0 auto 10px; font-size: 13px; border-collapse: collapse; }

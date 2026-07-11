@@ -116,14 +116,12 @@ export class ClimaSystem {
     }
 
     /**
-     * Precipitación que corresponde al clima {temp, humid} de un bioma:
-     * 'nieve' en fríos (ventana del bioma nevado), null en desiertos
-     * (cálido y seco: no llueve, como en MC), 'lluvia' en el resto.
+     * Precipitación del bioma: la trae su definición del catálogo generado
+     * ('nieve' con temperatura Bedrock < 0.15, null en secos como el
+     * desierto —downfall 0—, 'lluvia' en el resto).
      */
-    precipitacionEn(clima) {
-        if (clima.temp <= -0.30) return 'nieve';
-        if (clima.temp >= 0.15 && clima.humid <= -0.05) return null;
-        return 'lluvia';
+    precipitacionEn(bioma) {
+        return bioma.precipitacion;
     }
 
     /**
@@ -138,10 +136,11 @@ export class ClimaSystem {
         for (let i = 0; i < n; i++) {
             const x = px + (this.rng() * 2 - 1) * 10;
             const z = pz + (this.rng() * 2 - 1) * 10;
-            const tipo = this.precipitacionEn(biomas.climate(x, z));
+            const hSuelo = world.surfaceY(Math.floor(x), Math.floor(z));
+            const tipo = this.precipitacionEn(biomas.at(x, z, hSuelo));
             if (!tipo) continue;
             const y0 = py + 9 + this.rng() * 5;
-            const suelo = world.surfaceY(Math.floor(x), Math.floor(z)) + 1.05;
+            const suelo = hSuelo + 1.05;
             if (suelo >= y0) continue; // columna tapada (techo o terreno alto)
             const vel = tipo === 'nieve' ? VEL_NIEVE : VEL_LLUVIA;
             const vida = Math.min(9, (y0 - suelo) / vel);

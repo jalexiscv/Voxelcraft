@@ -140,3 +140,25 @@
 | 136 | 2026-07-05 | [Dron escapista: saltos 10× más largos y rastro en línea que se disipa](2026-07-05_escapista_salto_largo_rastro_linea.md) |
 | 137 | 2026-07-05 | [Modelos de mob más complejos: hasta 64 partes y pieles de 256×256](2026-07-05_modelos_mas_complejos.md) |
 | 138 | 2026-07-06 | [Lata de Red Bull: bloque dinámico explosivo con mecha de 10 s](2026-07-06_lata_redbull.md) |
+| 139 | 2026-07-10 | [Cuentas de jugador y partida en línea (PHP + MySQL)](2026-07-10_cuentas_partida_en_linea.md) |
+| 140 | 2026-07-10 | [Partidas en línea: del BLOB en MySQL a archivos referenciados](2026-07-10_partidas_en_archivos.md) |
+| 141 | 2026-07-10 | [Protocolos estipulados en la configuración de la IA (CLAUDE.md)](2026-07-10_protocolos_claude.md) |
+| 142 | 2026-07-10 | [Raíz limpia: ANALISIS.md pasa a documents/ y se indexa el huérfano de partículas](2026-07-10_analisis_a_documents.md) |
+| 143 | 2026-07-10 | [Multijugador: mundo global compartido con servidor Node autoritativo](2026-07-10_multijugador.md) |
+| 144 | 2026-07-10 | [Menú de identificación sin ambigüedad y recuperación de contraseña](2026-07-10_menu_identificacion_recuperacion.md) |
+| 145 | 2026-07-10 | [Puerto del servidor multijugador: del 8081 al 7777](2026-07-10_puerto_multijugador_7777.md) |
+| 146 | 2026-07-10 | [Carpeta de datos configurable (VC_DATOS) para despliegues fuera de XAMPP](2026-07-10_carpeta_datos_configurable.md) |
+| 147 | 2026-07-10 | [Despliegue en hosting HTTPS: wss por proxy y JSON limpio bajo open_basedir](2026-07-10_https_wss_open_basedir.md) |
+| 148 | 2026-07-10 | [Mundo global en HTTPS: conexión al dominio dedicado de la app Node](2026-07-10_dominio_wss_dedicado.md) |
+| 149 | 2026-07-10 | [Corrección del dominio wss: faltaba una letra (voxelcraftanode)](2026-07-10_dominio_wss_letra_perdida.md) |
+| 150 | 2026-07-10 | [Consola de comandos en el chat (/tp, /dar, /hora… en todos los mundos)](2026-07-10_consola_comandos_chat.md) |
+| 151 | 2026-07-10 | [Comando /construir: los 8 edificios de aldea prediseñados, frente al jugador](2026-07-10_comando_construir.md) |
+| 152 | 2026-07-10 | [Fluidez de líquidos: el agua y la lava fluyen como en el clásico](2026-07-10_fluidez_liquidos.md) |
+| 153 | 2026-07-10 | [Superficie continua de los líquidos: alturas por esquina (sin rendijas)](2026-07-10_superficie_continua_liquidos.md) |
+| 154 | 2026-07-10 | [Biomas del paquete real: fuente única en assets/biomes con ids en inglés](2026-07-10_biomas_paquete_real.md) |
+| 155 | 2026-07-10 | [Continentes de verdad: regiones de bioma que se viven al caminar](2026-07-10_continentes_regiones_bioma.md) |
+| 156 | 2026-07-10 | [Tres planos exclusivos de los aldeanos constructores (choza, estatua, huerto)](2026-07-10_planos_aldeanos_constructores.md) |
+| 157 | 2026-07-10 | [Lógica pura de los proyectos de los aldeanos constructores (js/aldeanos.js)](2026-07-10_aldeanos_constructores_logica.md) |
+| 158 | 2026-07-11 | [Aldeanos constructores: acarrean, construyen y defienden sus obras](2026-07-11_aldeanos_constructores.md) |
+| 159 | 2026-07-11 | [El juego se pegaba al construir los aldeanos: remallado con presupuesto de tiempo](2026-07-11_freeze_remallado_presupuesto_tiempo.md) |
+| 160 | 2026-07-11 | [Torres: complejo monumental de tres rascacielos curvados para /construir](2026-07-11_torres_construccion_gigante.md) |

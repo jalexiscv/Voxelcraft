@@ -7,6 +7,7 @@
 import assert from 'node:assert';
 import { ClimaSystem, VEL_LLUVIA, VEL_NIEVE } from '../js/clima.js';
 import { ParticleSystem } from '../js/particles.js';
+import { BIOMES } from '../js/biomes/map.js';
 
 let ok = 0;
 const test = (nombre, fn) => { fn(); ok++; console.log('  ✓', nombre); };
@@ -21,7 +22,7 @@ const lcg = (semilla = 42) => {
 const mundoPlano = (conTecho = false) => ({
     surfaceY: (x) => (conTecho && x >= 100 ? 30 : 10),
 });
-const biomasTemplados = { climate: () => ({ temp: 0, humid: 0.4, weird: 0 }) };
+const biomasTemplados = { at: () => ({ precipitacion: 'lluvia' }) };
 
 console.log('ClimaSystem');
 
@@ -87,12 +88,14 @@ test('los rayos disparan onRayo y el flash decae; nunca en lluvia', () => {
     assert.strictEqual(rayosLluvia, 0, 'sin rayos fuera de la tormenta');
 });
 
-test('precipitación por bioma: nieve en frío, nada en desierto, lluvia si no', () => {
+test('precipitación por bioma: la trae el catálogo generado del pack', () => {
     const c = new ClimaSystem(lcg());
-    assert.strictEqual(c.precipitacionEn({ temp: -0.5, humid: 0 }), 'nieve');
-    assert.strictEqual(c.precipitacionEn({ temp: 0.6, humid: -0.5 }), null);
-    assert.strictEqual(c.precipitacionEn({ temp: 0.6, humid: 0.5 }), 'lluvia');
-    assert.strictEqual(c.precipitacionEn({ temp: 0, humid: 0 }), 'lluvia');
+    assert.strictEqual(c.precipitacionEn(BIOMES.ice_plains), 'nieve');  // T 0 < 0.15
+    assert.strictEqual(c.precipitacionEn(BIOMES.cold_taiga), 'nieve');  // T −0.5
+    assert.strictEqual(c.precipitacionEn(BIOMES.desert), null);         // downfall 0
+    assert.strictEqual(c.precipitacionEn(BIOMES.savanna), null);        // downfall 0
+    assert.strictEqual(c.precipitacionEn(BIOMES.plains), 'lluvia');
+    assert.strictEqual(c.precipitacionEn(BIOMES.jungle), 'lluvia');
 });
 
 test('emitir puebla el sistema y cada gota muere al llegar a su suelo', () => {
@@ -121,7 +124,7 @@ test('bajo techo alto no entra nada y en desierto no se emite', () => {
     for (let i = 0; i < 30; i++) c.emitir(1 / 60, parts, techoTotal, biomasTemplados, 0, 20, 0);
     assert.strictEqual(parts.list.length, 0, 'ninguna gota bajo un techo total');
 
-    const desierto = { climate: () => ({ temp: 0.8, humid: -0.6, weird: 0 }) };
+    const desierto = { at: () => ({ precipitacion: null }) };
     const parts2 = new ParticleSystem(lcg(2), 700);
     for (let i = 0; i < 30; i++) c.emitir(1 / 60, parts2, mundoPlano(), desierto, 0, 20, 0);
     assert.strictEqual(parts2.list.length, 0, 'en el desierto no llueve');
@@ -131,7 +134,7 @@ test('la nieve cae despacio (velocidad del copo, no de la gota)', () => {
     const c = new ClimaSystem(lcg(13));
     c.forzar('lluvia');
     c.intensidad = 0.6;
-    const frio = { climate: () => ({ temp: -0.8, humid: 0, weird: 0 }) };
+    const frio = { at: () => ({ precipitacion: 'nieve' }) };
     const parts = new ParticleSystem(lcg(4), 700);
     for (let i = 0; i < 30; i++) c.emitir(1 / 60, parts, mundoPlano(), frio, 0, 20, 0);
     assert.ok(parts.list.length > 0, 'hay copos');

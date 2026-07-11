@@ -1,18 +1,18 @@
 /**
  * Validador del contrato de definición de biomas (ver js/biomes/model.js).
- * Uso: node test/validate-biome.mjs <id> [<id>...]   (p. ej. llanura)
+ * Uso: node test/validate-biome.mjs <id> [<id>...]   (p. ej. plains)
  *
- * Comprueba campos obligatorios, ventanas de selección bien formadas,
- * nombres de bloque existentes en B y coherencia de las listas de mobs
- * contra el registro: día sin hostiles, noche solo hostiles o pasivos
- * nocturnos, agua solo mobs acuáticos; los mobs de cueva son globales y
- * solo pueden listarse en night (biomas que los sacan a la superficie).
- *
- * La UNICIDAD del comodín ('tierra' sin clima y sin rare) es una propiedad
- * del registro completo, no de un def suelto: la comprueba test/biomes.mjs.
+ * Las definiciones son GENERADAS (assets/biomes/ → tools/gen-biomas.mjs →
+ * js/biomes/biomes.data.js): este validador comprueba que la traducción
+ * respeta el contrato — campos obligatorios, zonas y transformaciones bien
+ * formadas (apuntando a ids del catálogo), nombres de bloque existentes en
+ * B y coherencia de las listas de mobs contra el registro: día sin
+ * hostiles, noche solo hostiles o pasivos nocturnos, agua solo mobs
+ * acuáticos; los mobs de cueva son globales y solo pueden listarse en night.
  */
 import { pathToFileURL } from 'node:url';
 import { TERRAINS, TREE_KINDS } from '../js/biomes/model.js';
+import { BIOMES } from '../js/biomes/map.js';
 import { B } from '../js/blocks.js';
 import { MOBS } from '../js/mobs/registry.js';
 
@@ -25,34 +25,41 @@ export function validate(def, expectedId) {
     const err = (msg) => errors.push(msg);
 
     /* ---- Campos generales ---- */
-    if (!def || typeof def !== 'object') return { errors: ['la exportación default no es un objeto'], warnings };
-    if (def.id !== expectedId) err(`id "${def.id}" ≠ nombre de archivo "${expectedId}"`);
+    if (!def || typeof def !== 'object') return { errors: ['la definición no es un objeto'], warnings };
+    if (def.id !== expectedId) err(`id "${def.id}" ≠ id esperado "${expectedId}"`);
     if (!def.name) err('falta name');
-    if (!TERRAINS.includes(def.terrain)) err(`terrain "${def.terrain}" desconocido (${TERRAINS.join('|')})`);
-    if (def.congelado !== undefined && typeof def.congelado !== 'boolean') err('congelado debe ser booleano');
-
-    /* ---- Ventanas de selección ---- */
-    const ventana = (v, tag) => {
-        if (!Array.isArray(v) || v.length !== 2 || !v.every((n) => Number.isFinite(n))) {
-            err(`${tag} debe ser [min, max] numérico`);
-            return;
-        }
-        if (v[0] < -1.01 || v[1] > 1.01) err(`${tag} fuera de [-1.01, 1.01]`);
-        if (!(v[0] < v[1])) err(`${tag}: min debe ser < max`);
-    };
-    if (def.clima) {
-        ventana(def.clima.temp, 'clima.temp');
-        ventana(def.clima.humid, 'clima.humid');
+    if (def.terrain !== null && !TERRAINS.includes(def.terrain)) {
+        err(`terrain "${def.terrain}" desconocido (${TERRAINS.join('|')} o null)`);
     }
-    if (def.rare) ventana(def.rare.weird, 'rare.weird');
-    if (def.terrain === 'tierra') {
-        // sin rare, el clima es obligatorio; sin clima Y sin rare es el
-        // comodín (válido; su unicidad se comprueba a nivel de registro)
-        if (def.rare && def.clima) {
-            warnings.push('rare y clima a la vez: la banda de rareza manda y el clima se ignora');
+    if (typeof def.congelado !== 'boolean') err('congelado debe ser booleano');
+    if (![null, 'lluvia', 'nieve'].includes(def.precipitacion)) {
+        err(`precipitacion "${def.precipitacion}" desconocida (lluvia|nieve|null)`);
+    }
+    if (!Array.isArray(def.tags)) err('faltan las tags del pack');
+
+    /* ---- Colocación: zonas y transformaciones del pack ---- */
+    const ZONAS = ['frozen', 'cold', 'medium', 'lukewarm', 'warm'];
+    if (def.zonas !== null) {
+        if (!Array.isArray(def.zonas) || def.zonas.length === 0) {
+            err('zonas debe ser null o una lista [zona, peso] no vacía');
+        } else {
+            for (const par of def.zonas) {
+                if (!Array.isArray(par) || !ZONAS.includes(par[0]) || !(par[1] > 0)) {
+                    err(`zonas: entrada inválida ${JSON.stringify(par)}`);
+                }
+            }
         }
-    } else if (def.clima || def.rare) {
-        err(`terrain "${def.terrain}" no admite clima/rare (solo 'tierra' los usa)`);
+    }
+    for (const campo of ['hills', 'mutate']) {
+        if (def[campo] === null) continue;
+        if (!Array.isArray(def[campo]) || def[campo].length === 0) {
+            err(`${campo} debe ser null o una lista [id, peso] no vacía`);
+            continue;
+        }
+        for (const [idDestino, peso] of def[campo]) {
+            if (!BIOMES[idDestino]) err(`${campo}: el destino "${idDestino}" no existe en el catálogo`);
+            if (!(peso > 0)) err(`${campo}: peso inválido para "${idDestino}"`);
+        }
     }
 
     /* ---- Terreno ---- */
@@ -133,13 +140,9 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
     }
     let failed = 0;
     for (const id of ids) {
-        let result;
-        try {
-            const mod = await import(`../js/biomes/${id}.js`);
-            result = validate(mod.default, id);
-        } catch (e) {
-            result = { errors: [`no se pudo importar js/biomes/${id}.js: ${e.message}`], warnings: [] };
-        }
+        const result = BIOMES[id]
+            ? validate(BIOMES[id], id)
+            : { errors: [`"${id}" no existe en el catálogo generado (js/biomes/biomes.data.js)`], warnings: [] };
         for (const w of result.warnings) console.log(`  AVISO ${id}: ${w}`);
         if (result.errors.length === 0) {
             console.log(`  OK  ${id}`);

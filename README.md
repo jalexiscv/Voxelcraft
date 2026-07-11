@@ -15,9 +15,11 @@ Minecraft/
 ├── index.html              <-- Punto de entrada
 ├── css/                    <-- Estilos del HUD
 ├── js/                     <-- Motor propio (módulos ES; mobs en js/mobs/)
+├── api/                    <-- Cuentas y partidas en línea (PHP + MySQL de XAMPP)
+├── server/                 <-- Servidor multijugador (Node + ws; mundo global)
 ├── test/                   <-- Suites (node test/smoke.mjs y node test/mobs.mjs)
-├── example/ y assets/      <-- Material archivado de terceros: solo referencia,
-│                               no forma parte de VoxelCraft y no se modifica
+├── example/ y assets/      <-- Material archivado de terceros (solo lectura);
+│                               assets/biomes es la fuente que traduce tools/gen-biomas.mjs
 ├── README.md               <-- Este archivo
 ├── documents/              <-- Documentación técnica (índice abajo)
 └── changelogs/             <-- Historial de cambios
@@ -29,11 +31,18 @@ Minecraft/
 |---|---|---|
 | 01 | [VoxelCraft](documents/01-voxelcraft.md) | Arquitectura del motor, decisiones técnicas, verificación |
 | 02 | [Sistema de mobs](documents/02-mobs.md) | Elenco de 68 mobs: contrato, IA, hábitats, salud del jugador |
-| 03 | [Sistema de biomas](documents/03-biomas.md) | 14 biomas: clima, materiales, vegetación y mobs por bioma |
+| 03 | [Sistema de biomas](documents/03-biomas.md) | 71 biomas del paquete real (assets/biomes): zonas climáticas, transformaciones, vegetación y mobs |
 | 04 | [Items y drops](documents/04-items.md) | Botín de los mobs, horno y fundición, herramientas, bloques funcionales, agricultura |
 | 05 | [Aldeas](documents/05-aldeas.md) | Generación procedural de aldeas: algoritmo por celdas, 8 arquetipos, paletas por bioma |
 | 06 | [Sonidos](documents/06-sonidos.md) | Catálogo de eventos y voces, y nombres de archivo del pack local opcional |
 | 07 | [Modelos](documents/07-modelos.md) | Pack local opcional de geometrías: alias de archivo, auto-piel y cadena de respaldo |
+| 08 | [Partículas](documents/08-particulas.md) | Intérprete de efectos Bedrock (`particles/*.json`): explosiones, combate y rotura |
+| 09 | [Análisis del proyecto](documents/09-analisis.md) | Radiografía completa del código (v0.5.0): estructura, arquitectura, módulos y estadísticas |
+| 10 | [Multijugador](documents/10-multijugador.md) | Mundo global compartido: servidor Node con la lógica real, protocolo WS, avatares, chat y mobs sincronizados |
+| 11 | [Cuentas e identificación](documents/11-cuentas.md) | Puerta de identificación del menú, API de cuentas, recuperación de contraseña y partida en línea |
+| 12 | [Consola de comandos](documents/12-consola-comandos.md) | Chat en todos los mundos y comandos `/tp`, `/dar`, `/hora`, `/clima`, `/modo`, `/aparecer`… |
+| 13 | [Fluidos](documents/13-fluidos.md) | Fluidez del agua y la lava: niveles en el id, cola por eventos, cadencias del clásico y reacciones agua↔lava |
+| 14 | [Aldeanos constructores](documents/14-aldeanos.md) | Proyectos de los aldeanos: chozas, huertos y estatuas — acopio, acarreo, obra bloque a bloque y defensa |
 
 ## Historial de cambios
 

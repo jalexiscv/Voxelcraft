@@ -12,7 +12,7 @@ cero.
 
 ## Cómo genera aldeas el juego que nos inspira (mecánica documentada)
 
-*   Aparecen en biomas concretos (llanura, desierto, sabana, taiga, nevado);
+*   Aparecen en biomas concretos (llanura, desierto, sabana, taiga, nieve);
     el bioma del **centro** decide el estilo arquitectónico completo.
 *   La generación se ancla a un **punto de reunión** y crece por **piezas
     modulares conectables** (sistema de encaje): cada pieza ofrece puntos de
@@ -36,8 +36,8 @@ decide **por celda**, no por chunk de origen.
     (128×128 bloques). `hashSeed(semilla, celdaX, celdaZ, SAL_ALDEA)`
     decide de forma pura: si hay aldea (~12 %), su chunk ancla dentro de la
     celda, el número de caminos (2-4) y la semilla local del trazado.
-2.  **Requisitos del ancla**: bioma ∈ {llanura, sabana, desierto, taiga,
-    nevado} en el centro, sobre el nivel del mar y con desnivel < 4 en el
+2.  **Requisitos del ancla**: bioma ∈ {plains, sunflower_plains, savanna,
+    desert, taiga, cold_taiga, ice_plains} en el centro, sobre el nivel del mar y con desnivel < 4 en el
     área del pozo. Si no se cumplen, la celda queda sin aldea (sin
     reintentos: determinismo).
 3.  **Trazado**: el **pozo** en el ancla; caminos rectos en cruz (12-28
@@ -77,7 +77,7 @@ el plano hacia el camino.
 
 ## Paleta de roles por bioma
 
-| Rol | llanura/bosque | sabana | desierto | taiga | nevado |
+| Rol | plains (y comodín) | savanna | desert | taiga | cold_taiga / ice_plains |
 |---|---|---|---|---|---|
 | ESQUINA | LOG | ACACIA_LOG | LOG | SPRUCE_LOG | SPRUCE_LOG |
 | MURO | PLANKS | PLANKS | SAND | PLANKS | PLANKS |

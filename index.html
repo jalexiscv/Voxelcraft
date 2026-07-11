@@ -10,6 +10,17 @@
     <canvas id="game"></canvas>
 
     <div id="version">VoxelCraft 0.5.0</div>
+
+    <!-- Alias sobre las cabezas (multijugador, proyectado por fotograma) y
+         chat (T o / abren el campo; Enter envía; Esc cierra). En el mundo
+         global conversa; en todos, las líneas «/…» son comandos de consola
+         (js/comandos.js) y sus respuestas solo se ven localmente -->
+    <div id="nametags"></div>
+    <div id="chat" class="hidden">
+        <div id="chat-log"></div>
+        <input id="chat-input" type="text" maxlength="200" class="hidden" autocomplete="off" spellcheck="false"
+               placeholder="Escribe y pulsa Enter…" aria-label="Mensaje de chat"/>
+    </div>
     <div id="crosshair"></div>
     <div id="hearts" class="hidden"></div>
     <div id="hunger" class="hidden"></div>
@@ -117,11 +128,53 @@
             <h1>VoxelCraft</h1>
             <p class="subtitle">Un juego propio de vóxeles de mundo infinito</p>
             <div id="menu-main">
+                <p id="cuenta-estado" class="cuenta-estado">Comprobando sesión…</p>
                 <button id="btn-resume" class="hidden">Volver al juego</button>
                 <button id="btn-new">Crear un mundo nuevo</button>
                 <button id="btn-load" disabled>Cargar partida</button>
+                <button id="btn-mp" disabled>Mundo global (multijugador)</button>
                 <button id="btn-save" class="hidden">Guardar partida</button>
                 <button id="btn-help">Controles</button>
+                <button id="btn-cuenta">Cuenta</button>
+            </div>
+            <!-- Cuenta: puerta de identificación previa al menú principal,
+                 con tres vistas excluyentes (entrar / registro / recuperar)
+                 de campos propios; main.js decide cuál se ve. «Jugar sin
+                 cuenta» salta la puerta (guardado solo en este navegador). -->
+            <div id="menu-cuenta" class="hidden">
+                <div id="cuenta-entrar">
+                    <h2>Iniciar sesión</h2>
+                    <p class="subtitle">Con una cuenta tus partidas se guardan en línea<br/>y se te reconoce en cualquier navegador.</p>
+                    <label>Correo <input id="inp-email" type="email" maxlength="190" placeholder="tucorreo@ejemplo.com" autocomplete="email"/></label>
+                    <label>Contraseña <input id="inp-clave" type="password" maxlength="72" autocomplete="current-password"/></label>
+                    <button id="btn-entrar">Entrar</button>
+                    <button id="btn-olvide" class="btn-enlace">¿Olvidaste tu contraseña?</button>
+                    <button id="btn-ir-registro">Registrarse</button>
+                    <button id="btn-sin-cuenta">Jugar sin cuenta</button>
+                </div>
+                <div id="cuenta-registro" class="hidden">
+                    <h2>Crear cuenta</h2>
+                    <p class="subtitle">El alias es tu nombre visible en el mundo global.</p>
+                    <label>Alias <input id="inp-reg-alias" type="text" maxlength="16" placeholder="Steve_99" autocomplete="username"/></label>
+                    <label>Correo <input id="inp-reg-email" type="email" maxlength="190" placeholder="tucorreo@ejemplo.com" autocomplete="email"/></label>
+                    <label>Contraseña <input id="inp-reg-clave" type="password" maxlength="72" placeholder="mínimo 6 caracteres" autocomplete="new-password"/></label>
+                    <label>Confirmar contraseña <input id="inp-reg-clave2" type="password" maxlength="72" autocomplete="new-password"/></label>
+                    <button id="btn-registrar">Crear la cuenta</button>
+                    <button class="btn-cuenta-volver">Volver</button>
+                </div>
+                <div id="cuenta-recuperar" class="hidden">
+                    <h2>Recuperar contraseña</h2>
+                    <p class="subtitle">Pide un código a tu correo y úsalo aquí<br/>para establecer una contraseña nueva.</p>
+                    <label>Correo <input id="inp-rec-email" type="email" maxlength="190" placeholder="tucorreo@ejemplo.com" autocomplete="email"/></label>
+                    <button id="btn-rec-codigo">Enviarme un código</button>
+                    <label>Código recibido <input id="inp-rec-codigo" type="text" maxlength="8" autocomplete="one-time-code"/></label>
+                    <label>Contraseña nueva <input id="inp-rec-clave" type="password" maxlength="72" placeholder="mínimo 6 caracteres" autocomplete="new-password"/></label>
+                    <label>Confirmar contraseña <input id="inp-rec-clave2" type="password" maxlength="72" autocomplete="new-password"/></label>
+                    <button id="btn-rec-cambiar">Cambiar la contraseña</button>
+                    <button class="btn-cuenta-volver">Volver</button>
+                </div>
+                <p id="cuenta-aviso" class="cuenta-aviso hidden"></p>
+                <p id="cuenta-error" class="cuenta-error hidden"></p>
             </div>
             <div id="menu-new" class="hidden">
                 <h2>Crear un mundo nuevo</h2>
@@ -168,6 +221,8 @@
                     <tr><td>Clic der en el horno</td><td>Fundición (entrada + combustible)</td></tr>
                     <tr><td>Clic der en el cofre</td><td>Abrir cofre</td></tr>
                     <tr><td>Clic der con alimento</td><td>Comer (repone hambre)</td></tr>
+                    <tr><td>T</td><td>Chat y consola de comandos</td></tr>
+                    <tr><td>/</td><td>Consola de comandos (/ayuda los lista)</td></tr>
                     <tr><td>M</td><td>Música sí/no</td></tr>
                     <tr><td>F3</td><td>Depuración</td></tr>
                     <tr><td>R</td><td>Reaparecer</td></tr>

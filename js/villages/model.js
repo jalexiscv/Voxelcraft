@@ -60,23 +60,26 @@ export const ROLES = ['ESQUINA', 'MURO', 'TECHO', 'SUELO', 'CAMINO'];
 export const ROLES_POSICIONALES = ['CULTIVO'];
 
 /**
- * Biomas donde puede anclar una aldea (ids reales del registro de biomas);
+ * Biomas donde puede anclar una aldea (ids del catálogo generado del pack,
+ * los mismos pueblos del MC real: llanura, sabana, desierto, taiga y nieve);
  * el bioma del centro decide el estilo arquitectónico completo.
  */
-export const BIOMAS_ALDEA = ['llanura', 'sabana', 'desierto', 'taiga', 'nevado'];
+export const BIOMAS_ALDEA = ['plains', 'sunflower_plains', 'savanna', 'desert', 'taiga', 'cold_taiga', 'ice_plains'];
 
 /**
  * Paleta de bloques (nombres de B) por bioma, según la tabla del plan.
- * llanura es el comodín: bosque y cerezos comparten su estilo, y cualquier
- * bioma sin paleta propia cae en ella. Sin arenisca en el registro, el
- * desierto construye con arena (no hay física de caída: es estable).
+ * plains es el comodín: los bosques comparten su estilo y cualquier bioma
+ * sin paleta propia cae en ella. Sin arenisca en el registro, el desierto
+ * construye con arena (no hay física de caída: es estable).
  */
 export const PALETAS = {
-    llanura:  { ESQUINA: 'LOG',        MURO: 'PLANKS', TECHO: 'PLANKS',     SUELO: 'COBBLE', CAMINO: 'DIRT' },
-    sabana:   { ESQUINA: 'ACACIA_LOG', MURO: 'PLANKS', TECHO: 'PLANKS',     SUELO: 'COBBLE', CAMINO: 'DIRT' },
-    desierto: { ESQUINA: 'LOG',        MURO: 'SAND',   TECHO: 'SAND',       SUELO: 'SAND',   CAMINO: 'SAND' },
-    taiga:    { ESQUINA: 'SPRUCE_LOG', MURO: 'PLANKS', TECHO: 'SPRUCE_LOG', SUELO: 'COBBLE', CAMINO: 'DIRT' },
-    nevado:   { ESQUINA: 'SPRUCE_LOG', MURO: 'PLANKS', TECHO: 'SNOW',       SUELO: 'PLANKS', CAMINO: 'SNOW' },
+    plains:           { ESQUINA: 'LOG',        MURO: 'PLANKS', TECHO: 'PLANKS',     SUELO: 'COBBLE', CAMINO: 'DIRT' },
+    sunflower_plains: { ESQUINA: 'LOG',        MURO: 'PLANKS', TECHO: 'PLANKS',     SUELO: 'COBBLE', CAMINO: 'DIRT' },
+    savanna:          { ESQUINA: 'ACACIA_LOG', MURO: 'PLANKS', TECHO: 'PLANKS',     SUELO: 'COBBLE', CAMINO: 'DIRT' },
+    desert:           { ESQUINA: 'LOG',        MURO: 'SAND',   TECHO: 'SAND',       SUELO: 'SAND',   CAMINO: 'SAND' },
+    taiga:            { ESQUINA: 'SPRUCE_LOG', MURO: 'PLANKS', TECHO: 'SPRUCE_LOG', SUELO: 'COBBLE', CAMINO: 'DIRT' },
+    cold_taiga:       { ESQUINA: 'SPRUCE_LOG', MURO: 'PLANKS', TECHO: 'SNOW',       SUELO: 'PLANKS', CAMINO: 'SNOW' },
+    ice_plains:       { ESQUINA: 'SPRUCE_LOG', MURO: 'PLANKS', TECHO: 'SNOW',       SUELO: 'PLANKS', CAMINO: 'SNOW' },
 };
 
 /**
@@ -98,10 +101,10 @@ export const UNICOS = ['herreria', 'biblioteca', 'templo', 'atalaya'];
 
 /**
  * Resuelve un rol de paleta al NOMBRE de bloque de B para el bioma dado;
- * los biomas sin paleta propia (bosque, cerezos…) usan la de llanura.
+ * los biomas sin paleta propia (bosques, junglas…) usan la de plains.
  */
 export function resolverRol(rol, biomaId) {
-    const paleta = PALETAS[biomaId] || PALETAS.llanura;
+    const paleta = PALETAS[biomaId] || PALETAS.plains;
     return paleta[rol];
 }
 

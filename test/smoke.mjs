@@ -39,7 +39,7 @@ const f = new Fractal2D(new PRNG(7), 8);
 check('Fractal continuo', Math.abs(f.value(1.0, 1.0) - f.value(1.001, 1.0)) < 0.05);
 
 console.log('== Registro de bloques ==');
-check('bloques base 0..90 todos definidos', [...Array(91).keys()].every((i) => DEFS[i]));
+check('bloques base 0..106 todos definidos', [...Array(107).keys()].every((i) => DEFS[i]));
 check('rango 200..499 reservado a items/huevos (sin defs de bloque)',
     !DEFS[200] && !DEFS[300] && !DEFS[499]);
 check('materiales generados desde 500', DEFS.length > 500 && !!DEFS[500]);

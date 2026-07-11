@@ -22,7 +22,8 @@
  * golpeado), `noBurn` (no arde al sol), `behavior.teleport` (se
  * teletransporta al ser herido) y `behavior.stingOnce` (la abeja).
  */
-import { B } from './blocks.js';
+import { B, esAgua } from './blocks.js';
+import { elegirProyecto, buscarSolar, planDeObra, puntoDeAcopio, RITMO } from './aldeanos.js';
 import { raycast } from './player.js';
 import { PRNG } from './noise.js';
 import { clamp } from './math.js';
@@ -115,6 +116,14 @@ export class Mob {
         this.hopStartZ = 0;
         this.hopDist = 0;
         this.trailT = 0;             // reloj entre emisiones del rastro
+        // aldeano constructor (behavior.builder): proyecto en curso y relojes.
+        // La obra NO persiste (los bloques colocados sí, con el chunk): al
+        // recargar, el proyecto a medias se abandona — como la mecha de la lata.
+        this.obra = null;            // { pieza, caja, plan, indice, acopio, puesto, cargas, fase, recogiendo }
+        this.obraCd = 20 + Math.random() * 40; // descanso hasta el primer proyecto
+        this.scanCd = 0;             // sondeo de hostiles (defensa de la obra)
+        this.trabajoT = 0;           // cadencia de recoger material / colocar bloque
+        this.defensa = null;         // hostil al que planta cara mientras defiende
     }
 
     dying() { return this.dieT >= 0; }
@@ -140,6 +149,7 @@ export class MobSystem {
         this.defs = defs;
         this.world = world;
         this.hooks = hooks;
+        this.seed = seed; // la usan los planes de obra (cultivos deterministas)
         this.rng = new PRNG(seed);
         this.biomes = new BiomeMap(seed);
         this.mobs = [];
@@ -220,6 +230,7 @@ export class MobSystem {
         if (m.def.behavior && m.def.behavior.evasive) this.evasiveAI(m, dt, ctx, dist);
         else if (m.def.behavior && m.def.behavior.antidron) this.antidronAI(m, dt, ctx, dist);
         else if (m.def.behavior && m.def.behavior.guardian) this.guardianAI(m, dt, ctx, dist);
+        else if (m.def.behavior && m.def.behavior.builder) this.builderAI(m, dt, ctx, dist);
         else if ((m.def.hostile || m.angerT > 0) && !ctx.creative) this.hostileAI(m, dt, ctx, dist);
         else this.passiveAI(m, dt, ctx, dist);
 
@@ -582,6 +593,146 @@ export class MobSystem {
         this.patrolAround(m, dt, ctx);
     }
 
+    /**
+     * IA del aldeano CONSTRUCTOR (behavior.builder): entre paseo y paseo
+     * emprende PROYECTOS —choza, huerto o estatua (js/aldeanos.js)—: elige
+     * un solar llano cercano, va al punto de acopio a por materiales, los
+     * acarrea al puesto de obra y coloca los bloques de abajo arriba,
+     * volviendo a por más carga cada pocos bloques. Si un hostil terrestre
+     * se acerca a la obra (o a él), la DEFIENDE cuerpo a cuerpo con el
+     * molde de chaseTarget, salvo que esté malherido (entonces manda la
+     * huida de siempre). La obra vive en el mob y NO persiste: al recargar
+     * quedan los bloques ya colocados (viajan/persisten solos vía world.set)
+     * y el proyecto a medias se abandona — el patrón de la mecha de la lata.
+     */
+    builderAI(m, dt, ctx, dist) {
+        const b = m.def.behavior;
+        m.scanCd = Math.max(0, m.scanCd - dt);
+        m.obraCd = Math.max(0, m.obraCd - dt);
+        m.trabajoT = Math.max(0, m.trabajoT - dt);
+
+        // recién golpeado: manda la huida clásica del pasivo
+        if (m.state === 'flee') {
+            m.defensa = null;
+            this.passiveAI(m, dt, ctx, dist);
+            return;
+        }
+
+        // defensa: el hostil terrestre más cercano a la obra o al aldeano
+        // (sondeado cada medio segundo; malherido no pelea)
+        if (m.hp > (b.fleeHp || 6)) {
+            if (m.scanCd <= 0) {
+                m.scanCd = 0.5;
+                m.defensa = null;
+                let mejor = b.aggro || 10;
+                const focos = m.obra
+                    ? [m.pos, [m.obra.pieza.x, m.obra.pieza.y, m.obra.pieza.z]]
+                    : [m.pos];
+                for (const otro of this.mobs) {
+                    if (otro === m || otro.dying() || otro.def.flying) continue;
+                    if (!(otro.def.hostile || otro.angerT > 0)) continue;
+                    for (const f of focos) {
+                        const d = Math.hypot(otro.pos[0] - f[0], otro.pos[2] - f[2]);
+                        if (d < mejor) { mejor = d; m.defensa = otro; }
+                    }
+                }
+            }
+            if (m.defensa && !m.defensa.dying() && this.mobs.includes(m.defensa)) {
+                this.chaseTarget(m, ctx, m.defensa);
+                return;
+            }
+            m.defensa = null;
+        } else {
+            m.defensa = null;
+        }
+
+        // sin proyecto: pasea como cualquier aldeano y, pasado el descanso,
+        // busca un solar; si no lo hay cerca, reintenta en un rato
+        if (!m.obra) {
+            if (m.obraCd <= 0 && m.onGround) {
+                m.obraCd = 20 + this.rng.float() * 25;
+                const idPlano = elegirProyecto(this.rng);
+                const solar = buscarSolar(this.world, m.pos[0], m.pos[2], idPlano, this.rng);
+                if (solar) {
+                    const { pieza, caja } = solar;
+                    const biomaId = this.biomeAt(Math.floor(pieza.x), Math.floor(pieza.z)).id;
+                    const acopio = puntoDeAcopio(pieza, this.rng);
+                    // puesto de obra: junto al borde de la huella, del lado
+                    // del acopio (así nunca queda emparedado en su edificio)
+                    const rc = Math.max(caja[2] - caja[0], caja[3] - caja[1]) / 2 + 1.6;
+                    const ang = Math.atan2(acopio[1] - pieza.z, acopio[0] - pieza.x);
+                    m.obra = {
+                        pieza, caja, acopio,
+                        plan: planDeObra(pieza, biomaId, this.seed),
+                        puesto: [pieza.x + Math.cos(ang) * rc, pieza.z + Math.sin(ang) * rc],
+                        indice: 0, cargas: 0, fase: 'acopio', recogiendo: false,
+                    };
+                }
+            }
+            this.passiveAI(m, dt, ctx, dist);
+            return;
+        }
+
+        // ir hacia (tx, tz): rumbo + paso; llegado si queda a < 1.4. Sin
+        // pathfinding, un risco o un tronco pueden dejarlo empujando en
+        // vano: si apenas avanza durante unos segundos, ABANDONA la obra y
+        // sorteará otra en un solar alcanzable (los bloques ya puestos quedan).
+        const obra = m.obra;
+        const irA = (tx, tz) => {
+            m.state = 'wander';
+            m.yaw = Math.atan2(-(tx - m.pos[0]), -(tz - m.pos[2]));
+            m.speed = m.def.speed;
+            this.lookAt(m, null);
+            const avance = Math.hypot(m.pos[0] - (obra.prevX ?? m.pos[0]), m.pos[2] - (obra.prevZ ?? m.pos[2]));
+            obra.prevX = m.pos[0]; obra.prevZ = m.pos[2];
+            obra.atascoT = avance < m.def.speed * dt * 0.2 ? (obra.atascoT || 0) + dt : 0;
+            return Math.hypot(m.pos[0] - tx, m.pos[2] - tz) < 1.4;
+        };
+        if ((obra.atascoT || 0) > 8) {
+            m.obra = null;
+            m.obraCd = 8 + this.rng.float() * 10;
+            this.passiveAI(m, dt, ctx, dist);
+            return;
+        }
+
+        if (obra.fase === 'acopio') {
+            if (irA(obra.acopio[0] + 0.5, obra.acopio[1] + 0.5)) {
+                m.speed = 0;
+                if (!obra.recogiendo) { obra.recogiendo = true; m.trabajoT = 1.2; }
+                else if (m.trabajoT <= 0) { obra.recogiendo = false; obra.fase = 'acarreo'; }
+            }
+            return;
+        }
+        if (obra.fase === 'acarreo') {
+            if (irA(obra.puesto[0], obra.puesto[1])) obra.fase = 'obra';
+            return;
+        }
+
+        // fase 'obra': un bloque por cadencia, mirando a la obra
+        m.speed = 0;
+        m.state = 'idle';
+        this.lookAt(m, [obra.pieza.x + 0.5, m.pos[1] + 1.2, obra.pieza.z + 0.5]);
+        if (m.trabajoT > 0) return;
+        m.trabajoT = RITMO.COLOCA_CD;
+        let colocado = false;
+        while (obra.indice < obra.plan.length && !colocado) {
+            const c = obra.plan[obra.indice++];
+            if (!this.world.hasChunk(c.x >> 4, c.z >> 4)) continue; // sin generar: se salta
+            if (this.world.get(c.x, c.y, c.z) === c.id) continue;   // ya está como debe
+            this.world.set(c.x, c.y, c.z, c.id);
+            colocado = true;
+            if (++obra.cargas >= RITMO.CARGA_BLOQUES) {             // carga agotada: otro viaje
+                obra.cargas = 0;
+                obra.fase = 'acopio';
+            }
+        }
+        if (obra.indice >= obra.plan.length) {                       // obra terminada
+            m.obra = null;
+            m.obraCd = RITMO.PROYECTO_CD * (0.7 + this.rng.float() * 0.6);
+            this.hooks.sound('say', m); // la celebra con su voz
+        }
+    }
+
     /** Persigue en 3D a un mob y lo golpea cuerpo a cuerpo (guardián). */
     chaseTarget(m, ctx, objetivo) {
         const b = m.def.behavior;
@@ -790,7 +941,7 @@ export class MobSystem {
 
     stepPhysics(m, dt) {
         const fx = Math.floor(m.pos[0]), fz = Math.floor(m.pos[2]);
-        m.inWater = this.world.get(fx, Math.floor(m.pos[1] + 0.3), fz) === B.WATER;
+        m.inWater = esAgua(this.world.get(fx, Math.floor(m.pos[1] + 0.3), fz));
         // posición horizontal previa: mide el avance real (para el desatasco)
         const prevX = m.pos[0], prevZ = m.pos[2];
 
@@ -973,7 +1124,7 @@ export class MobSystem {
             const z = Math.floor(m.pos[2] + Math.sin(a) * d);
             if (!this.world.hasChunk(x >> 4, z >> 4)) continue;
             const y = this.world.surfaceY(x, z) + 1;
-            if (y <= 2 || this.world.get(x, y, z) === B.WATER) continue;
+            if (y <= 2 || esAgua(this.world.get(x, y, z))) continue;
             m.pos = [x + 0.5, y + 0.01, z + 0.5];
             m.vel = [0, 0, 0];
             return;
@@ -1019,7 +1170,7 @@ export class MobSystem {
                     if (dx * dx + dy * dy + dz * dz > r * r) continue;
                     const x = Math.floor(ex + dx), y = Math.floor(ey + dy), z = Math.floor(ez + dz);
                     const id = this.world.get(x, y, z);
-                    if (id !== B.AIR && id !== B.BEDROCK && id !== B.WATER) this.world.set(x, y, z, B.AIR);
+                    if (id !== B.AIR && id !== B.BEDROCK && !esAgua(id)) this.world.set(x, y, z, B.AIR);
                 }
             }
         }
@@ -1140,13 +1291,13 @@ export class MobSystem {
         const surf = this.world.surfaceY(x, z);
         if (habitat === 'land') {
             const y = surf + 1;
-            if (y <= 2 || this.world.get(x, y, z) === B.WATER) return null;
+            if (y <= 2 || esAgua(this.world.get(x, y, z))) return null;
             return { y, below: this.world.get(x, surf, z) };
         }
         if (habitat === 'water') {
             // columna de agua sobre el lecho: aparece a media profundidad
             let top = surf + 1;
-            while (this.world.get(x, top, z) === B.WATER) top++;
+            while (esAgua(this.world.get(x, top, z))) top++;
             if (top === surf + 1) return null; // no hay agua
             const y = surf + 1 + this.rng.int(Math.max(1, top - surf - 2));
             return { y, below: this.world.get(x, surf, z) };

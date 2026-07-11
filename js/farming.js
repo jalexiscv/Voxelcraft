@@ -8,7 +8,7 @@
  * ids 72..83 contiguos por familia): el mundo guarda un byte por celda,
  * así que la persistencia de la etapa sale gratis con el guardado normal.
  */
-import { B } from './blocks.js';
+import { B, esAgua } from './blocks.js';
 import { ITEMS } from './items.js';
 import { CHUNK } from './world.js';
 
@@ -78,7 +78,7 @@ function regado(world, x, y, z) {
     for (let dy = 0; dy >= -1; dy--) {
         for (let dx = -RADIO_RIEGO; dx <= RADIO_RIEGO; dx++) {
             for (let dz = -RADIO_RIEGO; dz <= RADIO_RIEGO; dz++) {
-                if (world.get(x + dx, y + dy, z + dz) === B.WATER) return true;
+                if (esAgua(world.get(x + dx, y + dy, z + dz))) return true;
             }
         }
     }
